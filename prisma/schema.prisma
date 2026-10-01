@@ -1,0 +1,311 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String
+  role          String         @default("EMPLOYEE") // ADMIN, MANAGER, EMPLOYEE
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  employee      Employee?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Department {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  employees   Employee[]
+}
+
+model Designation {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  employees   Employee[]
+}
+
+model Employee {
+  id               String           @id @default(cuid())
+  employeeCode     String           @unique
+  userId           String           @unique
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String?
+  profilePhoto     String?
+  departmentId     String?
+  department       Department?      @relation(fields: [departmentId], references: [id])
+  designationId    String?
+  designation      Designation?     @relation(fields: [designationId], references: [id])
+  managerId        String?
+  manager          Employee?        @relation("EmployeeToManager", fields: [managerId], references: [id])
+  directReports    Employee[]       @relation("EmployeeToManager")
+  joiningDate      DateTime         @default(now())
+  salary           Float            @default(0)
+  employmentStatus String           @default("ACTIVE") // ACTIVE, INACTIVE, ON_LEAVE
+  address          String?
+  emergencyContact String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  leads            Lead[]
+  sales            Order[]
+  attendances      Attendance[]
+  assignedTasks    Task[]           @relation("AssignedTasks")
+  createdTasks     Task[]           @relation("CreatedTasks")
+  taskComments     TaskComment[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  company   String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads     Lead[]
+  orders    Order[]
+}
+
+model Lead {
+  id               String       @id @default(cuid())
+  leadCode         String       @unique
+  customerName     String
+  phone            String
+  email            String?
+  company          String?
+  location         String?
+  source           String       @default("WEBSITE") // WEBSITE, WHATSAPP, INSTAGRAM, FACEBOOK, GOOGLE, REFERRAL, PHONE, OTHER
+  productInterest  String?
+  expectedValue    Float        @default(0)
+  assignedToId     String?
+  assignedTo       Employee?    @relation(fields: [assignedToId], references: [id])
+  customerId       String?
+  customer         Customer?    @relation(fields: [customerId], references: [id])
+  status           String       @default("NEW") // NEW, CONTACTED, FOLLOW_UP, QUALIFIED, CONVERTED, LOST
+  priority         String       @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  followUpDate     DateTime?
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  followUps        FollowUp[]
+  activities       LeadActivity[]
+  orders           Order[]
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String
+  note      String
+  createdAt DateTime @default(now())
+}
+
+model FollowUp {
+  id             String    @id @default(cuid())
+  leadId         String
+  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledDate  DateTime
+  completedDate  DateTime?
+  notes          String
+  status         String    @default("PENDING") // PENDING, COMPLETED, MISSED
+  createdAt      DateTime  @default(now())
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  sku         String      @unique
+  description String?
+  price       Float
+  stock       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  orderItems  OrderItem[]
+}
+
+model Quotation {
+  id            String        @id @default(cuid())
+  quoteCode     String        @unique
+  customerName  String
+  customerEmail String
+  totalAmount   Float
+  status        String        @default("DRAFT")
+  validUntil    DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  orderCode     String        @unique
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  employeeId    String?
+  employee      Employee?     @relation(fields: [employeeId], references: [id])
+  leadId        String?
+  lead          Lead?         @relation(fields: [leadId], references: [id])
+  totalAmount   Float
+  discount      Float         @default(0)
+  tax           Float         @default(0)
+  paymentStatus String        @default("PENDING") // PENDING, PARTIAL, PAID, OVERDUE
+  notes         String?
+  saleDate      DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  orderItems    OrderItem[]
+  invoices      Invoice[]
+  payments      Payment[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  itemTitle String
+  quantity  Int      @default(1)
+  unitPrice Float
+  total     Float
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceCode   String        @unique
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  totalAmount   Float
+  paymentStatus String        @default("PENDING")
+  createdAt     DateTime      @default(now())
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  paymentCode   String        @unique
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String
+  paymentStatus String        @default("PAID")
+  paymentDate   DateTime      @default(now())
+  notes         String?
+}
+
+model Attendance {
+  id              String           @id @default(cuid())
+  employeeId      String
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime
+  checkIn         DateTime?
+  checkOut        DateTime?
+  breakDurationMin Int             @default(0)
+  workingHoursMin Int              @default(0)
+  status          String           @default("PRESENT") // PRESENT, ABSENT, HALF_DAY, LEAVE, HOLIDAY
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  breaks          Break[]
+}
+
+model Break {
+  id           String     @id @default(cuid())
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  startTime    DateTime
+  endTime      DateTime?
+  durationMin  Int        @default(0)
+}
+
+model Task {
+  id             String        @id @default(cuid())
+  taskCode       String        @unique
+  title          String
+  description    String
+  assignedToId   String?
+  assignedTo     Employee?     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  createdById    String?
+  createdBy      Employee?     @relation("CreatedTasks", fields: [createdById], references: [id])
+  priority       String        @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate        DateTime
+  estimatedHours Float         @default(0)
+  actualHours    Float         @default(0)
+  status         String        @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED, OVERDUE
+  completedDate  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  comments       TaskComment[]
+  histories      TaskHistory[]
+}
+
+model TaskComment {
+  id         String   @id @default(cuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     Employee @relation(fields: [authorId], references: [id])
+  comment    String
+  createdAt  DateTime @default(now())
+}
+
+model TaskHistory {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  field     String
+  oldValue  String?
+  newValue  String?
+  changedBy String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  type      String   @default("INFO") // INFO, SUCCESS, WARNING, ERROR
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userName  String?
+  action    String
+  module    String
+  recordId  String?
+  details   String?
+  createdAt DateTime @default(now())
+}
