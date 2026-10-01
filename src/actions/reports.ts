@@ -171,3 +171,70 @@ export async function performGlobalSearch(query: string) {
 
   return { employees, leads, customers, sales, tasks };
 }
+
+export async function submitClientReport(data: {
+  customerName: string;
+  projectTitle: string;
+  status: string;
+  summary: string;
+  deliverables: string;
+  nextWeekPlan: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const userName = session.user.name || "Employee";
+  const log = await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName,
+      action: "SUBMIT_CLIENT_REPORT",
+      module: "CLIENT_REPORTS",
+      recordId: data.projectTitle,
+      details: JSON.stringify({
+        customerName: data.customerName,
+        projectTitle: data.projectTitle,
+        status: data.status,
+        summary: data.summary,
+        deliverables: data.deliverables,
+        nextWeekPlan: data.nextWeekPlan,
+        submittedAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  return log;
+}
+
+export async function getClientReports() {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const logs = await prisma.auditLog.findMany({
+    where: {
+      module: "CLIENT_REPORTS",
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return logs.map((log) => {
+    let detailsObj: any = {};
+    try {
+      detailsObj = JSON.parse(log.details || "{}");
+    } catch {
+      detailsObj = { summary: log.details };
+    }
+
+    return {
+      id: log.id,
+      submittedBy: log.userName,
+      customerName: detailsObj.customerName || "Enterprise Client",
+      projectTitle: detailsObj.projectTitle || log.recordId || "Project Milestone",
+      status: detailsObj.status || "IN_PROGRESS",
+      summary: detailsObj.summary || "",
+      deliverables: detailsObj.deliverables || "",
+      nextWeekPlan: detailsObj.nextWeekPlan || "",
+      createdAt: log.createdAt,
+    };
+  });
+}
