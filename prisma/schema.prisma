@@ -70,6 +70,9 @@ model Employee {
   assignedTasks    Task[]           @relation("AssignedTasks")
   createdTasks     Task[]           @relation("CreatedTasks")
   taskComments     TaskComment[]
+  leaveRequests    LeaveRequest[]
+  queries          EmployeeQuery[]
+  salarySlips      SalarySlip[]
 }
 
 model Customer {
@@ -309,3 +312,80 @@ model AuditLog {
   details   String?
   createdAt DateTime @default(now())
 }
+
+model LeaveRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String    // CASUAL, SICK, PAID, UNPAID, HALF_DAY, WORK_FROM_HOME
+  startDate   DateTime
+  endDate     DateTime
+  daysCount   Float     @default(1.0)
+  halfDayType String?   // FIRST_HALF, SECOND_HALF, null
+  reason      String
+  status      String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  approvedBy  String?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime @unique
+  type        String   @default("NATIONAL") // NATIONAL, FESTIVAL, OPTIONAL, SUNDAY, COMPANY_OFF
+  description String?
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmployeeQuery {
+  id          String    @id @default(cuid())
+  queryCode   String    @unique
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  category    String    // SALARY_PAYROLL, LEAVE_ATTENDANCE, IT_SUPPORT, WORKPLACE, HR_POLICY, GENERAL
+  subject     String
+  description String
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  response    String?
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SalarySlip {
+  id             String    @id @default(cuid())
+  slipCode       String    @unique
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month          Int       // 1 - 12
+  year           Int       // e.g. 2026
+  basicSalary    Float     @default(0)
+  hra            Float     @default(0)
+  specialAllow   Float     @default(0)
+  bonus          Float     @default(0)
+  grossSalary    Float     @default(0)
+  pfDeduction    Float     @default(0)
+  taxDeduction   Float     @default(0)
+  leaveDeduction Float     @default(0)
+  otherDeduction Float     @default(0)
+  totalDeduction Float     @default(0)
+  netSalary      Float     @default(0)
+  totalWorkingDays Int     @default(30)
+  presentDays    Float     @default(30)
+  paidLeaves     Float     @default(0)
+  wfhDays        Float     @default(0)
+  halfDays       Float     @default(0)
+  unpaidLeaves   Float     @default(0)
+  paymentStatus  String    @default("PAID") // PAID, GENERATED, HOLD
+  paymentDate    DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+

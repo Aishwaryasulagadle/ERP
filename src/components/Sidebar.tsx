@@ -65,7 +65,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN" }: S
       items: [
         { name: "Staff Directory", href: "/employees", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
         { name: "Attendance & Punch", href: "/employees?tab=ATTENDANCE", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Leave & WFH", href: "/employees?tab=LEAVE", icon: Calendar, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Salary Slips", href: "/employees?tab=PAYROLL", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Holidays & Weekends", href: "/employees?tab=HOLIDAYS", icon: Sparkles, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Helpdesk Queries", href: "/employees?tab=QUERIES", icon: Activity, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
         { name: "Sprint Tasks", href: "/employees?tab=TASKS", icon: CheckSquare, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "My Work Reports", href: "/employee/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
       ],
     },
     {

@@ -16,23 +16,23 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
   let bg = "bg-slate-100 text-slate-700 border-slate-200";
 
   // Success / Emerald
-  if (["PAID", "CONVERTED", "PRESENT", "COMPLETED", "ACTIVE", "QUALIFIED", "HIGH"].includes(norm)) {
+  if (["PAID", "CONVERTED", "PRESENT", "COMPLETED", "ACTIVE", "QUALIFIED", "HIGH", "APPROVED", "RESOLVED"].includes(norm)) {
     bg = "bg-emerald-50 text-emerald-700 border-emerald-200";
   }
   // Warning / Amber
-  if (["PENDING", "FOLLOW_UP", "LATE", "MEDIUM", "IN_PROGRESS", "CONTACTED", "ACTION_NEEDED"].includes(norm)) {
+  if (["PENDING", "FOLLOW_UP", "LATE", "MEDIUM", "IN_PROGRESS", "CONTACTED", "ACTION_NEEDED", "HALF_DAY", "OPTIONAL"].includes(norm)) {
     bg = "bg-amber-50 text-amber-700 border-amber-200";
   }
   // Danger / Red
-  if (["LOST", "OVERDUE", "ABSENT", "URGENT", "FAILED", "REJECTED"].includes(norm)) {
+  if (["LOST", "OVERDUE", "ABSENT", "URGENT", "FAILED", "REJECTED", "CANCELLED", "CLOSED"].includes(norm)) {
     bg = "bg-rose-50 text-rose-700 border-rose-200";
   }
-  // Primary Blue
-  if (["NEW", "LEAVE", "ADMIN", "OPEN", "PRO", "ENTERPRISE", "LOW"].includes(norm)) {
+  // Primary Blue / Purple
+  if (["NEW", "LEAVE", "ADMIN", "OPEN", "PRO", "ENTERPRISE", "LOW", "WORK_FROM_HOME", "WFH", "NATIONAL", "FESTIVAL"].includes(norm)) {
     bg = "bg-blue-50 text-blue-700 border-blue-200 font-bold";
   }
-  // Indigo / Cyan
-  if (["MANAGER", "SHIFTS", "TASK", "LEAD"].includes(norm)) {
+  // Indigo / Purple / Sunday
+  if (["MANAGER", "SHIFTS", "TASK", "LEAD", "SUNDAY", "COMPANY_OFF", "GENERATED", "HOLD"].includes(norm)) {
     bg = "bg-indigo-50 text-indigo-700 border-indigo-200";
   }
 
@@ -60,6 +60,7 @@ interface KpiCardProps {
   icon: LucideIcon;
   iconColor?: string;
   className?: string;
+  onClick?: () => void;
 }
 
 export function KpiCard({
@@ -71,11 +72,14 @@ export function KpiCard({
   icon: Icon,
   iconColor = "text-blue-600 bg-blue-50 border-blue-200",
   className,
+  onClick,
 }: KpiCardProps) {
   return (
     <div
+      onClick={onClick}
       className={cn(
         "p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all group flex flex-col justify-between shadow-sm",
+        onClick && "cursor-pointer active:scale-[0.99]",
         className
       )}
     >

@@ -200,67 +200,10 @@ export function AttendanceClient({
               Attendance & Shifts
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Punch Terminal, Shift Logs, Working Hours & Break Auditing
+              Shift Attendance Records, Working Hours & Logs
             </p>
           </div>
         </div>
-
-      {/* Punch Quick Action Terminal with Digital Clock & GPS */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
-        <div className="flex items-center gap-5">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-3xl font-bold font-mono text-slate-900 tracking-tight">
-              09:42:15 AM
-            </div>
-            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>GPS Geofence: Office HQ (Verified)</span>
-              <span>•</span>
-              <span>IST (UTC+5:30)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Punch Buttons */}
-        <div className="flex items-center gap-3">
-          {!isCheckedIn ? (
-            <button
-              onClick={handleClockIn}
-              disabled={loading}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>PUNCH CLOCK IN</span>
-            </button>
-          ) : !isCheckedOut ? (
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={handleToggleBreak}
-                disabled={loading}
-                className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Coffee className="w-4 h-4" />
-                <span>{ongoingBreak ? "End Break" : "Start Break"}</span>
-              </button>
-              <button
-                onClick={handleClockOut}
-                disabled={loading}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Square className="w-4 h-4 fill-current" />
-                <span>PUNCH CLOCK OUT</span>
-              </button>
-            </div>
-          ) : (
-            <span className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-mono font-bold">
-              ✓ Shift Completed (8h 15m logged)
-            </span>
-          )}
-        </div>
-      </div>
 
       {/* 4 Attendance Status Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

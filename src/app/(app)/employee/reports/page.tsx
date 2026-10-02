@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { getERPReports, getClientReports } from "@/actions/reports";
-import { ReportsClient } from "@/components/ReportsClient";
+import { EmployeeReportsClient } from "@/components/EmployeeReportsClient";
 
 export default async function EmployeeReportsPage() {
   const session = await auth();
@@ -11,5 +11,5 @@ export default async function EmployeeReportsPage() {
 
   const userRole = (session?.user as any)?.role || "EMPLOYEE";
 
-  return <ReportsClient reports={reports} clientReports={clientReports} userRole={userRole} user={session?.user} />;
+  return <EmployeeReportsClient reports={reports} clientReports={clientReports} userRole={userRole} user={session?.user} />;
 }

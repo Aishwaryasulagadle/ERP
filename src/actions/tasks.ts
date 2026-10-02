@@ -146,6 +146,90 @@ export async function updateTaskStatus(taskId: string, status: string, actualHou
   return updated;
 }
 
+export async function logTaskHourlyProgress(data: {
+  taskId: string;
+  hoursSpent: number;
+  progressNote?: string;
+  newStatus?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const existing = await prisma.task.findUnique({
+    where: { id: data.taskId },
+    include: { comments: true }
+  });
+  if (!existing) throw new Error("Task not found");
+
+  const addedHours = Number(data.hoursSpent) || 0;
+  const newActualHours = Math.max(0, existing.actualHours + addedHours);
+  
+  let newStatus = data.newStatus || existing.status;
+  if (existing.status === "PENDING" && addedHours > 0 && !data.newStatus) {
+    newStatus = "IN_PROGRESS";
+  }
+
+  const updated = await prisma.task.update({
+    where: { id: data.taskId },
+    data: {
+      actualHours: newActualHours,
+      status: newStatus,
+      completedDate: newStatus === "COMPLETED" ? new Date() : existing.completedDate,
+    },
+    include: {
+      assignedTo: { include: { user: true, designation: true } },
+      createdBy: { include: { user: true } },
+      comments: {
+        include: { author: { include: { user: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+      histories: { orderBy: { createdAt: "desc" } },
+    }
+  });
+
+  const employeeId = (session.user as any).employeeId;
+  const noteText = data.progressNote?.trim() 
+    ? `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h / Est: ${existing.estimatedHours}h). Note: ${data.progressNote}`
+    : `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h / Est: ${existing.estimatedHours}h).`;
+
+  if (employeeId) {
+    await prisma.taskComment.create({
+      data: {
+        taskId: data.taskId,
+        authorId: employeeId,
+        comment: noteText,
+      },
+    });
+  }
+
+  await prisma.taskHistory.create({
+    data: {
+      taskId: data.taskId,
+      field: "HOURLY_PROGRESS",
+      oldValue: `${existing.actualHours} hrs (${existing.status})`,
+      newValue: `${newActualHours} hrs (${newStatus})`,
+      changedBy: session.user.name || "User",
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: session.user.name || "User",
+      action: "LOG_TASK_HOURS",
+      module: "TASKS",
+      recordId: updated.taskCode,
+      details: `Logged ${addedHours}h work on task ${updated.taskCode}. Total hours: ${newActualHours}h.`,
+    },
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/employee/tasks");
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  return updated;
+}
+
 export async function addTaskComment(taskId: string, comment: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -164,5 +248,8 @@ export async function addTaskComment(taskId: string, comment: string) {
   });
 
   revalidatePath("/tasks");
+  revalidatePath("/employee/tasks");
+  revalidatePath("/employees");
   return newComment;
 }
+

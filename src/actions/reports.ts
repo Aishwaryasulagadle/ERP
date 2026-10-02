@@ -173,31 +173,39 @@ export async function performGlobalSearch(query: string) {
 }
 
 export async function submitClientReport(data: {
-  customerName: string;
+  reportType?: "DAILY" | "WEEKLY" | "MONTHLY" | "CLIENT" | "INCIDENT";
+  customerName?: string;
   projectTitle: string;
   status: string;
   summary: string;
   deliverables: string;
-  nextWeekPlan: string;
+  nextWeekPlan?: string;
+  blockers?: string;
+  hoursSpent?: number;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
   const userName = session.user.name || "Employee";
+  const rType = data.reportType || "WEEKLY";
+
   const log = await prisma.auditLog.create({
     data: {
       userId: session.user.id,
       userName,
-      action: "SUBMIT_CLIENT_REPORT",
+      action: `SUBMIT_${rType}_REPORT`,
       module: "CLIENT_REPORTS",
       recordId: data.projectTitle,
       details: JSON.stringify({
-        customerName: data.customerName,
+        reportType: rType,
+        customerName: data.customerName || "Internal Operations",
         projectTitle: data.projectTitle,
         status: data.status,
         summary: data.summary,
         deliverables: data.deliverables,
-        nextWeekPlan: data.nextWeekPlan,
+        nextWeekPlan: data.nextWeekPlan || "",
+        blockers: data.blockers || "",
+        hoursSpent: Number(data.hoursSpent) || 8,
         submittedAt: new Date().toISOString(),
       }),
     },
@@ -228,13 +236,17 @@ export async function getClientReports() {
     return {
       id: log.id,
       submittedBy: log.userName,
-      customerName: detailsObj.customerName || "Enterprise Client",
-      projectTitle: detailsObj.projectTitle || log.recordId || "Project Milestone",
+      reportType: detailsObj.reportType || "WEEKLY",
+      customerName: detailsObj.customerName || "Internal Operations",
+      projectTitle: detailsObj.projectTitle || log.recordId || "Work Report",
       status: detailsObj.status || "IN_PROGRESS",
       summary: detailsObj.summary || "",
       deliverables: detailsObj.deliverables || "",
       nextWeekPlan: detailsObj.nextWeekPlan || "",
+      blockers: detailsObj.blockers || "",
+      hoursSpent: detailsObj.hoursSpent || 8,
       createdAt: log.createdAt,
     };
   });
 }
+
