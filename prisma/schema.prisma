@@ -67,9 +67,12 @@ model Employee {
   leads            Lead[]
   sales            Order[]
   attendances      Attendance[]
+  attendanceCorrections AttendanceCorrection[]
   assignedTasks    Task[]           @relation("AssignedTasks")
   createdTasks     Task[]           @relation("CreatedTasks")
   taskComments     TaskComment[]
+  workLogs         WorkLog[]
+  overtimeRequests OvertimeRequest[]
   leaveRequests    LeaveRequest[]
   queries          EmployeeQuery[]
   salarySlips      SalarySlip[]
@@ -387,5 +390,54 @@ model SalarySlip {
   notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+model AttendanceCorrection {
+  id               String    @id @default(cuid())
+  employeeId       String
+  employee         Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date             DateTime
+  requestedCheckIn DateTime?
+  requestedCheckOut DateTime?
+  reason           String
+  attachment       String?
+  status           String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  reviewedBy       String?
+  reviewNote       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model WorkLog {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  taskId      String?
+  taskTitle   String?
+  date        DateTime  @default(now())
+  description String
+  startTime   DateTime?
+  endTime     DateTime?
+  hoursSpent  Float     @default(0)
+  progressPct Int       @default(100)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model OvertimeRequest {
+  id            String    @id @default(cuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date          DateTime
+  startTime     DateTime
+  endTime       DateTime
+  totalHours    Float     @default(0)
+  reason        String
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  approvedBy    String?
+  reviewNote    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
