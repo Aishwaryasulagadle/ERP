@@ -57,15 +57,30 @@ export async function createEmployee(data: {
   email: string;
   phone?: string;
   departmentId: string;
-  designationId: string;
+  designationId?: string;
+  designationName?: string;
   salary: number;
   role: string;
   address?: string;
   emergencyContact?: string;
 }) {
   const session = await auth();
-  if (!session?.user || (session.user as any)?.role !== "ADMIN") {
-    throw new Error("Only Admin can add employees");
+  const callerRole = (session?.user as any)?.role;
+  const callerDeptId = (session?.user as any)?.departmentId;
+
+  if (!session?.user || (callerRole !== "ADMIN" && callerRole !== "MANAGER")) {
+    throw new Error("Only Admin or Manager can add employees");
+  }
+
+  // Manager can only assign role EMPLOYEE or MANAGER (never ADMIN), and only in their own department
+  let assignedRole = data.role || "EMPLOYEE";
+  if (callerRole === "MANAGER") {
+    if (assignedRole === "ADMIN") {
+      assignedRole = "EMPLOYEE";
+    }
+    if (callerDeptId && data.departmentId !== callerDeptId) {
+      data.departmentId = callerDeptId;
+    }
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
@@ -77,9 +92,24 @@ export async function createEmployee(data: {
       name: data.name,
       email: data.email,
       password: passwordHash,
-      role: data.role || "EMPLOYEE",
+      role: assignedRole,
     },
   });
+
+  // Handle designation: can be passed by designationName text or designationId
+  let resolvedDesignationId = data.designationId || null;
+  if (data.designationName && data.designationName.trim()) {
+    const trimmedDesig = data.designationName.trim();
+    const desigRecord = await prisma.designation.upsert({
+      where: { name: trimmedDesig },
+      update: {},
+      create: {
+        name: trimmedDesig,
+        description: `${trimmedDesig} Role`,
+      },
+    });
+    resolvedDesignationId = desigRecord.id;
+  }
 
   const empCount = await prisma.employee.count();
   const employeeCode = `EMP-${String(empCount + 1).padStart(3, "0")}`;
@@ -90,7 +120,7 @@ export async function createEmployee(data: {
       userId: user.id,
       phone: data.phone,
       departmentId: data.departmentId || null,
-      designationId: data.designationId || null,
+      designationId: resolvedDesignationId,
       salary: Number(data.salary) || 50000,
       employmentStatus: "ACTIVE",
       address: data.address,
@@ -111,7 +141,7 @@ export async function createEmployee(data: {
   await prisma.auditLog.create({
     data: {
       userId: session.user.id,
-      userName: session.user.name || "Admin",
+      userName: session.user.name || "User",
       action: "CREATE_EMPLOYEE",
       module: "EMPLOYEES",
       recordId: employee.employeeCode,

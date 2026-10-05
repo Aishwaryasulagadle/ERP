@@ -172,13 +172,16 @@ export function EmployeesClient({
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState<any | null>(null);
+  const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedAttendanceYear, setSelectedAttendanceYear] = useState<number>(new Date().getFullYear());
 
   const [employeeFormData, setEmployeeFormData] = useState({
     name: "",
     email: "",
     phone: "",
     departmentId: departments[0]?.id || "",
-    designationId: designations[0]?.id || "",
+    designationName: "",
     salary: 75000,
     monthlyLeaveQuota: 2, // 2 Leaves allowed in 30 days per month (excl 4 Sundays)
     role: "EMPLOYEE",
@@ -1489,112 +1492,157 @@ export function EmployeesClient({
               </div>
             </div>
 
-            {/* PUNCH IN / PUNCH OUT TERMINAL CARD */}
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/30 text-white">
-                      Daily Biometric Terminal
-                    </span>
-                    <span className="text-xs text-white/80 font-mono">
-                      {new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-black tracking-tight">
-                    {isCheckedIn ? (isCheckedOut ? "Shift Completed for Today" : "Currently Punched In & Working") : "Ready to Start Shift"}
-                  </h3>
-                  <p className="text-xs text-white/80">
-                    {isCheckedIn
-                      ? isCheckedOut
-                        ? `Shift Logged • Punched in at ${formatTime(todayAttendance?.checkIn)} • Punched out at ${formatTime(todayAttendance?.checkOut)}`
-                        : `Punched in at ${formatTime(todayAttendance?.checkIn)}. Remember to submit your daily standup work report upon punch out.`
-                      : "Start your working day by clicking Punch In. When leaving, submit your daily report to punch out."}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {!isCheckedIn ? (
-                    <button
-                      type="button"
-                      onClick={handleClockIn}
-                      disabled={loading}
-                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer transform hover:scale-105"
-                    >
-                      <Play className="w-4 h-4 fill-white" />
-                      <span>Punch In</span>
-                    </button>
-                  ) : !isCheckedOut ? (
+            {/* PUNCH IN / PUNCH OUT TERMINAL CARD (Only for Employee Mode) */}
+            {isEmployeeMode && (
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/30 text-white">
+                        Daily Biometric Terminal
+                      </span>
+                      <span className="text-xs text-white/80 font-mono">
+                        {new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-black tracking-tight">
+                      {isCheckedIn ? (isCheckedOut ? "Shift Completed for Today" : "Currently Punched In & Working") : "Ready to Start Shift"}
+                    </h3>
+                    <p className="text-xs text-white/80">
+                      {isCheckedIn
+                        ? isCheckedOut
+                          ? `Shift Logged • Punched in at ${formatTime(todayAttendance?.checkIn)} • Punched out at ${formatTime(todayAttendance?.checkOut)}`
+                          : `Punched in at ${formatTime(todayAttendance?.checkIn)}. Remember to submit your daily standup work report upon punch out.`
+                        : "Start your working day by clicking Punch In. When leaving, submit your daily report to punch out."}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {!isCheckedIn ? (
                       <button
                         type="button"
-                        onClick={handleToggleBreak}
+                        onClick={handleClockIn}
                         disabled={loading}
-                        className="px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 flex items-center gap-1.5 cursor-pointer"
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer transform hover:scale-105"
                       >
-                        <Coffee className="w-4 h-4" />
-                        <span>{ongoingBreak ? "Resume Work" : "Break"}</span>
+                        <Play className="w-4 h-4 fill-white" />
+                        <span>Punch In</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowClockOutModal(true)}
-                        disabled={loading}
-                        className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
-                      >
-                        <Square className="w-4 h-4 fill-white" />
-                        <span>Punch Out (Submit Report)</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="px-4 py-2 rounded-xl bg-white/20 border border-white/30 text-xs font-bold text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                      <span>Shift Finished</span>
-                    </div>
-                  )}
+                    ) : !isCheckedOut ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleToggleBreak}
+                          disabled={loading}
+                          className="px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Coffee className="w-4 h-4" />
+                          <span>{ongoingBreak ? "Resume Work" : "Break"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowClockOutModal(true)}
+                          disabled={loading}
+                          className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
+                        >
+                          <Square className="w-4 h-4 fill-white" />
+                          <span>Punch Out (Submit Report)</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="px-4 py-2 rounded-xl bg-white/20 border border-white/30 text-xs font-bold text-white flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                        <span>Shift Finished</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Attendance KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard
-                title="PRESENT TODAY"
-                value={presentStaff.length || (isCheckedIn ? 1 : 0)}
-                trend="View Today's Roster ↗"
-                comparisonText="click to view present & absent list"
-                isPositive={true}
-                icon={UserCheck}
-                iconColor="text-emerald-600 bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20"
-                className="border-emerald-200/80 hover:border-emerald-500 hover:shadow-emerald-100/50 cursor-pointer relative"
-                onClick={() => {
-                  setShowTodayAttendanceModal(true);
-                }}
-              />
-              <KpiCard
-                title="WORK FROM HOME"
-                value={wfhCount}
-                comparisonText="remote active"
-                isPositive={true}
-                icon={Laptop}
-                iconColor="text-blue-600 bg-blue-50 border-blue-200"
-              />
-              <KpiCard
-                title="HALF DAY"
-                value={halfDayCount}
-                comparisonText="half day shifts"
-                isPositive={true}
-                icon={Clock}
-                iconColor="text-amber-600 bg-amber-50 border-amber-200"
-              />
-              <KpiCard
-                title="LEAVE / ABSENT"
-                value={leaveCount + absentCount}
-                comparisonText="planned & unannounced"
-                isPositive={false}
-                icon={UserX}
-                iconColor="text-rose-600 bg-rose-50 border-rose-200"
-              />
-            </div>
+            {/* Attendance KPIs (Visible for Admin and Manager Views) */}
+            {isManagerOrAdminView && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard
+                  title="PRESENT TODAY"
+                  value={presentStaff.length}
+                  trend="View Today's Roster ↗"
+                  comparisonText="click to view present & absent list"
+                  isPositive={true}
+                  icon={UserCheck}
+                  iconColor="text-emerald-600 bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20"
+                  className="border-emerald-200/80 hover:border-emerald-500 hover:shadow-emerald-100/50 cursor-pointer relative"
+                  onClick={() => {
+                    setShowTodayAttendanceModal(true);
+                  }}
+                />
+                <KpiCard
+                  title="WORK FROM HOME"
+                  value={wfhCount}
+                  comparisonText="remote active"
+                  isPositive={true}
+                  icon={Laptop}
+                  iconColor="text-blue-600 bg-blue-50 border-blue-200"
+                />
+                <KpiCard
+                  title="HALF DAY"
+                  value={halfDayCount}
+                  comparisonText="half day shifts"
+                  isPositive={true}
+                  icon={Clock}
+                  iconColor="text-amber-600 bg-amber-50 border-amber-200"
+                />
+                <KpiCard
+                  title="LEAVE / ABSENT"
+                  value={leaveCount + absentCount}
+                  comparisonText="planned & unannounced"
+                  isPositive={false}
+                  icon={UserX}
+                  iconColor="text-rose-600 bg-rose-50 border-rose-200"
+                />
+              </div>
+            )}
+
+            {/* For Employee Mode: Personal Attendance Overview Cards */}
+            {isEmployeeMode && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-medium">My Present Shifts</span>
+                    <p className="text-lg font-bold text-slate-900 font-mono">
+                      {scopedAttendances.filter((a) => a.status === "PRESENT" || a.checkIn).length} Days
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-bold">
+                    <Laptop className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-medium">Remote / WFH</span>
+                    <p className="text-lg font-bold text-slate-900 font-mono">
+                      {scopedAttendances.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length} Days
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-bold">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 font-medium">Remaining Paid Leaves</span>
+                    <p className="text-lg font-bold text-emerald-600 font-mono">
+                      {remainingPaidLeaves} / 12 Days
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Attendance View Switcher Buttons & Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
@@ -1610,7 +1658,7 @@ export function EmployeesClient({
                   )}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Today&apos;s Live Timesheet</span>
+                  <span>{isEmployeeMode ? "My Today's Shift Logs" : "Today's Live Timesheet"}</span>
                 </button>
                 <button
                   type="button"
@@ -1623,9 +1671,9 @@ export function EmployeesClient({
                   )}
                 >
                   <UserCheck className="w-3.5 h-3.5" />
-                  <span>Full Month Staff Presence & Leave Audit</span>
+                  <span>{isEmployeeMode ? "My Month-Wise Attendance History" : "Full Month Staff Presence & Leave Audit"}</span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/20 font-extrabold">
-                    {employees.length} Staff
+                    {isEmployeeMode ? "Personal" : `${scopedEmployees.length} Staff`}
                   </span>
                 </button>
               </div>
@@ -1660,21 +1708,23 @@ export function EmployeesClient({
                       ))}
                     </select>
                   </div>
-                  <div className="relative w-56">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Search staff in month..."
-                      value={monthlyAttendanceSearch}
-                      onChange={(e) => setMonthlyAttendanceSearch(e.target.value)}
-                      className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
+                  {isManagerOrAdminView && (
+                    <div className="relative w-56">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search staff in month..."
+                        value={monthlyAttendanceSearch}
+                        onChange={(e) => setMonthlyAttendanceSearch(e.target.value)}
+                        className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* MODE 1: FULL MONTH PRESENCE PAGE VIEW */}
+            {/* MODE 1: FULL MONTH PRESENCE REGISTER VIEW */}
             {attendanceViewMode === "MONTHLY" ? (
               <div className="space-y-4 animate-in fade-in duration-150">
                 {/* Comprehensive Full Month Employee Presence Table */}
@@ -1682,10 +1732,14 @@ export function EmployeesClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-slate-900">
-                        Monthly Employee Attendance Register ({monthlyAttendanceMonth}/{monthlyAttendanceYear})
+                        {isEmployeeMode
+                          ? `My Monthly Attendance Record (${monthlyAttendanceMonth}/${monthlyAttendanceYear})`
+                          : `Monthly Employee Attendance Register (${monthlyAttendanceMonth}/${monthlyAttendanceYear})`}
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Detailed breakdown of total days, present shifts, remote/WFH, leaves and attendance rate for every employee
+                        {isEmployeeMode
+                          ? "Summary of your total present days, approved leaves, WFH, and attendance percentage."
+                          : "Click any employee row to open their detailed daily attendance log and breakdown."}
                       </p>
                     </div>
                     <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
@@ -1706,11 +1760,13 @@ export function EmployeesClient({
                           <th className="py-3 px-4 text-center text-purple-700 font-semibold">Leaves Taken (Annual 12)</th>
                           <th className="py-3 px-4 text-center text-rose-700 font-semibold">Unpaid Days</th>
                           <th className="py-3 px-4 text-right font-bold">Attendance %</th>
+                          {isManagerOrAdminView && <th className="py-3 px-4 text-center">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {employees
+                        {scopedEmployees
                           .filter((emp) => {
+                            if (isEmployeeMode) return emp.id === currentEmployeeId;
                             const q = monthlyAttendanceSearch.toLowerCase();
                             return (
                               !q ||
@@ -1746,14 +1802,22 @@ export function EmployeesClient({
                             const presencePercentage = Math.min(100, Math.round((effectivePresence / totalWorkDays) * 100));
 
                             return (
-                              <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                              <tr
+                                key={emp.id}
+                                onClick={() => {
+                                  setSelectedEmployeeForAttendance(emp);
+                                  setSelectedAttendanceMonth(monthlyAttendanceMonth);
+                                  setSelectedAttendanceYear(monthlyAttendanceYear);
+                                }}
+                                className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                              >
                                 <td className="py-3 px-4">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold font-mono">
+                                    <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold font-mono group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                       {emp.user?.name?.charAt(0) || "E"}
                                     </div>
                                     <div>
-                                      <div className="font-bold text-slate-900">{emp.user?.name}</div>
+                                      <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp.user?.name}</div>
                                       <div className="text-[11px] text-slate-500 font-mono">{emp.employeeCode}</div>
                                     </div>
                                   </div>
@@ -1818,6 +1882,22 @@ export function EmployeesClient({
                                     </div>
                                   </div>
                                 </td>
+                                {isManagerOrAdminView && (
+                                  <td className="py-3 px-4 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEmployeeForAttendance(emp);
+                                        setSelectedAttendanceMonth(monthlyAttendanceMonth);
+                                        setSelectedAttendanceYear(monthlyAttendanceYear);
+                                      }}
+                                      className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg text-[11px] border border-blue-200 cursor-pointer transition-colors"
+                                    >
+                                      View Details ↗
+                                    </button>
+                                  </td>
+                                )}
                               </tr>
                             );
                           })}
@@ -1831,7 +1911,9 @@ export function EmployeesClient({
               <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Today&apos;s Timesheet & Punch Records</h3>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {isEmployeeMode ? "My Today's Shift Punch Records" : "Today's Timesheet & Punch Records"}
+                    </h3>
                     <p className="text-xs text-slate-500">Live check-in times, punch logs and real-time status</p>
                   </div>
                   <button
@@ -1856,26 +1938,38 @@ export function EmployeesClient({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredAttendances.map((att) => (
-                        <tr key={att.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="font-semibold text-slate-900">{att.employee?.user?.name || "Staff Member"}</div>
-                            <div className="text-[11px] text-slate-500 font-mono">{att.employee?.employeeCode}</div>
-                          </td>
-                          <td className="py-3 px-4 font-mono text-emerald-600 font-medium">
-                            {att.checkIn ? formatTime(att.checkIn) : "-"}
-                          </td>
-                          <td className="py-3 px-4 font-mono text-slate-500">
-                            {att.checkOut ? formatTime(att.checkOut) : "Active Shift"}
-                          </td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">
-                            {Math.floor((att.workingHoursMin || 480) / 60)}h {(att.workingHoursMin || 480) % 60}m
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <StatusBadge status={att.status} />
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredAttendances
+                        .filter((att) => (isEmployeeMode ? att.employeeId === currentEmployeeId : true))
+                        .map((att) => (
+                          <tr
+                            key={att.id}
+                            onClick={() => {
+                              if (att.employee) {
+                                setSelectedEmployeeForAttendance(att.employee);
+                                setSelectedAttendanceMonth(new Date().getMonth() + 1);
+                                setSelectedAttendanceYear(new Date().getFullYear());
+                              }
+                            }}
+                            className="hover:bg-blue-50/50 transition-colors cursor-pointer"
+                          >
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-slate-900">{att.employee?.user?.name || "Staff Member"}</div>
+                              <div className="text-[11px] text-slate-500 font-mono">{att.employee?.employeeCode}</div>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-emerald-600 font-medium">
+                              {att.checkIn ? formatTime(att.checkIn) : "-"}
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-500">
+                              {att.checkOut ? formatTime(att.checkOut) : "Active Shift"}
+                            </td>
+                            <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">
+                              {Math.floor((att.workingHoursMin || 480) / 60)}h {(att.workingHoursMin || 480) % 60}m
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <StatusBadge status={att.status} />
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -3880,31 +3974,34 @@ export function EmployeesClient({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Department *</label>
-                  <select
-                    value={employeeFormData.departmentId}
-                    onChange={(e) => setEmployeeFormData({ ...employeeFormData, departmentId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                  >
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                  {isManager && userDeptId ? (
+                    <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-semibold cursor-not-allowed">
+                      {departments.find((d) => d.id === userDeptId)?.name || userDeptName || "My Department"}
+                    </div>
+                  ) : (
+                    <select
+                      value={employeeFormData.departmentId}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, departmentId: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                    >
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Designation *</label>
-                  <select
-                    value={employeeFormData.designationId}
-                    onChange={(e) => setEmployeeFormData({ ...employeeFormData, designationId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                  >
-                    {designations.map((ds) => (
-                      <option key={ds.id} value={ds.id}>
-                        {ds.name}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Senior Frontend Engineer"
+                    value={employeeFormData.designationName}
+                    onChange={(e) => setEmployeeFormData({ ...employeeFormData, designationName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  />
                 </div>
               </div>
 
@@ -3924,7 +4021,7 @@ export function EmployeesClient({
                   </span>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">System Role</label>
+                  <label className="block text-slate-700 font-medium mb-1">System Role *</label>
                   <select
                     value={employeeFormData.role}
                     onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
@@ -3932,7 +4029,7 @@ export function EmployeesClient({
                   >
                     <option value="EMPLOYEE">EMPLOYEE</option>
                     <option value="MANAGER">MANAGER</option>
-                    <option value="ADMIN">ADMIN</option>
+                    {isAdmin && <option value="ADMIN">ADMIN</option>}
                   </select>
                 </div>
               </div>
@@ -4737,6 +4834,149 @@ export function EmployeesClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* 13. EMPLOYEE DETAILED ATTENDANCE HISTORY MODAL */}
+      {selectedEmployeeForAttendance && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-base font-bold shadow-xs">
+                  {selectedEmployeeForAttendance.user?.name?.charAt(0) || "E"}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {selectedEmployeeForAttendance.user?.name}&apos;s Attendance Record
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    {selectedEmployeeForAttendance.employeeCode} • {selectedEmployeeForAttendance.department?.name || "Department"} • {selectedEmployeeForAttendance.designation?.name || "Executive"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEmployeeForAttendance(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Month & Year Selection in Modal */}
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+              <span className="font-semibold text-slate-700">Filter Attendance Month:</span>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedAttendanceMonth}
+                  onChange={(e) => setSelectedAttendanceMonth(Number(e.target.value))}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none"
+                >
+                  {[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ].map((m, idx) => (
+                    <option key={idx + 1} value={idx + 1}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedAttendanceYear}
+                  onChange={(e) => setSelectedAttendanceYear(Number(e.target.value))}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none"
+                >
+                  {[2024, 2025, 2026, 2027].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Attendance Month Breakdown Summary */}
+            {(() => {
+              const empAttsInMonth = allAttendances.filter((a) => {
+                if (a.employeeId !== selectedEmployeeForAttendance.id) return false;
+                const d = new Date(a.date);
+                return d.getMonth() + 1 === selectedAttendanceMonth && d.getFullYear() === selectedAttendanceYear;
+              });
+
+              const presentDays = empAttsInMonth.filter((a) => a.status === "PRESENT" || a.checkIn).length;
+              const wfhDays = empAttsInMonth.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
+              const halfDays = empAttsInMonth.filter((a) => a.status === "HALF_DAY").length;
+              const leaveDays = empAttsInMonth.filter((a) => a.status === "LEAVE" || a.status === "ON_LEAVE").length;
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 gap-2.5 text-center text-xs">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono block">Present Days</span>
+                      <span className="text-base font-black text-emerald-700 font-mono mt-0.5 block">{presentDays}</span>
+                    </div>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-blue-800 uppercase font-mono block">WFH / Remote</span>
+                      <span className="text-base font-black text-blue-700 font-mono mt-0.5 block">{wfhDays}</span>
+                    </div>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-amber-800 uppercase font-mono block">Half Days</span>
+                      <span className="text-base font-black text-amber-700 font-mono mt-0.5 block">{halfDays}</span>
+                    </div>
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-purple-800 uppercase font-mono block">Leaves Taken</span>
+                      <span className="text-base font-black text-purple-700 font-mono mt-0.5 block">{leaveDays}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono mb-2">
+                      Shift Activity Logs in {new Date(selectedAttendanceYear, selectedAttendanceMonth - 1).toLocaleString("default", { month: "long" })} {selectedAttendanceYear}
+                    </h4>
+                    <div className="max-h-60 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-2 bg-slate-50/50">
+                      {empAttsInMonth.length > 0 ? (
+                        empAttsInMonth.map((a) => (
+                          <div
+                            key={a.id}
+                            className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-xs hover:border-blue-300 transition-colors"
+                          >
+                            <div>
+                              <div className="font-bold text-slate-900 font-mono">{formatDate(a.date)}</div>
+                              <div className="text-[11px] text-slate-500">
+                                In: {a.checkIn ? formatTime(a.checkIn) : "-"} • Out: {a.checkOut ? formatTime(a.checkOut) : "Active"}
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-2">
+                              {a.workingHoursMin && (
+                                <span className="text-[11px] font-mono text-slate-600">
+                                  {Math.floor(a.workingHoursMin / 60)}h {a.workingHoursMin % 60}m
+                                </span>
+                              )}
+                              <StatusBadge status={a.status} size="sm" />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-xs text-slate-400">
+                          No logged shift records found for this employee in {selectedAttendanceMonth}/{selectedAttendanceYear}.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSelectedEmployeeForAttendance(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+              >
+                Close Logs
+              </button>
+            </div>
           </div>
         </div>
       )}
