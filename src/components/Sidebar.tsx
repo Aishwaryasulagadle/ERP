@@ -31,35 +31,50 @@ interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   userRole?: string;
+  userDepartment?: string;
 }
 
-export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN" }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", userDepartment = "" }: SidebarProps) {
   const pathname = usePathname();
+
+  const isSalesOrAdmin =
+    userRole === "ADMIN" ||
+    (userDepartment && userDepartment.toLowerCase().includes("sales"));
+
+  const isSalesStaff =
+    userRole === "EMPLOYEE" &&
+    (userDepartment && userDepartment.toLowerCase().includes("sales"));
+
+  const isClientsVisible = !isSalesStaff;
 
   const navigationGroups = [
     {
       group: "MAIN",
       items: [
-        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
       ],
     },
-    {
-      group: "CRM",
-      items: [
-        { name: "Leads Pipeline", href: "/crm", icon: Target, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], badge: "New" },
-        { name: "Customers", href: "/sales?tab=CUSTOMERS", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Follow-ups", href: "/crm?tab=FOLLOW_UP", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-      ],
-    },
-    {
-      group: "SALES",
-      items: [
-        { name: "Orders & Deals", href: "/sales", icon: TrendingUp, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Quotations", href: "/sales?tab=QUOTATIONS", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Invoices Ledger", href: "/sales?tab=INVOICES", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Payments", href: "/sales?tab=PAYMENTS", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-      ],
-    },
+    ...(isSalesOrAdmin
+      ? [
+          {
+            group: "CRM",
+            items: [
+              { name: "Leads Pipeline", href: "/crm", icon: Target, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], badge: "New", visible: true },
+              { name: "Customers", href: "/sales?tab=CUSTOMERS", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Follow-ups", href: "/crm?tab=FOLLOW_UP", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+            ],
+          },
+          {
+            group: "SALES",
+            items: [
+              { name: "Orders & Deals", href: "/sales", icon: TrendingUp, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Quotations", href: "/sales?tab=QUOTATIONS", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Invoices Ledger", href: "/sales?tab=INVOICES", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Payments", href: "/sales?tab=PAYMENTS", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+            ],
+          },
+        ]
+      : []),
     {
       group: "PEOPLE & HR",
       items: [
@@ -73,15 +88,19 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN" }: S
         { name: "My Work Reports", href: "/employee/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
       ],
     },
-    {
-      group: "ANALYTICS",
-      items: [
-        { name: "Reports Overview", href: "/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER"] },
-        { name: "Sales Analytics", href: "/reports?tab=SALES", icon: LineChart, roles: ["ADMIN", "MANAGER"] },
-        { name: "Employee KPIs", href: "/reports?tab=PERFORMANCE", icon: Users, roles: ["ADMIN", "MANAGER"] },
-        { name: "CRM Conversion", href: "/reports?tab=CRM", icon: PieChart, roles: ["ADMIN", "MANAGER"] },
-      ],
-    },
+    ...(isClientsVisible
+      ? [
+          {
+            group: "CLIENTS & PROJECTS",
+            items: [
+              { name: "Clients & Deliverables", href: "/reports", icon: Layers, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Progress Tracker", href: "/reports?tab=TIMELINE", icon: LineChart, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Dynamic Sheets", href: "/reports?tab=CUSTOM_COLUMNS", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Analytics & P&L", href: "/reports?tab=ANALYTICS", icon: PieChart, roles: ["ADMIN", "MANAGER"] },
+            ],
+          },
+        ]
+      : []),
     {
       group: "SYSTEM",
       items: [
@@ -160,9 +179,9 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN" }: S
                     {!isCollapsed && (
                       <div className="flex items-center justify-between flex-1 min-w-0">
                         <span className="truncate">{item.name}</span>
-                        {item.badge && (
+                        {(item as any).badge && (
                           <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                            {item.badge}
+                            {(item as any).badge}
                           </span>
                         )}
                       </div>

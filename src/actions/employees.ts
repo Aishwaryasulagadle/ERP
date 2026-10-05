@@ -9,10 +9,18 @@ export async function getEmployees(filters?: { departmentId?: string; search?: s
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  const currentUserRole = (session.user as any).role;
+  const currentDeptId = (session.user as any).departmentId;
+
   const where: any = {};
-  if (filters?.departmentId && filters.departmentId !== "ALL") {
+
+  // Manager only sees employees under their own department
+  if (currentUserRole === "MANAGER" && currentDeptId) {
+    where.departmentId = currentDeptId;
+  } else if (filters?.departmentId && filters.departmentId !== "ALL") {
     where.departmentId = filters.departmentId;
   }
+
   if (filters?.search) {
     where.OR = [
       { employeeCode: { contains: filters.search } },
@@ -34,11 +42,10 @@ export async function getEmployees(filters?: { departmentId?: string; search?: s
       sales: true,
       attendances: true,
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
   // Strip salary if current user is not ADMIN or MANAGER
-  const currentUserRole = (session.user as any).role;
   return employees.map((emp) => ({
     ...emp,
     salary: currentUserRole === "ADMIN" || currentUserRole === "MANAGER" ? emp.salary : null,

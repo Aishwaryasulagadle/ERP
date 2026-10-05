@@ -26,12 +26,15 @@ export async function getTasks(filters?: { status?: string; search?: string; ass
     ];
   }
 
-  // If role is EMPLOYEE, fetch tasks assigned to them
-  if ((session.user as any).role === "EMPLOYEE") {
-    const empId = (session.user as any).employeeId;
-    if (empId) {
-      where.assignedToId = empId;
-    }
+  // Role Scoping:
+  const role = (session.user as any).role;
+  const deptId = (session.user as any).departmentId;
+  const empId = (session.user as any).employeeId;
+
+  if (role === "EMPLOYEE" && empId) {
+    where.assignedToId = empId;
+  } else if (role === "MANAGER" && deptId) {
+    where.assignedTo = { departmentId: deptId };
   }
 
   return await prisma.task.findMany({

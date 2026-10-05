@@ -136,7 +136,16 @@ export async function updateLeadStatus(id: string, status: string, notes?: strin
   return lead;
 }
 
-export async function convertLeadToCustomerAndOrder(leadId: string, orderData: { totalAmount: number; itemTitle: string }) {
+export async function convertLeadToCustomerAndOrder(
+  leadId: string,
+  orderData: {
+    totalAmount: number;
+    itemTitle: string;
+    departmentType?: "DIGITAL_MARKETING" | "TECHNICAL";
+    billingType?: "MONTHLY" | "ONE_TIME";
+    serviceDetails?: string;
+  }
+) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
@@ -162,23 +171,67 @@ export async function convertLeadToCustomerAndOrder(leadId: string, orderData: {
     customerId = newCustomer.id;
   }
 
+  const deptType = orderData.departmentType || (lead.departmentType as any) || "DIGITAL_MARKETING";
+  const billType = orderData.billingType || (lead.billingType as any) || "MONTHLY";
+
+  // Create Client in Clients Module
+  const clientCount = await prisma.client.count();
+  const clientCode = `CLT-${new Date().getFullYear()}-${String(clientCount + 1).padStart(3, "0")}`;
+
+  const client = await prisma.client.create({
+    data: {
+      clientCode,
+      name: lead.company || lead.customerName,
+      email: lead.email,
+      phone: lead.phone,
+      company: lead.company,
+      address: lead.location,
+      departmentType: deptType,
+      billingType: billType,
+      amount: orderData.totalAmount,
+      leadId: lead.id,
+      customerId,
+      notes: orderData.serviceDetails || lead.notes,
+      createdById: lead.assignedToId || (session.user as any).employeeId || null,
+      assignments: lead.assignedToId
+        ? {
+            create: {
+              employeeId: lead.assignedToId,
+              role: "MEMBER",
+            },
+          }
+        : undefined,
+      services: {
+        create: {
+          serviceName: orderData.itemTitle || lead.productInterest || (deptType === "DIGITAL_MARKETING" ? "Social Media & Meta Ads" : "Web / App Development"),
+          category: deptType === "DIGITAL_MARKETING" ? "MARKETING" : "DEVELOPMENT",
+          billingCycle: billType,
+          targetCount: deptType === "DIGITAL_MARKETING" ? 15 : 1,
+          completedCount: 0,
+          milestoneAmount: billType === "ONE_TIME" ? orderData.totalAmount : 0,
+        },
+      },
+    },
+  });
+
   const orderCount = await prisma.order.count();
-  const orderCode = `ORD-2026-${String(orderCount + 1).padStart(3, "0")}`;
+  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`;
 
   const order = await prisma.order.create({
     data: {
       orderCode,
       customerId,
+      clientId: client.id,
       employeeId: lead.assignedToId || (session.user as any).employeeId,
       leadId: lead.id,
       totalAmount: orderData.totalAmount,
       discount: 0,
       tax: orderData.totalAmount * 0.18,
       paymentStatus: "PAID",
-      notes: `Converted from lead ${lead.leadCode}`,
+      notes: `Converted from lead ${lead.leadCode} -> Onboarded as Client ${client.clientCode}`,
       orderItems: {
         create: {
-          itemTitle: orderData.itemTitle || lead.productInterest || "ERP Enterprise License",
+          itemTitle: orderData.itemTitle || lead.productInterest || "Client Contract",
           quantity: 1,
           unitPrice: orderData.totalAmount,
           total: orderData.totalAmount,
@@ -186,7 +239,7 @@ export async function convertLeadToCustomerAndOrder(leadId: string, orderData: {
       },
       invoices: {
         create: {
-          invoiceCode: `INV-2026-${String(orderCount + 1).padStart(3, "0")}`,
+          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
           dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
           totalAmount: orderData.totalAmount * 1.18,
           paymentStatus: "PAID",
@@ -194,7 +247,7 @@ export async function convertLeadToCustomerAndOrder(leadId: string, orderData: {
       },
       payments: {
         create: {
-          paymentCode: `PAY-2026-${String(orderCount + 1).padStart(3, "0")}`,
+          paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
           amount: orderData.totalAmount * 1.18,
           paymentMethod: "Bank Transfer",
           paymentStatus: "PAID",
@@ -208,6 +261,9 @@ export async function convertLeadToCustomerAndOrder(leadId: string, orderData: {
     data: {
       status: "CONVERTED",
       customerId,
+      departmentType: deptType,
+      billingType: billType,
+      serviceDetails: orderData.serviceDetails || null,
     },
   });
 
@@ -215,15 +271,62 @@ export async function convertLeadToCustomerAndOrder(leadId: string, orderData: {
     data: {
       userId: session.user.id,
       userName: session.user.name || "User",
-      action: "CONVERT_LEAD",
+      action: "CONVERT_LEAD_TO_CLIENT",
       module: "CRM",
       recordId: lead.leadCode,
-      details: `Converted lead ${lead.leadCode} into Order ${orderCode}`,
+      details: `Converted lead ${lead.leadCode} to Client ${client.clientCode} and generated Order ${orderCode}`,
     },
   });
 
   revalidatePath("/crm");
   revalidatePath("/sales");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
-  return { success: true, orderCode };
+  return { success: true, orderCode, clientCode: client.clientCode, clientId: client.id };
 }
+
+export async function requestLeadConversionApproval(
+  leadId: string,
+  conversionPlan: {
+    totalAmount: number;
+    itemTitle: string;
+    departmentType?: "DIGITAL_MARKETING" | "TECHNICAL";
+    billingType?: "MONTHLY" | "ONE_TIME";
+    serviceDetails?: string;
+  }
+) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const planNote = `[CONVERSION REQUEST]: Target Amount: ₹${conversionPlan.totalAmount} | Package: ${conversionPlan.itemTitle} | Dept: ${conversionPlan.departmentType} | Billing: ${conversionPlan.billingType}. Note: ${conversionPlan.serviceDetails || "Ready to close"}`;
+
+  const updated = await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      status: "PENDING_APPROVAL",
+      departmentType: conversionPlan.departmentType || "DIGITAL_MARKETING",
+      billingType: conversionPlan.billingType || "MONTHLY",
+      expectedValue: Number(conversionPlan.totalAmount) || 0,
+      serviceDetails: planNote,
+      notes: conversionPlan.serviceDetails,
+    },
+    include: {
+      assignedTo: { include: { user: true } },
+      customer: true,
+      followUps: true,
+    },
+  });
+
+  await prisma.leadActivity.create({
+    data: {
+      leadId,
+      type: "CONVERSION_REQUEST",
+      note: `Employee ${session.user.name || "Sales Rep"} submitted lead for Manager Approval: ${planNote}`,
+    },
+  });
+
+  revalidatePath("/crm");
+  revalidatePath("/dashboard");
+  return updated;
+}
+

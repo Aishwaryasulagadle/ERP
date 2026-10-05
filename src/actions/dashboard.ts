@@ -5,6 +5,47 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  const user = session.user as any;
+  const userRole = user.role || "EMPLOYEE";
+  const deptName = (user.department || "").toLowerCase();
+  const deptId = user.departmentId;
+  const empId = user.employeeId;
+
+  // Department / Role filters:
+  const leadWhere: any = {};
+  const orderWhere: any = {};
+  const empWhere: any = { employmentStatus: "ACTIVE" };
+  const taskWhere: any = {};
+  const attWhere: any = {
+    date: {
+      gte: new Date(new Date().setHours(0, 0, 0, 0)),
+    },
+  };
+
+  if (userRole === "MANAGER" && deptId) {
+    empWhere.departmentId = deptId;
+    taskWhere.assignedTo = { departmentId: deptId };
+    attWhere.employee = { departmentId: deptId };
+    if (deptName.includes("sales")) {
+      // Sales manager sees all sales department leads
+    } else {
+      // Tech or Marketing managers do not focus on leads/sales orders
+      leadWhere.id = "none";
+      orderWhere.id = "none";
+    }
+  } else if (userRole === "EMPLOYEE") {
+    if (empId) {
+      taskWhere.assignedToId = empId;
+      attWhere.employeeId = empId;
+      leadWhere.assignedToId = empId;
+      orderWhere.employeeId = empId;
+    }
+    if (!deptName.includes("sales")) {
+      leadWhere.id = "none";
+      orderWhere.id = "none";
+    }
+  }
+
   const [
     totalLeads,
     newLeads,
@@ -18,13 +59,14 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     tasks,
     followUpsToday,
   ] = await Promise.all([
-    prisma.lead.count(),
-    prisma.lead.count({ where: { status: "NEW" } }),
-    prisma.lead.count({ where: { status: "CONVERTED" } }),
-    prisma.lead.count({ where: { status: "CONTACTED" } }),
-    prisma.lead.count({ where: { status: "FOLLOW_UP" } }),
-    prisma.lead.count({ where: { status: "LOST" } }),
+    prisma.lead.count({ where: leadWhere }),
+    prisma.lead.count({ where: { ...leadWhere, status: "NEW" } }),
+    prisma.lead.count({ where: { ...leadWhere, status: "CONVERTED" } }),
+    prisma.lead.count({ where: { ...leadWhere, status: "CONTACTED" } }),
+    prisma.lead.count({ where: { ...leadWhere, status: "FOLLOW_UP" } }),
+    prisma.lead.count({ where: { ...leadWhere, status: "LOST" } }),
     prisma.order.findMany({
+      where: orderWhere,
       include: {
         employee: {
           include: { user: true },
@@ -32,6 +74,7 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       },
     }),
     prisma.employee.findMany({
+      where: empWhere,
       include: {
         user: true,
         department: true,
@@ -43,16 +86,13 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       },
     }),
     prisma.attendance.findMany({
-      where: {
-        date: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        },
-      },
+      where: attWhere,
       include: {
         employee: { include: { user: true } },
       },
     }),
     prisma.task.findMany({
+      where: taskWhere,
       include: {
         assignedTo: { include: { user: true } },
       },
@@ -67,6 +107,40 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     }),
   ]);
 
+  // Clients & Deliverable Stats for Marketing / Tech
+  const clientWhere: any = {};
+  if (deptName.includes("marketing")) {
+    clientWhere.departmentType = "DIGITAL_MARKETING";
+  } else if (deptName.includes("tech")) {
+    clientWhere.departmentType = "TECHNICAL";
+  }
+  if (userRole === "EMPLOYEE" && !deptName.includes("sales") && empId) {
+    clientWhere.assignments = { some: { employeeId: empId } };
+  }
+
+  const clients = await prisma.client.findMany({
+    where: clientWhere,
+    include: {
+      services: true,
+      assignments: { include: { employee: { include: { user: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalClientsCount = clients.length;
+  let totalTargetDeliverables = 0;
+  let totalCompletedDeliverables = 0;
+  clients.forEach((c) => {
+    c.services.forEach((s) => {
+      totalTargetDeliverables += s.targetCount || 0;
+      totalCompletedDeliverables += s.completedCount || 0;
+    });
+  });
+  const deliverableCompletionRate =
+    totalTargetDeliverables > 0
+      ? Math.round((totalCompletedDeliverables / totalTargetDeliverables) * 100)
+      : 0;
+
   const totalSalesRevenue = orders.reduce((sum, ord) => sum + ord.totalAmount, 0);
   const totalOrdersCount = orders.length;
 
@@ -76,9 +150,9 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
   const pendingTasks = tasks.filter((t) => t.status === "PENDING").length;
   const overdueTasks = tasks.filter((t) => t.status === "OVERDUE").length;
 
-  const presentEmployeesCount = attendances.filter((a) => a.status === "PRESENT").length;
+  const presentEmployeesCount = attendances.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.checkIn).length;
 
-  // Employee-wise Sales Table Calculation (Matching prompt specifications)
+  // Employee-wise Sales Table Calculation
   const employeeSalesMap: Record<string, { name: string; orders: number; sales: number; role: string }> = {};
   for (const emp of employees) {
     employeeSalesMap[emp.id] = {
@@ -96,7 +170,6 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
   }
   const employeeSalesList = Object.values(employeeSalesMap).sort((a, b) => b.sales - a.sales);
 
-  // Sales trend mockup & lead distribution
   const salesChartData = [
     { name: "Mon", sales: 45000, revenue: 53100 },
     { name: "Tue", sales: 120000, revenue: 141600 },
@@ -128,6 +201,17 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       completedTasks,
       pendingTasks,
       followUpsToday,
+      totalClients: totalClientsCount,
+      totalTargetDeliverables,
+      totalCompletedDeliverables,
+      deliverableCompletionRate,
+    },
+    clientStats: {
+      totalClients: totalClientsCount,
+      totalTargetDeliverables,
+      totalCompletedDeliverables,
+      deliverableCompletionRate,
+      clients: clients.slice(0, 6),
     },
     salesChartData,
     leadDistributionData,
@@ -144,3 +228,4 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     recentTasks: tasks.slice(0, 5),
   };
 }
+

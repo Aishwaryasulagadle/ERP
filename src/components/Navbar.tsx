@@ -18,6 +18,7 @@ import {
   X,
   ChevronDown,
   Menu,
+  Layers,
 } from "lucide-react";
 import { performGlobalSearch } from "@/actions/reports";
 import Link from "next/link";
@@ -62,16 +63,28 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const isSalesOrAdmin =
+    userRole === "ADMIN" ||
+    (user?.department && user.department.toLowerCase().includes("sales")) ||
+    (user?.email && user.email.toLowerCase().includes("sales"));
+
+  const isSalesStaff =
+    userRole === "EMPLOYEE" &&
+    ((user?.department && user.department.toLowerCase().includes("sales")) ||
+      (user?.email && user.email.toLowerCase().includes("sales")));
+
+  const isClientsVisible = !isSalesStaff;
+
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-    { name: "CRM / Leads", href: "/crm", icon: Target, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-    { name: "Sales", href: "/sales", icon: TrendingUp, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-    { name: "Employees", href: "/employees", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-    { name: "Reports", href: "/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER"] },
-    { name: "Settings", href: "/settings", icon: Settings, roles: ["ADMIN"] },
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, visible: true },
+    { name: "CRM / Leads", href: "/crm", icon: Target, visible: isSalesOrAdmin },
+    { name: "Sales", href: "/sales", icon: TrendingUp, visible: isSalesOrAdmin },
+    { name: "Employees", href: "/employees", icon: Users, visible: true },
+    { name: "Clients", href: "/reports", icon: Layers, visible: isClientsVisible },
+    { name: "Settings", href: "/settings", icon: Settings, visible: userRole === "ADMIN" },
   ];
 
-  const filteredNav = navigation.filter((item) => item.roles.includes(userRole));
+  const filteredNav = navigation.filter((item) => item.visible);
 
   const handleSearch = async (val: string) => {
     setSearchQuery(val);

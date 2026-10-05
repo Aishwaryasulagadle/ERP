@@ -4,6 +4,7 @@ import { getTodayAttendanceStatus, getAllAttendances } from "@/actions/attendanc
 import { getTasks } from "@/actions/tasks";
 import { getLeaveRequests, getHolidays, getEmployeeQueries, getSalarySlips } from "@/actions/hr";
 import { getERPReports, getClientReports } from "@/actions/reports";
+import { getClients } from "@/actions/clients";
 import { EmployeesClient } from "@/components/EmployeesClient";
 
 export default async function EmployeesPage() {
@@ -20,6 +21,7 @@ export default async function EmployeesPage() {
     salarySlips,
     erpReports,
     clientReports,
+    clients,
   ] = await Promise.all([
     getEmployees(),
     getDepartmentsAndDesignations(),
@@ -32,6 +34,7 @@ export default async function EmployeesPage() {
     getSalarySlips(),
     getERPReports(),
     getClientReports(),
+    getClients(),
   ]);
 
   const userRole = (session?.user as any)?.role || "EMPLOYEE";
@@ -56,6 +59,7 @@ export default async function EmployeesPage() {
       currentUserId={currentUserId}
       currentEmployeeId={currentEmployeeId}
       user={session?.user}
+      assignedClients={clients}
     />
   );
 }

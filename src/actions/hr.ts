@@ -14,10 +14,14 @@ export async function getLeaveRequests(filters?: { status?: string; employeeId?:
 
   const currentUserRole = (session.user as any).role;
   const currentEmpId = (session.user as any).employeeId;
+  const currentDeptId = (session.user as any).departmentId;
 
   const where: any = {};
   if (currentUserRole === "EMPLOYEE" && currentEmpId) {
     where.employeeId = currentEmpId;
+  } else if (currentUserRole === "MANAGER" && currentDeptId) {
+    // Manager sees all leaves in their department
+    where.employee = { departmentId: currentDeptId };
   } else if (filters?.employeeId && filters.employeeId !== "ALL") {
     where.employeeId = filters.employeeId;
   }
@@ -356,12 +360,16 @@ export async function addHoliday(data: {
   type: string; // NATIONAL, FESTIVAL, OPTIONAL, SUNDAY, COMPANY_OFF
   description?: string;
   isRecurring?: boolean;
+  target?: "ALL" | "DEPARTMENT" | "SINGLE";
+  departmentId?: string;
+  employeeId?: string;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   const userRole = (session.user as any).role;
+  const userDeptId = (session.user as any).departmentId;
   if (userRole !== "ADMIN" && userRole !== "MANAGER") {
-    throw new Error("Only Admin can mark holidays");
+    throw new Error("Only Admin or Manager can mark holidays");
   }
 
   const holidayDate = new Date(data.date);
@@ -384,7 +392,47 @@ export async function addHoliday(data: {
     },
   });
 
+  // Automatically update/create Attendance records as HOLIDAY (paid) for affected employees
+  const targetDeptId = data.departmentId || (userRole === "MANAGER" ? userDeptId : undefined);
+  const targetEmployees = await prisma.employee.findMany({
+    where: {
+      employmentStatus: "ACTIVE",
+      ...(targetDeptId ? { departmentId: targetDeptId } : {}),
+      ...(data.employeeId ? { id: data.employeeId } : {}),
+    },
+    select: { id: true },
+  });
+
+  for (const emp of targetEmployees) {
+    const existing = await prisma.attendance.findFirst({
+      where: {
+        employeeId: emp.id,
+        date: {
+          gte: holidayDate,
+          lte: new Date(new Date(holidayDate).setHours(23, 59, 59, 999)),
+        },
+      },
+    });
+
+    if (existing) {
+      await prisma.attendance.update({
+        where: { id: existing.id },
+        data: { status: "HOLIDAY", notes: `Official Holiday: ${data.title}` },
+      });
+    } else {
+      await prisma.attendance.create({
+        data: {
+          employeeId: emp.id,
+          date: holidayDate,
+          status: "HOLIDAY",
+          notes: `Official Holiday: ${data.title}`,
+        },
+      });
+    }
+  }
+
   revalidatePath("/employees");
+  revalidatePath("/attendance");
   return holiday;
 }
 
@@ -411,10 +459,13 @@ export async function getEmployeeQueries(filters?: { status?: string; category?:
 
   const currentUserRole = (session.user as any).role;
   const currentEmpId = (session.user as any).employeeId;
+  const currentDeptId = (session.user as any).departmentId;
 
   const where: any = {};
   if (currentUserRole === "EMPLOYEE" && currentEmpId) {
     where.employeeId = currentEmpId;
+  } else if (currentUserRole === "MANAGER" && currentDeptId) {
+    where.employee = { departmentId: currentDeptId };
   } else if (filters?.employeeId && filters.employeeId !== "ALL") {
     where.employeeId = filters.employeeId;
   }
@@ -447,6 +498,7 @@ export async function createEmployeeQuery(data: {
   subject: string;
   description: string;
   priority?: string;
+  recipient?: "ADMIN" | "MANAGER";
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -456,12 +508,13 @@ export async function createEmployeeQuery(data: {
 
   const totalQueries = await prisma.employeeQuery.count();
   const queryCode = `QRY-${String(totalQueries + 1).padStart(4, "0")}`;
+  const categoryWithRecipient = data.recipient ? `[TO: ${data.recipient}] ${data.category}` : data.category;
 
   const query = await prisma.employeeQuery.create({
     data: {
       queryCode,
       employeeId: currentEmpId,
-      category: data.category,
+      category: categoryWithRecipient,
       subject: data.subject,
       description: data.description,
       priority: data.priority || "MEDIUM",
@@ -485,13 +538,20 @@ export async function resolveEmployeeQuery(queryId: string, responseText: string
     throw new Error("Only Admins or HR Managers can resolve queries");
   }
 
+  const existing = await prisma.employeeQuery.findUnique({ where: { id: queryId } });
+  if (!existing) throw new Error("Query not found");
+
+  const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const newNote = `[${session.user.name || "Manager"} - ${timestamp}]: ${responseText}`;
+  const combinedResponse = existing.response ? `${existing.response}\n\n${newNote}` : newNote;
+
   const updatedQuery = await prisma.employeeQuery.update({
     where: { id: queryId },
     data: {
       status: newStatus,
-      response: responseText,
+      response: combinedResponse,
       resolvedBy: session.user.name || "HR Admin",
-      resolvedAt: new Date(),
+      resolvedAt: newStatus === "RESOLVED" ? new Date() : existing.resolvedAt,
     },
     include: {
       employee: { include: { user: true } },
@@ -576,8 +636,11 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
   }
 
   const where: any = {};
+  const currentDeptId = (session.user as any).departmentId;
   if (currentUserRole === "EMPLOYEE" && currentEmpId) {
     where.employeeId = currentEmpId;
+  } else if (currentUserRole === "MANAGER" && currentDeptId) {
+    where.employee = { departmentId: currentDeptId };
   } else if (filters?.employeeId && filters.employeeId !== "ALL") {
     where.employeeId = filters.employeeId;
   }

@@ -178,8 +178,16 @@ export async function getAllAttendances(filters?: { date?: string; departmentId?
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  const currentUserRole = (session.user as any).role;
+  const currentDeptId = (session.user as any).departmentId;
+  const currentEmpId = (session.user as any).employeeId;
+
   const where: any = {};
-  if (filters?.departmentId && filters.departmentId !== "ALL") {
+  if (currentUserRole === "EMPLOYEE" && currentEmpId) {
+    where.employeeId = currentEmpId;
+  } else if (currentUserRole === "MANAGER" && currentDeptId) {
+    where.employee = { departmentId: currentDeptId };
+  } else if (filters?.departmentId && filters.departmentId !== "ALL") {
     where.employee = { departmentId: filters.departmentId };
   }
 

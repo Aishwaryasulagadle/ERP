@@ -73,6 +73,9 @@ model Employee {
   leaveRequests    LeaveRequest[]
   queries          EmployeeQuery[]
   salarySlips      SalarySlip[]
+  clientAssignments ClientAssignment[]
+  createdClients    Client[]         @relation("CreatedClients")
+  deliverableLogs   DeliverableLog[]
 }
 
 model Customer {
@@ -87,6 +90,7 @@ model Customer {
 
   leads     Lead[]
   orders    Order[]
+  clients   Client[]
 }
 
 model Lead {
@@ -106,6 +110,9 @@ model Lead {
   customer         Customer?    @relation(fields: [customerId], references: [id])
   status           String       @default("NEW") // NEW, CONTACTED, FOLLOW_UP, QUALIFIED, CONVERTED, LOST
   priority         String       @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  departmentType   String       @default("DIGITAL_MARKETING") // DIGITAL_MARKETING, TECHNICAL
+  billingType      String       @default("MONTHLY") // MONTHLY, ONE_TIME
+  serviceDetails   String?      // Notes or specs
   followUpDate     DateTime?
   notes            String?
   createdAt        DateTime     @default(now())
@@ -114,6 +121,7 @@ model Lead {
   followUps        FollowUp[]
   activities       LeadActivity[]
   orders           Order[]
+  client           Client?
 }
 
 model LeadActivity {
@@ -176,6 +184,9 @@ model Order {
   paymentStatus String        @default("PENDING") // PENDING, PARTIAL, PAID, OVERDUE
   notes         String?
   saleDate      DateTime      @default(now())
+  clientId      String?
+  client        Client?       @relation(fields: [clientId], references: [id])
+  milestoneId   String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -388,4 +399,143 @@ model SalarySlip {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
+// -------------------------------------------------------------
+// CLIENTS, SERVICES, DELIVERABLES & EXPENSES
+// -------------------------------------------------------------
+
+model Client {
+  id               String             @id @default(cuid())
+  clientCode       String             @unique
+  name             String
+  email            String?
+  phone            String?
+  company          String?
+  address          String?
+  departmentType   String             @default("DIGITAL_MARKETING") // DIGITAL_MARKETING, TECHNICAL
+  billingType      String             @default("MONTHLY") // MONTHLY, ONE_TIME
+  amount           Float              @default(0) // Retainer or Contract Amount
+  status           String             @default("ACTIVE") // ACTIVE, ON_HOLD, COMPLETED, CANCELLED
+  onboardingDate   DateTime           @default(now())
+  notes            String?
+
+  leadId           String?            @unique
+  lead             Lead?              @relation(fields: [leadId], references: [id])
+  customerId       String?
+  customer         Customer?          @relation(fields: [customerId], references: [id])
+  createdById      String?
+  createdBy        Employee?          @relation("CreatedClients", fields: [createdById], references: [id])
+
+  assignments      ClientAssignment[]
+  services         ClientService[]
+  reports          ClientReport[]
+  orders           Order[]
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model ClientAssignment {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  role        String    @default("MEMBER") // LEAD, MEMBER
+  assignedAt  DateTime  @default(now())
+
+  @@unique([clientId, employeeId])
+}
+
+model ClientService {
+  id              String              @id @default(cuid())
+  clientId        String
+  client          Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceName     String              // e.g. "Reels & Shorts", "Graphics & Carousel", "Meta Ads", "Website Development"
+  category        String              // MARKETING, DEVELOPMENT, DESIGN, ADS, SEO, OTHER
+  billingCycle    String              @default("MONTHLY") // MONTHLY, ONE_TIME, MILESTONE
+  targetCount     Int                 @default(0) // e.g. 15 Reels, 30 Posts
+  completedCount  Int                 @default(0)
+  milestoneAmount Float               @default(0) // For milestone based receivables
+  status          String              @default("IN_PROGRESS") // PENDING, IN_PROGRESS, COMPLETED
+  notes           String?
+
+  metrics         DeliverableMetric[]
+  logs            DeliverableLog[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model DeliverableMetric {
+  id          String        @id @default(cuid())
+  serviceId   String
+  service     ClientService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  columnName  String        // e.g. "Target Reels", "Completed", "Pending", "Links"
+  columnType  String        @default("NUMBER") // NUMBER, TEXT, STATUS, DATE
+  value       String        // Stored value
+  month       Int?          // 1 - 12
+  year        Int?          // 2026
+  orderIndex  Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model DeliverableLog {
+  id          String        @id @default(cuid())
+  serviceId   String
+  service     ClientService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee      @relation(fields: [employeeId], references: [id])
+  deltaCount  Int           @default(1)
+  description String?
+  loggedAt    DateTime      @default(now())
+}
+
+model ClientReport {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  month       Int
+  year        Int
+  columnsJson String    // JSON string for dynamic column headers & row values
+  notes       String?
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS, SUBMITTED, APPROVED
+  submittedBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Expense {
+  id          String    @id @default(cuid())
+  expenseCode String    @unique
+  category    String    // SERVER_INFRA, SOFTWARE_LICENSES, OFFICE_RENT, UTILITIES, MARKETING_ADS, OTHER
+  title       String
+  amount      Float
+  date        DateTime  @default(now())
+  month       Int
+  year        Int
+  paidTo      String?
+  paymentMode String    @default("BANK_TRANSFER") // CASH, UPI, BANK_TRANSFER, CREDIT_CARD
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PerformanceRating {
+  id          String    @id @default(cuid())
+  employeeId  String
+  month       Int
+  year        Int
+  rating      String    @default("GREEN") // GREEN, YELLOW, RED
+  tasksScore  Float     @default(100)
+  attendanceScore Float @default(100)
+  feedback    String?
+  ratedBy     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, month, year])
+}
+
 

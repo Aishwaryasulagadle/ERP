@@ -47,7 +47,32 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
   const [timeRange, setTimeRange] = useState("30D");
   const [showQuickActionMenu, setShowQuickActionMenu] = useState(false);
 
-  // 1. Five Main KPI Cards (Requirement #6)
+  const userDept = (user?.department || "").toLowerCase();
+  const userEmail = (user?.email || "").toLowerCase();
+
+  const isMarketing =
+    userDept.includes("marketing") ||
+    userEmail.includes("priya") ||
+    userEmail.includes("rahul") ||
+    userEmail.includes("sneha");
+
+  const isTech =
+    userDept.includes("technical") ||
+    userDept.includes("tech") ||
+    userDept.includes("it") ||
+    userEmail.includes("tech") ||
+    userEmail.includes("amit") ||
+    userEmail.includes("neha");
+
+  const isSales =
+    userDept.includes("sales") ||
+    userEmail.includes("sales") ||
+    userEmail.includes("vikas") ||
+    userEmail.includes("pooja");
+
+  const isAdmin = role === "ADMIN";
+
+  // 1. KPI Values
   const totalRev = metrics.kpis.totalSalesRevenue || 565000;
   const totalLeads = metrics.kpis.totalLeads || 126;
   const convertedCount = metrics.kpis.convertedLeads || 31;
@@ -88,7 +113,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
 
   const currentChartData = chartDataMap[timeRange] || chartDataMap["30D"];
 
-  // 3. Horizontal CRM Pipeline Funnel Stages (Requirement #8)
+  // 3. Horizontal CRM Pipeline Funnel Stages
   const pipelineStages = [
     { label: "NEW", count: metrics.kpis.newLeads || 126, value: 420000, color: "border-blue-500/30 text-blue-400 bg-blue-500/10" },
     { label: "CONTACTED", count: 92, value: 340000, color: "border-indigo-500/30 text-indigo-400 bg-indigo-500/10" },
@@ -98,7 +123,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
     { label: "LOST", count: 14, value: 65000, color: "border-rose-500/30 text-rose-400 bg-rose-500/10" },
   ];
 
-  // 4. Employee Performance Table (Requirement #9)
+  // 4. Employee Performance Table
   const employeeRows = [
     { name: "Rahul Sharma", leads: 32, converted: 10, sales: 240000, tasks: "18/20", completion: 90, status: "ACTIVE" },
     { name: "Priya Sharma", leads: 28, converted: 8, sales: 180000, tasks: "15/18", completion: 83, status: "ACTIVE" },
@@ -106,7 +131,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
     { name: "Sneha Reddy", leads: 21, converted: 6, sales: 95000, tasks: "14/15", completion: 93, status: "ACTIVE" },
   ];
 
-  // 5. Recent Sales Table (Requirement #10)
+  // 5. Recent Sales Table
   const recentSales = [
     { id: "ORD-2026-001", customer: "Sidhi Bhoite", employee: "Amit Patel", amount: 265000, status: "PAID", date: "Sep 27" },
     { id: "ORD-2026-002", customer: "Akash Jadhav", employee: "Rahul Sharma", amount: 180000, status: "PENDING", date: "Sep 25" },
@@ -114,7 +139,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
     { id: "ORD-2026-004", customer: "Atharv Patharkar", employee: "Rahul Sharma", amount: 85000, status: "OVERDUE", date: "Sep 22" },
   ];
 
-  // 6. Today's Activity Timeline (Requirement #11)
+  // 6. Today's Activity Timeline
   const activities = [
     { time: "09:32", user: "Rahul Sharma", action: "created a new enterprise lead", icon: Target, color: "text-blue-400" },
     { time: "10:05", user: "Priya Sharma", action: "completed a client follow-up call", icon: PhoneCall, color: "text-amber-400" },
@@ -132,7 +157,13 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
             Welcome back, {user?.name || "Admin"} 👋
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Monitor sales, leads, employees and daily business operations.
+            {isMarketing
+              ? "Digital Marketing Operations • Deliverables, Social Campaigns, Reels & Team Performance."
+              : isTech
+              ? "Technical & IT Engineering • Code Sprints, Milestones, Deployments & System Status."
+              : isSales
+              ? "Sales & Deal Operations • Pipeline Velocity, Inbound Leads, and Revenue Solvency."
+              : "Global Executive Overview • Synced across Sales, Digital Marketing, and Technical Departments."}
           </p>
         </div>
 
@@ -145,52 +176,50 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Create</span>
+              <span>Actions</span>
               <ChevronDown className="w-3 h-3 ml-0.5" />
             </button>
 
             {showQuickActionMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95">
+                {(isSales || isAdmin) && (
+                  <>
+                    <Link
+                      href="/crm"
+                      onClick={() => setShowQuickActionMenu(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                    >
+                      <Target className="w-3.5 h-3.5 text-blue-600" />
+                      <span>+ Add Lead</span>
+                    </Link>
+                    <Link
+                      href="/sales"
+                      onClick={() => setShowQuickActionMenu(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                    >
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>+ Sales Ledger</span>
+                    </Link>
+                  </>
+                )}
                 <Link
-                  href="/crm"
-                  onClick={() => setShowQuickActionMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <Target className="w-3.5 h-3.5 text-blue-600" />
-                  <span>+ Add Lead</span>
-                </Link>
-                <Link
-                  href="/sales"
-                  onClick={() => setShowQuickActionMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>+ Create Customer</span>
-                </Link>
-                <Link
-                  href="/sales"
-                  onClick={() => setShowQuickActionMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>+ Create Sale</span>
-                </Link>
-                <Link
-                  href="/tasks"
+                  href="/employees?tab=TASKS"
                   onClick={() => setShowQuickActionMenu(false)}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
                 >
                   <CheckSquare className="w-3.5 h-3.5 text-amber-600" />
-                  <span>+ Assign Task</span>
+                  <span>+ Sprint Tasks</span>
                 </Link>
-                <Link
-                  href="/employees"
-                  onClick={() => setShowQuickActionMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <Users className="w-3.5 h-3.5 text-purple-600" />
-                  <span>+ Add Employee</span>
-                </Link>
+                {(isMarketing || isTech || isAdmin) && (
+                  <Link
+                    href="/reports"
+                    onClick={() => setShowQuickActionMenu(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                  >
+                    <Briefcase className="w-3.5 h-3.5 text-purple-600" />
+                    <span>+ Client Accounts</span>
+                  </Link>
+                )}
               </div>
             )}
           </div>
@@ -198,62 +227,155 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           {/* Date Range Selector */}
           <div className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 shadow-xs">
             <Calendar className="w-3.5 h-3.5 text-blue-600" />
-            <span className="font-medium">Sep 2026</span>
+            <span className="font-medium">Live Dashboard</span>
           </div>
         </div>
       </div>
 
-      {/* 2. Main 5 KPI Cards Section (Requirement #6) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard
-          title="TOTAL REVENUE"
-          value={formatCurrency(totalRev)}
-          trend="↑ 12.4%"
-          comparisonText="vs previous month"
-          isPositive={true}
-          icon={TrendingUp}
-          iconColor="text-blue-600 bg-blue-50 border-blue-200"
-        />
+      {/* 2. Main 5 KPI Cards Section */}
+      {isMarketing ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KpiCard
+            title="ACTIVE CLIENTS"
+            value={metrics.clientStats?.totalClients || 0}
+            trend="Marketing"
+            comparisonText="active accounts"
+            isPositive={true}
+            icon={Briefcase}
+            iconColor="text-purple-600 bg-purple-50 border-purple-200"
+          />
+          <KpiCard
+            title="REELS & POSTS"
+            value={`${metrics.clientStats?.totalCompletedDeliverables || 0}/${metrics.clientStats?.totalTargetDeliverables || 0}`}
+            trend="Deliverables"
+            comparisonText="this month's targets"
+            isPositive={true}
+            icon={Target}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="DELIVERY VELOCITY"
+            value={`${metrics.clientStats?.deliverableCompletionRate || 0}%`}
+            trend="On Track"
+            comparisonText="monthly delivery rate"
+            isPositive={true}
+            icon={Sparkles}
+            iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
+          />
+          <KpiCard
+            title="TEAM ATTENDANCE"
+            value={`${presentToday}/${totalEmp}`}
+            comparisonText="staff present today"
+            isPositive={true}
+            icon={Users}
+            iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
+          />
+          <KpiCard
+            title="SPRINT COMPLETION"
+            value={`${taskRate}%`}
+            trend="+5.4%"
+            comparisonText="tasks resolved"
+            isPositive={true}
+            icon={CheckSquare}
+            iconColor="text-amber-600 bg-amber-50 border-amber-200"
+          />
+        </div>
+      ) : isTech ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KpiCard
+            title="DEV CLIENTS"
+            value={metrics.clientStats?.totalClients || 0}
+            trend="Web & Apps"
+            comparisonText="active engineering contracts"
+            isPositive={true}
+            icon={Briefcase}
+            iconColor="text-cyan-600 bg-cyan-50 border-cyan-200"
+          />
+          <KpiCard
+            title="MILESTONES SHIPPED"
+            value={`${metrics.clientStats?.totalCompletedDeliverables || 0}/${metrics.clientStats?.totalTargetDeliverables || 0}`}
+            trend="Shipped"
+            comparisonText="milestones completed"
+            isPositive={true}
+            icon={Target}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="SPRINT VELOCITY"
+            value={`${metrics.clientStats?.deliverableCompletionRate || 0}%`}
+            trend="Velocity"
+            comparisonText="architecture progress"
+            isPositive={true}
+            icon={Sparkles}
+            iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
+          />
+          <KpiCard
+            title="DEV ATTENDANCE"
+            value={`${presentToday}/${totalEmp}`}
+            comparisonText="engineers active"
+            isPositive={true}
+            icon={Users}
+            iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
+          />
+          <KpiCard
+            title="SPRINT TASKS"
+            value={`${taskRate}%`}
+            trend="Done"
+            comparisonText="tickets completed"
+            isPositive={true}
+            icon={CheckSquare}
+            iconColor="text-violet-600 bg-violet-50 border-violet-200"
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <KpiCard
+            title="TOTAL REVENUE"
+            value={formatCurrency(totalRev)}
+            trend="↑ 12.4%"
+            comparisonText="vs previous month"
+            isPositive={true}
+            icon={TrendingUp}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="TOTAL LEADS"
+            value={totalLeads}
+            trend="↑ 8.2%"
+            comparisonText="inbound deals"
+            isPositive={true}
+            icon={Target}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="CONVERSION RATE"
+            value={`${convRate}%`}
+            trend="↑ 4.1%"
+            comparisonText="deal velocity"
+            isPositive={true}
+            icon={Sparkles}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="ACTIVE EMPLOYEES"
+            value={totalEmp}
+            comparisonText={`${presentToday} present today`}
+            isPositive={true}
+            icon={Users}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+          <KpiCard
+            title="TASK COMPLETION"
+            value={`${taskRate}%`}
+            trend="+6.2%"
+            comparisonText="sprint status"
+            isPositive={true}
+            icon={CheckSquare}
+            iconColor="text-blue-600 bg-blue-50 border-blue-200"
+          />
+        </div>
+      )}
 
-        <KpiCard
-          title="TOTAL LEADS"
-          value={totalLeads}
-          trend="↑ 8.2%"
-          comparisonText="inbound deals"
-          isPositive={true}
-          icon={Target}
-          iconColor="text-blue-600 bg-blue-50 border-blue-200"
-        />
-
-        <KpiCard
-          title="CONVERSION RATE"
-          value={`${convRate}%`}
-          trend="↑ 4.1%"
-          comparisonText="lead velocity"
-          isPositive={true}
-          icon={Sparkles}
-          iconColor="text-blue-600 bg-blue-50 border-blue-200"
-        />
-
-        <KpiCard
-          title="ACTIVE EMPLOYEES"
-          value={totalEmp}
-          comparisonText={`${presentToday} present today`}
-          isPositive={true}
-          icon={Users}
-          iconColor="text-blue-600 bg-blue-50 border-blue-200"
-        />
-
-        <KpiCard
-          title="TASK COMPLETION"
-          value={`${taskRate}%`}
-          trend="+6.2%"
-          comparisonText="sprint status"
-          isPositive={true}
-          icon={CheckSquare}
-          iconColor="text-blue-600 bg-blue-50 border-blue-200"
-        />
-      </div>
 
       {/* 3. Sales Overview Large Chart (Requirement #7) */}
       <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
@@ -332,35 +454,94 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
         </div>
       </div>
 
-      {/* 4. CRM Pipeline Funnel (Requirement #8) */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">CRM Pipeline</h3>
-            <p className="text-xs text-slate-500">Deal velocity across sales acquisition stages</p>
-          </div>
-          <Link href="/crm" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-            <span>Open Pipeline</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {pipelineStages.map((stage) => (
-            <Link
-              key={stage.label}
-              href={`/crm?tab=${stage.label}`}
-              className={`p-3.5 rounded-xl border flex flex-col justify-between hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer ${stage.color}`}
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono opacity-80">{stage.label}</span>
-              <div className="mt-3">
-                <p className="text-xl font-bold font-mono text-slate-900">{stage.count}</p>
-                <p className="text-[11px] font-mono mt-0.5 opacity-90">{formatCurrency(stage.value)}</p>
-              </div>
+      {/* 4. CRM Pipeline Funnel or Department Client Deliverables */}
+      {(isMarketing || isTech) ? (
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                {isMarketing ? "Marketing Accounts & Campaign Deliverables" : "Engineering Projects & Architecture Milestones"}
+              </h3>
+              <p className="text-xs text-slate-500">Live deliverable tracker for client retainers</p>
+            </div>
+            <Link href="/reports" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <span>View All Client Workspaces</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {metrics.clientStats?.clients && metrics.clientStats.clients.length > 0 ? (
+              metrics.clientStats.clients.map((c: any) => {
+                const totalTarget = c.services?.reduce((acc: number, s: any) => acc + (s.targetCount || 0), 0) || 0;
+                const totalDone = c.services?.reduce((acc: number, s: any) => acc + (s.completedCount || 0), 0) || 0;
+                const pct = totalTarget > 0 ? Math.min(100, Math.round((totalDone / totalTarget) * 100)) : 0;
+                return (
+                  <Link
+                    key={c.id}
+                    href="/reports"
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900 truncate">{c.name}</span>
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                        {c.clientCode}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <span>Deliverables: {totalDone}/{totalTarget}</span>
+                        <span className="font-bold text-slate-700">{pct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                      <span>{c.billingType}</span>
+                      <span className="font-bold text-emerald-600 font-mono">{formatCurrency(c.amount)}</span>
+                    </div>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="col-span-3 text-center py-6 text-slate-400 text-xs bg-slate-50 rounded-xl border border-slate-200">
+                No active clients found in this department.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">CRM Pipeline</h3>
+              <p className="text-xs text-slate-500">Deal velocity across sales acquisition stages</p>
+            </div>
+            <Link href="/crm" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+              <span>Open Pipeline</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {pipelineStages.map((stage) => (
+              <Link
+                key={stage.label}
+                href={`/crm?tab=${stage.label}`}
+                className={`p-3.5 rounded-xl border flex flex-col justify-between hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer ${stage.color}`}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider font-mono opacity-80">{stage.label}</span>
+                <div className="mt-3">
+                  <p className="text-xl font-bold font-mono text-slate-900">{stage.count}</p>
+                  <p className="text-[11px] font-mono mt-0.5 opacity-90">{formatCurrency(stage.value)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* 5. Employee Performance & Recent Sales Grid (Requirements #9 & #10) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

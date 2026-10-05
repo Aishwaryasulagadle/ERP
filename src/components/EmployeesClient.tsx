@@ -83,6 +83,7 @@ interface EmployeesClientProps {
   currentUserId?: string;
   currentEmployeeId?: string;
   user?: any;
+  assignedClients?: any[];
 }
 
 export function EmployeesClient({
@@ -102,9 +103,22 @@ export function EmployeesClient({
   currentUserId,
   currentEmployeeId,
   user,
+  assignedClients = [],
 }: EmployeesClientProps) {
+  const isManager = userRole === "MANAGER";
+  const isEmployee = userRole === "EMPLOYEE";
+  const isAdmin = userRole === "ADMIN";
+
+  const [managerMode, setManagerMode] = useState<"MANAGER" | "EMPLOYEE">("MANAGER");
+  const isEmployeeMode = isEmployee || (isManager && managerMode === "EMPLOYEE");
+  const isManagerMode = isManager && managerMode === "MANAGER";
+  const isManagerOrAdminView = !isEmployeeMode;
+
+  const userDeptId = (user as any)?.departmentId;
+  const userDeptName = ((user as any)?.department || "").toLowerCase();
+
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") || "DIRECTORY";
+  const initialTab = searchParams.get("tab") || (isEmployeeMode ? "ATTENDANCE" : "DIRECTORY");
 
   // Tab State: "DIRECTORY" | "ATTENDANCE" | "LEAVE" | "PAYROLL" | "HOLIDAYS" | "QUERIES" | "TASKS" | "REPORTS"
   const [activeTab, setActiveTab] = useState<
@@ -112,6 +126,8 @@ export function EmployeesClient({
   >(
     ["DIRECTORY", "ATTENDANCE", "LEAVE", "PAYROLL", "HOLIDAYS", "QUERIES", "TASKS", "REPORTS"].includes(initialTab)
       ? (initialTab as any)
+      : isEmployeeMode
+      ? "ATTENDANCE"
       : "DIRECTORY"
   );
 
@@ -121,6 +137,29 @@ export function EmployeesClient({
       setActiveTab(tab as any);
     }
   }, [searchParams]);
+
+  // Switch tab away from DIRECTORY if in employee mode
+  useEffect(() => {
+    if (isEmployeeMode && activeTab === "DIRECTORY") {
+      setActiveTab("ATTENDANCE");
+    }
+  }, [isEmployeeMode, activeTab]);
+
+  // Modal states for punch-out compulsory report and today's presence roster
+  const [showClockOutModal, setShowClockOutModal] = useState(false);
+  const [clockOutReportSummary, setClockOutReportSummary] = useState("");
+  const [clockOutReportDeliverables, setClockOutReportDeliverables] = useState("");
+  const [clockOutReportHours, setClockOutReportHours] = useState(8);
+  const [clockOutReportBlockers, setClockOutReportBlockers] = useState("");
+  const [showTodayAttendanceModal, setShowTodayAttendanceModal] = useState(false);
+  const [showAddPersonalTaskModal, setShowAddPersonalTaskModal] = useState(false);
+  const [personalTaskForm, setPersonalTaskForm] = useState({
+    title: "",
+    description: "",
+    priority: "MEDIUM",
+    dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
+    estimatedHours: 4,
+  });
 
   // General UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -205,6 +244,7 @@ export function EmployeesClient({
   const [selectedQueryForResolve, setSelectedQueryForResolve] = useState<any | null>(null);
   const [queryResolveText, setQueryResolveText] = useState("");
   const [queryFormData, setQueryFormData] = useState({
+    recipient: "MANAGER" as "ADMIN" | "MANAGER",
     category: "SALARY_PAYROLL",
     subject: "",
     description: "",
@@ -366,13 +406,73 @@ export function EmployeesClient({
   };
 
   const handleClockOut = async () => {
+    // If not filled yet, prompt the compulsory daily work report modal
+    setShowClockOutModal(true);
+  };
+
+  const handleClockOutWithReport = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     try {
+      await submitClientReport({
+        reportType: "DAILY",
+        customerName: "Internal Operations",
+        projectTitle: `Daily Standup - ${new Date().toLocaleDateString()}`,
+        status: "COMPLETED",
+        summary: clockOutReportSummary,
+        deliverables: clockOutReportDeliverables,
+        nextWeekPlan: "",
+        blockers: clockOutReportBlockers,
+        hoursSpent: Number(clockOutReportHours) || 8,
+      });
+
       const res = await clockOut();
       setTodayAttendance(res);
-      alert("Clocked out successfully!");
-    } catch (e: any) {
-      alert(e.message);
+      setShowClockOutModal(false);
+      setReportsList([
+        {
+          id: String(Date.now()),
+          submittedBy: user?.name || "Team Member",
+          reportType: "DAILY",
+          customerName: "Internal Operations",
+          projectTitle: `Daily Standup - ${new Date().toLocaleDateString()}`,
+          status: "COMPLETED",
+          summary: clockOutReportSummary,
+          deliverables: clockOutReportDeliverables,
+          blockers: clockOutReportBlockers,
+          hoursSpent: Number(clockOutReportHours) || 8,
+          createdAt: new Date().toISOString(),
+        },
+        ...reportsList,
+      ]);
+      alert("✓ Daily standup report filed and Punched Out successfully!");
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePersonalTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const newTask = await createTask({
+        ...personalTaskForm,
+        assignedToId: currentEmployeeId,
+      });
+      setTasks([newTask, ...tasks]);
+      setShowAddPersonalTaskModal(false);
+      setPersonalTaskForm({
+        title: "",
+        description: "",
+        priority: "MEDIUM",
+        dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
+        estimatedHours: 4,
+      });
+      alert(`Task "${newTask.title}" added to your sprint board!`);
+    } catch (err: any) {
+      alert(err.message);
     } finally {
       setLoading(false);
     }
@@ -617,7 +717,7 @@ export function EmployeesClient({
       const q = await createEmployeeQuery(queryFormData);
       setQueries([q, ...queries]);
       setShowRaiseQueryModal(false);
-      setQueryFormData({ category: "SALARY_PAYROLL", subject: "", description: "", priority: "MEDIUM" });
+      setQueryFormData({ recipient: "MANAGER", category: "SALARY_PAYROLL", subject: "", description: "", priority: "MEDIUM" });
       alert(`Helpdesk ticket ${q.queryCode} created! HR will review it.`);
     } catch (e: any) {
       alert(e.message);
@@ -802,17 +902,73 @@ export function EmployeesClient({
 
   const boardColumns = ["PENDING", "IN_PROGRESS", "COMPLETED", "OVERDUE"];
 
-  // Sidebar navigation sections
-  const mainSections = [
-    { key: "DIRECTORY", label: "Staff Directory", icon: Users, count: employees.length, color: "text-blue-600" },
-    { key: "ATTENDANCE", label: "Attendance & Shifts", icon: Clock, count: allAttendances.length, color: "text-emerald-600" },
-    { key: "LEAVE", label: "Leave & WFH & Half Day", icon: Calendar, count: leaves.filter((l) => l.status === "PENDING").length || leaves.length, color: "text-amber-600" },
-    { key: "PAYROLL", label: "Salary Slips & Payroll", icon: DollarSign, count: salarySlips.length, color: "text-indigo-600" },
-    { key: "HOLIDAYS", label: "Holidays & Sundays", icon: Sparkles, count: holidays.length, color: "text-rose-600" },
-    { key: "QUERIES", label: "Helpdesk & Queries", icon: MessageSquare, count: queries.filter((q) => q.status === "OPEN").length || queries.length, color: "text-purple-600" },
-    { key: "TASKS", label: "Sprint Tasks", icon: CheckSquare, count: tasks.length, color: "text-cyan-600" },
-    { key: "REPORTS", label: "Work Reports", icon: BarChart3, count: reportsList.length, color: "text-violet-600" },
+  // Department Scoped records
+  const scopedEmployees = isManagerMode
+    ? employees.filter((e) => e.departmentId === userDeptId || (userDeptName && e.department?.name?.toLowerCase().includes(userDeptName)))
+    : employees;
+
+  const scopedAttendances = isManagerMode
+    ? allAttendances.filter((a) => a.employee?.departmentId === userDeptId || (userDeptName && a.employee?.department?.name?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? allAttendances.filter((a) => a.employeeId === currentEmployeeId)
+    : allAttendances;
+
+  const scopedLeaves = isManagerMode
+    ? leaves.filter((l) => l.employee?.departmentId === userDeptId || (userDeptName && l.employee?.department?.name?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? leaves.filter((l) => l.employeeId === currentEmployeeId)
+    : leaves;
+
+  const scopedSlips = isManagerMode
+    ? salarySlips.filter((s) => s.employee?.departmentId === userDeptId || (userDeptName && s.employee?.department?.name?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? salarySlips.filter((s) => s.employeeId === currentEmployeeId)
+    : salarySlips;
+
+  const scopedQueries = isManagerMode
+    ? queries.filter((q) => q.employee?.departmentId === userDeptId || (userDeptName && q.employee?.department?.name?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? queries.filter((q) => q.employeeId === currentEmployeeId)
+    : queries;
+
+  const scopedTasks = isManagerMode
+    ? tasks.filter((t) => t.assignedTo?.departmentId === userDeptId || (userDeptName && t.assignedTo?.department?.name?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? tasks.filter((t) => t.assignedToId === currentEmployeeId)
+    : tasks;
+
+  const scopedReports = isManagerMode
+    ? reportsList.filter((r) => r.departmentId === userDeptId || (userDeptName && r.department?.toLowerCase().includes(userDeptName)))
+    : isEmployeeMode
+    ? reportsList.filter((r) => r.submittedBy === user?.name || r.employeeId === currentEmployeeId)
+    : reportsList;
+
+  const presentStaff = scopedAttendances.filter((a) => {
+    const isToday = new Date(a.date).toDateString() === new Date().toDateString();
+    return isToday && Boolean(a.checkIn || a.status === "PRESENT");
+  });
+
+  const presentEmpIds = new Set(presentStaff.map((a) => a.employeeId));
+  const absentStaff = scopedEmployees.filter((e) => !presentEmpIds.has(e.id));
+
+  const userApprovedPaidLeaves = leaves.filter(
+    (l) => l.employeeId === currentEmployeeId && l.status === "APPROVED" && (l.type === "PAID" || l.type === "CASUAL" || l.type === "SICK")
+  ).length;
+  const remainingPaidLeaves = Math.max(0, 12 - userApprovedPaidLeaves);
+
+  // Sidebar navigation sections: hide DIRECTORY in employee mode!
+  const allSections = [
+    { key: "DIRECTORY", label: "Staff Directory", icon: Users, count: scopedEmployees.length, color: "text-blue-600", showInEmployee: false },
+    { key: "ATTENDANCE", label: "Attendance & Shifts", icon: Clock, count: scopedAttendances.length, color: "text-emerald-600", showInEmployee: true },
+    { key: "LEAVE", label: "Leave & WFH & Half Day", icon: Calendar, count: scopedLeaves.filter((l) => l.status === "PENDING").length || scopedLeaves.length, color: "text-amber-600", showInEmployee: true },
+    { key: "PAYROLL", label: "Salary Slips & Payroll", icon: DollarSign, count: scopedSlips.length, color: "text-indigo-600", showInEmployee: true },
+    { key: "HOLIDAYS", label: "Holidays & Sundays", icon: Sparkles, count: holidays.length, color: "text-rose-600", showInEmployee: true },
+    { key: "QUERIES", label: "Helpdesk & Queries", icon: MessageSquare, count: scopedQueries.filter((q) => q.status === "OPEN").length || scopedQueries.length, color: "text-purple-600", showInEmployee: true },
+    { key: "TASKS", label: "Sprint Tasks", icon: CheckSquare, count: scopedTasks.length, color: "text-cyan-600", showInEmployee: true },
+    { key: "REPORTS", label: "Work Reports", icon: BarChart3, count: scopedReports.length, color: "text-violet-600", showInEmployee: true },
   ];
+
+  const mainSections = allSections.filter((s) => (isEmployeeMode ? s.showInEmployee : true));
 
   return (
     <div className="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-4rem)] bg-slate-50">
@@ -827,8 +983,12 @@ export function EmployeesClient({
                   <Users className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-bold text-xs text-slate-900 truncate">HR & Workforce Hub</h2>
-                  <p className="text-[10px] text-slate-500 truncate">Leaves, Payroll, Shifts & Query</p>
+                  <h2 className="font-bold text-xs text-slate-900 truncate">
+                    {isAdmin ? "Executive HR & Operations" : isManagerMode ? `${user?.department || "Department"} Manager` : "Employee Self-Service"}
+                  </h2>
+                  <p className="text-[10px] text-slate-500 truncate">
+                    {isAdmin ? "Company Wide Management" : isManagerMode ? "Department Team Operations" : `${user?.name || "Staff Member"}`}
+                  </p>
                 </div>
               </div>
               <button
@@ -841,6 +1001,42 @@ export function EmployeesClient({
               </button>
             </div>
           </div>
+
+          {/* MANAGER MODE SWITCHER TOGGLE */}
+          {isManager && (
+            <div className="p-1 bg-slate-100 rounded-xl flex items-center border border-slate-200 gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setManagerMode("MANAGER");
+                  setActiveTab("DIRECTORY");
+                }}
+                className={cn(
+                  "flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all text-center cursor-pointer",
+                  managerMode === "MANAGER"
+                    ? "bg-white text-blue-600 shadow-xs border border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                👔 Manager
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setManagerMode("EMPLOYEE");
+                  setActiveTab("ATTENDANCE");
+                }}
+                className={cn(
+                  "flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all text-center cursor-pointer",
+                  managerMode === "EMPLOYEE"
+                    ? "bg-white text-blue-600 shadow-xs border border-slate-200"
+                    : "text-slate-600 hover:text-slate-900"
+                )}
+              >
+                👤 Employee
+              </button>
+            </div>
+          )}
 
           {/* Module View Switcher */}
           <div className="space-y-1">
@@ -1293,19 +1489,85 @@ export function EmployeesClient({
               </div>
             </div>
 
+            {/* PUNCH IN / PUNCH OUT TERMINAL CARD */}
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/30 text-white">
+                      Daily Biometric Terminal
+                    </span>
+                    <span className="text-xs text-white/80 font-mono">
+                      {new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black tracking-tight">
+                    {isCheckedIn ? (isCheckedOut ? "Shift Completed for Today" : "Currently Punched In & Working") : "Ready to Start Shift"}
+                  </h3>
+                  <p className="text-xs text-white/80">
+                    {isCheckedIn
+                      ? isCheckedOut
+                        ? `Shift Logged • Punched in at ${formatTime(todayAttendance?.checkIn)} • Punched out at ${formatTime(todayAttendance?.checkOut)}`
+                        : `Punched in at ${formatTime(todayAttendance?.checkIn)}. Remember to submit your daily standup work report upon punch out.`
+                      : "Start your working day by clicking Punch In. When leaving, submit your daily report to punch out."}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!isCheckedIn ? (
+                    <button
+                      type="button"
+                      onClick={handleClockIn}
+                      disabled={loading}
+                      className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer transform hover:scale-105"
+                    >
+                      <Play className="w-4 h-4 fill-white" />
+                      <span>Punch In</span>
+                    </button>
+                  ) : !isCheckedOut ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleBreak}
+                        disabled={loading}
+                        className="px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Coffee className="w-4 h-4" />
+                        <span>{ongoingBreak ? "Resume Work" : "Break"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowClockOutModal(true)}
+                        disabled={loading}
+                        className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
+                      >
+                        <Square className="w-4 h-4 fill-white" />
+                        <span>Punch Out (Submit Report)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 rounded-xl bg-white/20 border border-white/30 text-xs font-bold text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                      <span>Shift Finished</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Attendance KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="PRESENT TODAY"
-                value={presentCount || allAttendances.length}
-                trend="View Full Month ↗"
-                comparisonText="click to view full month presence"
+                value={presentStaff.length || (isCheckedIn ? 1 : 0)}
+                trend="View Today's Roster ↗"
+                comparisonText="click to view present & absent list"
                 isPositive={true}
                 icon={UserCheck}
                 iconColor="text-emerald-600 bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20"
                 className="border-emerald-200/80 hover:border-emerald-500 hover:shadow-emerald-100/50 cursor-pointer relative"
                 onClick={() => {
-                  setAttendanceViewMode("MONTHLY");
+                  setShowTodayAttendanceModal(true);
                 }}
               />
               <KpiCard
@@ -1635,16 +1897,46 @@ export function EmployeesClient({
                 </p>
               </div>
 
-              {["ADMIN", "MANAGER"].includes(userRole) && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAssignLeaveModal(true)}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+                  onClick={() => setShowApplyLeaveModal(true)}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Assign Leave / WFH / Half Day</span>
+                  <span>Apply for Leave / WFH</span>
                 </button>
-              )}
+                {isManagerOrAdminView && (
+                  <button
+                    onClick={() => setShowAssignLeaveModal(true)}
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Assign Staff Leave</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Remaining Paid Leaves Banner for Employee Mode */}
+            {isEmployeeMode && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between shadow-xs">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100 font-mono">
+                    Annual Paid Leave Balance (Yearly Allowance: 12 Days)
+                  </span>
+                  <div className="text-2xl font-black font-mono">{remainingPaidLeaves} Days Remaining</div>
+                  <p className="text-xs text-white/80">
+                    Paid leaves & approved WFH are fully compensated. Half-days are 50% paid.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowApplyLeaveModal(true)}
+                  className="px-4 py-2 bg-white text-emerald-800 font-bold text-xs rounded-xl shadow-xs hover:bg-emerald-50 cursor-pointer"
+                >
+                  Apply Leave
+                </button>
+              </div>
+            )}
 
             {/* Leave KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2003,9 +2295,17 @@ export function EmployeesClient({
                   HR & Employee Helpdesk Queries
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  View and resolve employee salary issues, attendance corrections, and HR inquiries
+                  View, raise, and resolve employee salary issues, attendance corrections, and HR inquiries
                 </p>
               </div>
+
+              <button
+                onClick={() => setShowRaiseQueryModal(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Raise New Query / Issue</span>
+              </button>
             </div>
 
             {/* Queries KPI Cards */}
@@ -2161,15 +2461,13 @@ export function EmployeesClient({
                   </button>
                 </div>
 
-                {["ADMIN", "MANAGER"].includes(userRole) && (
-                  <button
-                    onClick={() => setShowCreateTaskModal(true)}
-                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Assign Daily Task</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => (isEmployeeMode ? setShowAddPersonalTaskModal(true) : setShowCreateTaskModal(true))}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isEmployeeMode ? "+ Add Personal Task" : "Assign Daily Task"}</span>
+                </button>
               </div>
             </div>
 
@@ -2364,6 +2662,16 @@ export function EmployeesClient({
                 <p className="text-xs text-slate-500 mt-0.5">
                   View and review employee daily standup logs, weekly sprint updates, and milestone deliverables
                 </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenReportModal("DAILY")}
+                  className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ File Work Report</span>
+                </button>
               </div>
             </div>
 
@@ -2956,6 +3264,18 @@ export function EmployeesClient({
             </div>
 
             <form onSubmit={handleRaiseQuery} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Route / Send Query To *</label>
+                <select
+                  value={queryFormData.recipient}
+                  onChange={(e) => setQueryFormData({ ...queryFormData, recipient: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                >
+                  <option value="MANAGER">Department Manager</option>
+                  <option value="ADMIN">System Administrator / HR Head</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Category *</label>
@@ -3998,6 +4318,30 @@ export function EmployeesClient({
                 />
               </div>
 
+              {assignedClients.length > 0 && (
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Link to Client Account (Optional)</label>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "NONE") {
+                        setReportFormData({ ...reportFormData, customerName: "Internal Operations" });
+                      } else {
+                        setReportFormData({ ...reportFormData, customerName: val, reportType: "CLIENT" });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="NONE">General / Internal Department Standup</option>
+                    {assignedClients.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        Client: {c.name} ({c.clientCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Project / Department</label>
@@ -4080,6 +4424,316 @@ export function EmployeesClient({
                   className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
                 >
                   {loading ? "Submitting..." : "Submit Report"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 10. COMPULSORY DAILY WORK REPORT & PUNCH-OUT MODAL */}
+      {showClockOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                  <Square className="w-4 h-4 fill-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Punch Out & Daily Work Report</h3>
+                  <p className="text-[11px] text-slate-500">Compulsory daily standup report before completing shift</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowClockOutModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleClockOutWithReport} className="space-y-3.5 text-xs">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>Submitting your daily work report is mandatory before punching out. This updates manager oversight and sprint progress.</span>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Today&apos;s Summary / Work Done *</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Key activities completed today..."
+                  value={clockOutReportSummary}
+                  onChange={(e) => setClockOutReportSummary(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Shipped Deliverables / Tasks Solved *</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="List files coded, reels edited, tickets resolved, campaigns launched..."
+                  value={clockOutReportDeliverables}
+                  onChange={(e) => setClockOutReportDeliverables(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Total Hours Worked *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={clockOutReportHours}
+                    onChange={(e) => setClockOutReportHours(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Blockers / Dependencies (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Any blockers or pending approvals..."
+                    value={clockOutReportBlockers}
+                    onChange={(e) => setClockOutReportBlockers(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowClockOutModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Square className="w-3.5 h-3.5 fill-white" />
+                  <span>{loading ? "Submitting..." : "Submit Report & Punch Out"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 11. TODAY'S ATTENDANCE ROSTER MODAL */}
+      {showTodayAttendanceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Today&apos;s Attendance Roster</h3>
+                  <p className="text-[11px] text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTodayAttendanceModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider font-mono mb-2 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>Present Staff ({scopedAttendances.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.checkIn).length})</span>
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {scopedAttendances.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.checkIn).length > 0 ? (
+                    scopedAttendances.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.checkIn).map((att) => (
+                      <div key={att.id} className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-200/60 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[10px]">
+                            {att.employee?.user?.name?.[0] || "E"}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block">{att.employee?.user?.name || "Employee"}</span>
+                            <span className="text-[10px] text-slate-500">{att.employee?.department?.name || "General"} • {att.employee?.employeeCode}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] font-mono font-bold text-emerald-700 block">
+                            In: {att.checkIn ? formatTime(att.checkIn) : "Present"}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {att.checkOut ? `Out: ${formatTime(att.checkOut)}` : "Shift Active"}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-slate-200">
+                      No staff have punched in yet today.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-rose-700 uppercase tracking-wider font-mono mb-2 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  <span>Absent / Not Checked In ({scopedEmployees.filter((e) => !scopedAttendances.some((a) => a.employeeId === e.id && (a.status === "PRESENT" || a.status === "LATE" || a.checkIn))).length})</span>
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {scopedEmployees.filter((e) => !scopedAttendances.some((a) => a.employeeId === e.id && (a.status === "PRESENT" || a.status === "LATE" || a.checkIn))).length > 0 ? (
+                    scopedEmployees.filter((e) => !scopedAttendances.some((a) => a.employeeId === e.id && (a.status === "PRESENT" || a.status === "LATE" || a.checkIn))).map((emp) => (
+                      <div key={emp.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-[10px]">
+                            {emp.user?.name?.[0] || "E"}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800 block">{emp.user?.name || "Employee"}</span>
+                            <span className="text-[10px] text-slate-500">{emp.department?.name || "Staff"} • {emp.designation?.name || "Member"}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                          ABSENT
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-emerald-600 py-3 text-center bg-emerald-50 rounded-xl border border-emerald-200">
+                      ✓ 100% Attendance! All staff members checked in.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowTodayAttendanceModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer"
+              >
+                Close Roster
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. CREATE PERSONAL SPRINT TASK MODAL */}
+      {showAddPersonalTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Add Personal Sprint Task</h3>
+                  <p className="text-[11px] text-slate-500">Plan and track your daily work deliverables</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddPersonalTaskModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePersonalTask} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Task Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Design 3 Video Thumbnails or Test Login API"
+                  value={personalTaskForm.title}
+                  onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Description / Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Details, steps, or resources needed..."
+                  value={personalTaskForm.description}
+                  onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Priority</label>
+                  <select
+                    value={personalTaskForm.priority}
+                    onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, priority: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Estimated Hours</label>
+                  <input
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={personalTaskForm.estimatedHours}
+                    onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, estimatedHours: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Due Date / Deadline *</label>
+                <input
+                  type="date"
+                  required
+                  value={personalTaskForm.dueDate}
+                  onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, dueDate: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPersonalTaskModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  {loading ? "Creating..." : "Add to My Sprint"}
                 </button>
               </div>
             </form>

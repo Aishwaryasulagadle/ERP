@@ -28,23 +28,32 @@ import {
   Layers,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { createLead, updateLeadStatus, convertLeadToCustomerAndOrder } from "@/actions/crm";
+import { createLead, updateLeadStatus, convertLeadToCustomerAndOrder, requestLeadConversionApproval } from "@/actions/crm";
 import { StatusBadge, KpiCard } from "@/components/ui/Cards";
 import { cn } from "@/lib/utils";
+import { ShieldCheck } from "lucide-react";
 
 interface CRMClientProps {
   initialLeads: any[];
   employees: any[];
+  user?: any;
+  userRole?: string;
 }
 
-export function CRMClient({ initialLeads, employees }: CRMClientProps) {
+export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE" }: CRMClientProps) {
   const [leads, setLeads] = useState<any[]>(initialLeads);
   const [activeStageFilter, setActiveStageFilter] = useState<string>("ALL");
+  const [leadScopeFilter, setLeadScopeFilter] = useState<"ALL" | "MINE">("ALL");
   const [search, setSearch] = useState("");
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const currentEmpId = (user as any)?.employeeId;
+  const isManager = userRole === "MANAGER";
+  const isAdmin = userRole === "ADMIN";
+  const isEmployee = userRole === "EMPLOYEE";
 
   // Form states
   const [formData, setFormData] = useState({
@@ -56,7 +65,7 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
     source: "WEBSITE",
     productInterest: "Enterprise ERP Cloud Suite (Annual)",
     expectedValue: 180000,
-    assignedToId: employees[0]?.id || "",
+    assignedToId: currentEmpId || employees[0]?.id || "",
     priority: "HIGH",
     notes: "",
     followUpDate: "",
@@ -64,12 +73,15 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
 
   const [convertData, setConvertData] = useState({
     totalAmount: 180000,
-    itemTitle: "Enterprise ERP Cloud Suite (Annual)",
+    itemTitle: "Digital Marketing Retainer",
+    departmentType: "DIGITAL_MARKETING" as "DIGITAL_MARKETING" | "TECHNICAL",
+    billingType: "MONTHLY" as "MONTHLY" | "ONE_TIME",
+    serviceDetails: "",
   });
 
   const [loading, setLoading] = useState(false);
 
-  const stages = ["NEW", "CONTACTED", "FOLLOW_UP", "QUALIFIED", "CONVERTED", "LOST"];
+  const stages = ["NEW", "CONTACTED", "FOLLOW_UP", "QUALIFIED", "PENDING_APPROVAL", "CONVERTED", "LOST"];
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,11 +127,19 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
     if (!selectedLead) return;
     setLoading(true);
     try {
-      await convertLeadToCustomerAndOrder(selectedLead.id, convertData);
-      setLeads(leads.map((l) => (l.id === selectedLead.id ? { ...l, status: "CONVERTED" } : l)));
-      setSelectedLead({ ...selectedLead, status: "CONVERTED" });
-      setShowConvertModal(false);
-      alert(`Lead ${selectedLead.leadCode} successfully converted into Customer and Order!`);
+      if (isEmployee) {
+        await requestLeadConversionApproval(selectedLead.id, convertData);
+        setLeads(leads.map((l) => (l.id === selectedLead.id ? { ...l, status: "PENDING_APPROVAL", expectedValue: convertData.totalAmount } : l)));
+        setSelectedLead({ ...selectedLead, status: "PENDING_APPROVAL", expectedValue: convertData.totalAmount });
+        setShowConvertModal(false);
+        alert(`✓ Conversion request for ${selectedLead.customerName} submitted to Sales Manager for final approval!`);
+      } else {
+        await convertLeadToCustomerAndOrder(selectedLead.id, convertData);
+        setLeads(leads.map((l) => (l.id === selectedLead.id ? { ...l, status: "CONVERTED" } : l)));
+        setSelectedLead({ ...selectedLead, status: "CONVERTED" });
+        setShowConvertModal(false);
+        alert(`✓ Lead ${selectedLead.leadCode} successfully approved and converted into Client Account and Sales Order!`);
+      }
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -145,12 +165,15 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
 
   const filteredLeads = leads.filter((lead) => {
     const matchesStage = activeStageFilter === "ALL" || lead.status === activeStageFilter;
+    const matchesScope =
+      leadScopeFilter === "ALL" ||
+      (leadScopeFilter === "MINE" && (lead.assignedToId === currentEmpId || (lead.assignedTo?.userId === user?.id)));
     const matchesSearch =
       lead.customerName?.toLowerCase().includes(search.toLowerCase()) ||
       lead.company?.toLowerCase().includes(search.toLowerCase()) ||
       lead.leadCode?.toLowerCase().includes(search.toLowerCase()) ||
       lead.phone?.includes(search);
-    return matchesStage && matchesSearch;
+    return matchesStage && matchesScope && matchesSearch;
   });
 
   const totalLeads = leads.length;
@@ -158,6 +181,7 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
   const contactedCount = leads.filter((l) => l.status === "CONTACTED").length;
   const followUpCount = leads.filter((l) => l.status === "FOLLOW_UP").length;
   const qualifiedCount = leads.filter((l) => l.status === "QUALIFIED").length;
+  const pendingApprovalCount = leads.filter((l) => l.status === "PENDING_APPROVAL").length;
   const convertedCount = leads.filter((l) => l.status === "CONVERTED").length;
   const lostCount = leads.filter((l) => l.status === "LOST").length;
 
@@ -167,6 +191,7 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
     { key: "CONTACTED", label: "Contacted Leads", icon: PhoneCall, count: contactedCount, color: "text-indigo-400" },
     { key: "FOLLOW_UP", label: "Follow-up Queue", icon: Clock, count: followUpCount, color: "text-purple-400" },
     { key: "QUALIFIED", label: "Qualified Deals", icon: Target, count: qualifiedCount, color: "text-cyan-400" },
+    { key: "PENDING_APPROVAL", label: "Pending Approval", icon: ShieldCheck, count: pendingApprovalCount, color: "text-amber-500" },
     { key: "CONVERTED", label: "Converted Accounts", icon: CheckCircle2, count: convertedCount, color: "text-emerald-400" },
     { key: "LOST", label: "Lost / Closed", icon: XCircle, count: lostCount, color: "text-rose-400" },
   ];
@@ -284,13 +309,44 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
               </p>
             </div>
 
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Lead</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {(isManager || isAdmin) && (
+                <div className="flex items-center p-1 bg-white border border-slate-200 rounded-xl shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setLeadScopeFilter("ALL")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      leadScopeFilter === "ALL"
+                        ? "bg-blue-600 text-white shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Department Leads ({leads.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeadScopeFilter("MINE")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      leadScopeFilter === "MINE"
+                        ? "bg-blue-600 text-white shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    My Leads ({leads.filter((l) => l.assignedToId === currentEmpId || l.assignedTo?.userId === user?.id).length})
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Lead</span>
+              </button>
+            </div>
           </div>
 
           {/* CRM Stats Summary Ribbon */}
@@ -541,19 +597,52 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
 
                 {/* Drawer Action Footer */}
                 <div className="pt-6 border-t border-slate-100 flex flex-col gap-2">
-                  {selectedLead.status !== "CONVERTED" && (
+                  {selectedLead.status === "PENDING_APPROVAL" ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                        <ShieldCheck className="w-4 h-4 text-amber-600" />
+                        <span>Client Conversion Pending Approval</span>
+                      </div>
+                      <p className="text-[11px] text-amber-700">
+                        {isEmployee
+                          ? "You submitted this lead for Manager Approval. The Sales Manager will review and convert it into an active client."
+                          : `Sales rep ${selectedLead.assignedTo?.user?.name || "Employee"} requested client conversion. Review package details and approve below.`}
+                      </p>
+                      {!isEmployee && (
+                        <button
+                          onClick={() => {
+                            setConvertData({
+                              totalAmount: selectedLead.expectedValue || 180000,
+                              itemTitle: selectedLead.productInterest || "Client Retainer Contract",
+                              departmentType: (selectedLead.departmentType as any) || "DIGITAL_MARKETING",
+                              billingType: (selectedLead.billingType as any) || "MONTHLY",
+                              serviceDetails: selectedLead.notes || "",
+                            });
+                            setShowConvertModal(true);
+                          }}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Approve & Convert to Active Client</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : selectedLead.status !== "CONVERTED" && (
                     <button
                       onClick={() => {
                         setConvertData({
                           totalAmount: selectedLead.expectedValue || 180000,
-                          itemTitle: selectedLead.productInterest || "Enterprise ERP Cloud Suite",
+                          itemTitle: selectedLead.productInterest || "Client Retainer Contract",
+                          departmentType: (selectedLead.departmentType as any) || "DIGITAL_MARKETING",
+                          billingType: (selectedLead.billingType as any) || "MONTHLY",
+                          serviceDetails: selectedLead.notes || "",
                         });
                         setShowConvertModal(true);
                       }}
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                     >
                       <Sparkles className="w-4 h-4" />
-                      <span>Convert to Customer & Sale</span>
+                      <span>{isEmployee ? "Submit for Client Conversion (Manager Approval)" : "Convert to Active Client & Order"}</span>
                     </button>
                   )}
 
@@ -585,28 +674,103 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
           {showConvertModal && selectedLead && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
               <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                <h3 className="text-base font-bold text-slate-900">Convert Lead to Customer & Order</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {isEmployee ? "Submit Lead for Client Conversion Approval" : "Convert Lead to Active Client & Order"}
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Instantly create customer ledger record and sales booking order.
+                  {isEmployee
+                    ? "Set the proposed package and retainer. Once submitted, your Sales Manager will give final approval."
+                    : "Instantly create active client account, assign deliverables, and create sales ledger order."}
                 </p>
 
                 <div className="space-y-3 text-xs">
                   <div>
-                    <label className="block text-slate-600 mb-1">Deal Description</label>
+                    <label className="block text-slate-600 mb-1 font-semibold">Service Department</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConvertData({ ...convertData, departmentType: "DIGITAL_MARKETING" })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
+                          convertData.departmentType === "DIGITAL_MARKETING"
+                            ? "bg-purple-50 border-purple-500 text-purple-700 font-bold"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        )}
+                      >
+                        Digital Marketing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConvertData({ ...convertData, departmentType: "TECHNICAL" })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
+                          convertData.departmentType === "TECHNICAL"
+                            ? "bg-blue-50 border-blue-500 text-blue-700 font-bold"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        )}
+                      >
+                        Technical / Dev
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 mb-1 font-semibold">Billing Frequency</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConvertData({ ...convertData, billingType: "MONTHLY" })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
+                          convertData.billingType === "MONTHLY"
+                            ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-bold"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        )}
+                      >
+                        Monthly Retainer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConvertData({ ...convertData, billingType: "ONE_TIME" })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
+                          convertData.billingType === "ONE_TIME"
+                            ? "bg-indigo-50 border-indigo-500 text-indigo-700 font-bold"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        )}
+                      >
+                        One-Time Project
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 mb-1 font-semibold">Service Deliverables / Scope Description</label>
                     <input
                       type="text"
                       value={convertData.itemTitle}
                       onChange={(e) => setConvertData({ ...convertData, itemTitle: e.target.value })}
+                      placeholder="e.g. 15 Reels + 20 Graphics + Meta Ads"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-600 mb-1">Total Order Value (₹)</label>
+                    <label className="block text-slate-600 mb-1 font-semibold">Total Amount / Retainer (₹)</label>
                     <input
                       type="number"
                       value={convertData.totalAmount}
                       onChange={(e) => setConvertData({ ...convertData, totalAmount: Number(e.target.value) })}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500 focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 mb-1 font-semibold">Client Requirements & Onboarding Notes</label>
+                    <textarea
+                      rows={2}
+                      value={convertData.serviceDetails}
+                      onChange={(e) => setConvertData({ ...convertData, serviceDetails: e.target.value })}
+                      placeholder="Notes for the team manager regarding deliverables, accounts, access..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white text-xs"
                     />
                   </div>
                 </div>
@@ -625,7 +789,7 @@ export function CRMClient({ initialLeads, employees }: CRMClientProps) {
                     disabled={loading}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm shadow-emerald-600/20"
                   >
-                    {loading ? "Processing..." : "Confirm & Create Order"}
+                    {loading ? "Processing..." : isEmployee ? "Submit for Manager Approval" : "Confirm & Create Client Order"}
                   </button>
                 </div>
               </div>

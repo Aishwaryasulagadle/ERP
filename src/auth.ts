@@ -49,6 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: user.role,
           employeeId: user.employee?.id,
           employeeCode: user.employee?.employeeCode,
+          departmentId: user.employee?.departmentId,
           department: user.employee?.department?.name,
           designation: user.employee?.designation?.name,
           image: user.image || user.employee?.profilePhoto,
@@ -63,6 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as any).role;
         token.employeeId = (user as any).employeeId;
         token.employeeCode = (user as any).employeeCode;
+        token.departmentId = (user as any).departmentId;
         token.department = (user as any).department;
         token.designation = (user as any).designation;
       }
@@ -74,6 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).employeeId = token.employeeId;
         (session.user as any).employeeCode = token.employeeCode;
+        (session.user as any).departmentId = token.departmentId;
         (session.user as any).department = token.department;
         (session.user as any).designation = token.designation;
       }

@@ -111,59 +111,148 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* 1-Click Role Switcher for instant demonstration */}
+          {/* 1-Click Role Switcher for instant testing */}
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 text-center">
-              Quick Role Switcher (1-Click Demo)
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("admin@erp.com", "admin123")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/50 hover:border-blue-200 border border-slate-200 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </div>
-                <div className="text-[11px] text-slate-500">admin@erp.com</div>
-              </button>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                ⚡ Quick Test Logins (Click to Autofill)
+              </p>
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                Testing Mode
+              </span>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("priya@erp.com", "password123")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/50 hover:border-blue-200 border border-slate-200 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-xs font-bold text-purple-600 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Manager</span>
-                </div>
-                <div className="text-[11px] text-slate-500">priya@erp.com</div>
-              </button>
+            {/* Admin & Managers */}
+            <div className="space-y-3">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Admin & Department Managers
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("admin@erp.com", "admin123")}
+                    className="p-2 rounded-xl bg-amber-50/60 hover:bg-amber-100/70 border border-amber-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Admin (All Depts)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">admin@erp.com</div>
+                    <div className="text-[10px] text-slate-400">admin123</div>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("rahul@erp.com", "password123")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/50 hover:border-blue-200 border border-slate-200 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-xs font-bold text-blue-600 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Rahul (Sales)</span>
-                </div>
-                <div className="text-[11px] text-slate-500">rahul@erp.com</div>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("salesmanager@erp.com", "manager123")}
+                    className="p-2 rounded-xl bg-blue-50/60 hover:bg-blue-100/70 border border-blue-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Sales Manager</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">salesmanager@erp.com</div>
+                    <div className="text-[10px] text-slate-400">manager123</div>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("amit@erp.com", "password123")}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/50 hover:border-blue-200 border border-slate-200 text-left transition-all group cursor-pointer"
-              >
-                <div className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Amit (Sales)</span>
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("priya@erp.com", "manager123")}
+                    className="p-2 rounded-xl bg-purple-50/60 hover:bg-purple-100/70 border border-purple-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Marketing Manager</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">priya@erp.com</div>
+                    <div className="text-[10px] text-slate-400">manager123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("techmanager@erp.com", "manager123")}
+                    className="p-2 rounded-xl bg-indigo-50/60 hover:bg-indigo-100/70 border border-indigo-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-indigo-800 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Technical Manager</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">techmanager@erp.com</div>
+                    <div className="text-[10px] text-slate-400">manager123</div>
+                  </button>
                 </div>
-                <div className="text-[11px] text-slate-500">amit@erp.com</div>
-              </button>
+              </div>
+
+              {/* Department Employees */}
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Department Staff (2 per Dept)
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Sales Staff */}
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("vikas.sales@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-blue-700">Vikas (Sales Staff)</div>
+                    <div className="text-[11px] text-slate-500 truncate">vikas.sales@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("pooja.sales@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-blue-700">Pooja (Sales Staff)</div>
+                    <div className="text-[11px] text-slate-500 truncate">pooja.sales@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+
+                  {/* Marketing Staff */}
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("rahul@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-purple-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-purple-700">Rahul (Marketing)</div>
+                    <div className="text-[11px] text-slate-500 truncate">rahul@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("sneha.mkt@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-purple-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-purple-700">Sneha (Marketing)</div>
+                    <div className="text-[11px] text-slate-500 truncate">sneha.mkt@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+
+                  {/* Tech Staff */}
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("amit@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-indigo-700">Amit (Tech Dev)</div>
+                    <div className="text-[11px] text-slate-500 truncate">amit@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("neha.tech@erp.com", "password123")}
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-indigo-700">Neha (Tech Dev)</div>
+                    <div className="text-[11px] text-slate-500 truncate">neha.tech@erp.com</div>
+                    <div className="text-[10px] text-slate-400">password123</div>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
