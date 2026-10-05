@@ -369,7 +369,154 @@ export async function saveClientProgressSheet(data: {
   return report;
 }
 
-// -------------------------------------------------------------
+export async function completeClientProgressReport(data: {
+  reportId?: string;
+  clientId: string;
+  month: number;
+  year: number;
+  columnsJson?: string;
+  notes?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const userName = session.user.name || "Manager";
+
+  const client = await prisma.client.findUnique({
+    where: { id: data.clientId },
+    include: { customer: true },
+  });
+  if (!client) throw new Error("Client not found");
+
+  // Upsert or update the ClientReport status to COMPLETED
+  let report: any;
+  if (data.reportId) {
+    report = await prisma.clientReport.update({
+      where: { id: data.reportId },
+      data: {
+        status: "COMPLETED",
+        submittedBy: userName,
+        notes: data.notes || undefined,
+        ...(data.columnsJson ? { columnsJson: data.columnsJson } : {}),
+      },
+    });
+  } else {
+    const existing = await prisma.clientReport.findFirst({
+      where: {
+        clientId: data.clientId,
+        month: data.month,
+        year: data.year,
+      },
+    });
+
+    if (existing) {
+      report = await prisma.clientReport.update({
+        where: { id: existing.id },
+        data: {
+          status: "COMPLETED",
+          submittedBy: userName,
+          notes: data.notes || existing.notes,
+          ...(data.columnsJson ? { columnsJson: data.columnsJson } : {}),
+        },
+      });
+    } else {
+      report = await prisma.clientReport.create({
+        data: {
+          clientId: data.clientId,
+          month: data.month,
+          year: data.year,
+          columnsJson: data.columnsJson || JSON.stringify({ columns: [], rows: [] }),
+          notes: data.notes || `Progress report completed for ${data.month}/${data.year}`,
+          status: "COMPLETED",
+          submittedBy: userName,
+        },
+      });
+    }
+  }
+
+  // Update client status if ONE_TIME to COMPLETED
+  if (client.billingType === "ONE_TIME") {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { status: "COMPLETED" },
+    });
+  }
+
+  // Create Receivable Order for Sales Ledger
+  const amount = client.amount || 0;
+  let customerId = client.customerId;
+  if (!customerId) {
+    const cust = await prisma.customer.create({
+      data: {
+        name: client.name,
+        company: client.company || client.name,
+        email: client.email || `${client.clientCode.toLowerCase()}@client.com`,
+        phone: client.phone || "9999999999",
+        address: client.address || "",
+      },
+    });
+    customerId = cust.id;
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { customerId: cust.id },
+    });
+  }
+
+  const orderCount = await prisma.order.count();
+  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(4, "0")}`;
+
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  const cycleLabel = client.billingType === "MONTHLY"
+    ? `Monthly Retainer Deliverable (${monthNames[data.month - 1] || data.month} ${data.year})`
+    : `One-Time Project Delivery Scope`;
+
+  const order = await prisma.order.create({
+    data: {
+      orderCode,
+      customerId,
+      clientId: client.id,
+      totalAmount: amount,
+      paymentStatus: "PENDING",
+      notes: `[AUTO RECEIVABLE from Progress Report Completed]: ${cycleLabel} for ${client.name}. Amount: ₹${amount}.`,
+      orderItems: {
+        create: {
+          itemTitle: `${client.name} - ${cycleLabel}`,
+          quantity: 1,
+          unitPrice: amount,
+          total: amount,
+        },
+      },
+      invoices: {
+        create: {
+          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          totalAmount: amount,
+          paymentStatus: "PENDING",
+        },
+      },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: userName,
+      action: "PROGRESS_REPORT_COMPLETED",
+      module: "CLIENT_REPORTS",
+      recordId: client.clientCode,
+      details: `Marked Progress Report completed for ${client.name} (${cycleLabel}). Receivable ₹${amount} automatically forwarded to Sales for collection.`,
+    },
+  });
+
+  revalidatePath("/reports");
+  revalidatePath("/sales");
+  revalidatePath("/dashboard");
+  return { report, order };
+}
+
 // EXPENSES & FINANCIAL TRACKING
 // -------------------------------------------------------------
 

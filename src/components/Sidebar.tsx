@@ -93,10 +93,9 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
           {
             group: "CLIENTS & PROJECTS",
             items: [
-              { name: "Clients & Deliverables", href: "/reports", icon: Layers, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-              { name: "Progress Tracker", href: "/reports?tab=TIMELINE", icon: LineChart, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-              { name: "Dynamic Sheets", href: "/reports?tab=CUSTOM_COLUMNS", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-              { name: "Analytics & P&L", href: "/reports?tab=ANALYTICS", icon: PieChart, roles: ["ADMIN", "MANAGER"] },
+              { name: "Active Clients", href: "/reports?tab=CLIENTS", icon: Building2, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Progress Reports", href: "/reports?tab=PROGRESS_REPORTS", icon: FileSpreadsheet, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Financials & P&L", href: "/reports?tab=FINANCIALS", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
             ],
           },
         ]

@@ -377,12 +377,24 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
       )}
 
 
-      {/* 3. Sales Overview Large Chart (Requirement #7) */}
+      {/* 3. Dynamic Department-Tailored Velocity & Production Chart */}
       <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">Sales Overview</h3>
-            <p className="text-xs text-slate-500">Revenue over time and deal turnover velocity</p>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
+              {isMarketing
+                ? "Content & Campaign Deliverables Output"
+                : isTech
+                ? "Code Sprints & Milestone Progress"
+                : "Sales & Deal Turnover Velocity"}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {isMarketing
+                ? "Weekly completed reels, creatives, and ad campaign rollouts"
+                : isTech
+                ? "Weekly completed engineering tasks, commits, and sprint deliverables"
+                : "Revenue over time and deal turnover velocity across pipelines"}
+            </p>
           </div>
 
           {/* Timeframe Controls: 7D, 30D, 90D, 1Y */}
@@ -403,30 +415,104 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           </div>
         </div>
 
-        {/* Metric Summary Ribbon */}
-        <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-medium">Total Revenue</span>
-            <p className="text-xl font-bold text-emerald-600 font-mono mt-0.5">₹5.65L</p>
+        {/* Department Tailored Metric Summary Ribbon */}
+        {isMarketing ? (
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+            <div className="p-3 rounded-xl bg-purple-50 border border-purple-200">
+              <span className="text-[11px] text-purple-700 font-medium">Monthly Target Deliverables</span>
+              <p className="text-xl font-bold text-purple-900 font-mono mt-0.5">
+                {metrics.clientStats?.totalTargetDeliverables || 48} Creatives
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <span className="text-[11px] text-emerald-700 font-medium">Completed & Published</span>
+              <p className="text-xl font-bold text-emerald-800 font-mono mt-0.5">
+                {metrics.clientStats?.totalCompletedDeliverables || 36} Published
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+              <span className="text-[11px] text-blue-700 font-medium">On-Track Delivery Rate</span>
+              <p className="text-xl font-bold text-blue-800 font-mono mt-0.5">
+                {metrics.clientStats?.deliverableCompletionRate || 75}%
+              </p>
+            </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-medium">Orders Closed</span>
-            <p className="text-xl font-bold text-slate-900 font-mono mt-0.5">126</p>
+        ) : isTech ? (
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+            <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-200">
+              <span className="text-[11px] text-cyan-700 font-medium">Sprint Milestones</span>
+              <p className="text-xl font-bold text-cyan-900 font-mono mt-0.5">
+                {metrics.clientStats?.totalTargetDeliverables || 32} Modules
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <span className="text-[11px] text-emerald-700 font-medium">Shipped & Verified</span>
+              <p className="text-xl font-bold text-emerald-800 font-mono mt-0.5">
+                {metrics.clientStats?.totalCompletedDeliverables || 27} Deployed
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+              <span className="text-[11px] text-indigo-700 font-medium">Sprint Completion Rate</span>
+              <p className="text-xl font-bold text-indigo-800 font-mono mt-0.5">
+                {metrics.clientStats?.deliverableCompletionRate || 84}%
+              </p>
+            </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-[11px] text-slate-500 font-medium">Average Order Value</span>
-            <p className="text-xl font-bold text-blue-600 font-mono mt-0.5">₹4,484</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Total Revenue</span>
+              <p className="text-xl font-bold text-emerald-600 font-mono mt-0.5">{formatCurrency(totalRev)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Orders Closed</span>
+              <p className="text-xl font-bold text-slate-900 font-mono mt-0.5">{metrics.kpis?.totalOrdersCount || 126}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Average Order Value</span>
+              <p className="text-xl font-bold text-blue-600 font-mono mt-0.5">₹4,484</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Recharts Area Chart */}
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={currentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart
+              data={
+                isMarketing
+                  ? [
+                      { name: "Mon", output: 5, target: 8 },
+                      { name: "Tue", output: 8, target: 8 },
+                      { name: "Wed", output: 12, target: 10 },
+                      { name: "Thu", output: 14, target: 12 },
+                      { name: "Fri", output: 11, target: 10 },
+                      { name: "Sat", output: 6, target: 6 },
+                      { name: "Sun", output: 2, target: 0 },
+                    ]
+                  : isTech
+                  ? [
+                      { name: "Sprint 1", output: 18, target: 20 },
+                      { name: "Sprint 2", output: 24, target: 25 },
+                      { name: "Sprint 3", output: 28, target: 30 },
+                      { name: "Sprint 4", output: 31, target: 32 },
+                    ]
+                  : currentChartData
+              }
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
               <defs>
-                <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                <linearGradient id="primaryGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
+                    stopOpacity={0.25}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
+                    stopOpacity={0.0}
+                  />
                 </linearGradient>
               </defs>
               <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
@@ -435,7 +521,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `₹${v / 1000}k`}
+                tickFormatter={(v) => (isMarketing || isTech ? `${v}` : `₹${v / 1000}k`)}
               />
               <Tooltip
                 contentStyle={{
@@ -446,16 +532,26 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                   fontSize: "12px",
                   boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                 }}
-                formatter={(value: any) => [formatCurrency(Number(value)), "Revenue"]}
+                formatter={(value: any) => [
+                  isMarketing ? `${value} Deliverables` : isTech ? `${value} Tasks Completed` : formatCurrency(Number(value)),
+                  isMarketing ? "Output" : isTech ? "Shipped" : "Revenue",
+                ]}
               />
-              <Area type="monotone" dataKey="sales" stroke="#2563EB" strokeWidth={2.5} fillOpacity={1} fill="url(#salesGrad)" />
+              <Area
+                type="monotone"
+                dataKey={isMarketing || isTech ? "output" : "sales"}
+                stroke={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
+                strokeWidth={2.5}
+                fillOpacity={1}
+                fill="url(#primaryGrad)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* 4. CRM Pipeline Funnel or Department Client Deliverables */}
-      {(isMarketing || isTech) ? (
+      {/* 4. CRM Pipeline Funnel (Only for Sales & Admin) OR Client Accounts & Deliverables (For Marketing & Tech) */}
+      {isMarketing || isTech ? (
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -499,7 +595,9 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
                       <span>{c.billingType}</span>
-                      <span className="font-bold text-emerald-600 font-mono">{formatCurrency(c.amount)}</span>
+                      <span className="font-bold text-purple-600 font-mono">
+                        {c.departmentType === "DIGITAL_MARKETING" ? "Marketing Retainer" : "Tech Retainer"}
+                      </span>
                     </div>
                   </Link>
                 );
@@ -542,18 +640,29 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
         </div>
       )}
 
-
-      {/* 5. Employee Performance & Recent Sales Grid (Requirements #9 & #10) */}
+      {/* 5. Team Velocity & Department Operations Grid (Scoped by Role & Department) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Employee Performance Table (7 Cols) */}
-        <div className="lg:col-span-7 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+        {/* Performance & Task Velocity (7 Cols) */}
+        <div className={isAdmin || isSales ? "lg:col-span-7 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4" : "lg:col-span-12 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4"}>
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">Employee Performance</h3>
-              <p className="text-xs text-slate-500">Ranked by revenue closed and task velocity</p>
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                {isMarketing
+                  ? "Marketing Team Execution Velocity"
+                  : isTech
+                  ? "Engineering Sprint & Task Progress"
+                  : "Sales Rep Performance & Conversions"}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {isMarketing
+                  ? "Deliverables, reels, creatives completed, and task completion percentage"
+                  : isTech
+                  ? "Architecture deliverables shipped, bugs resolved, and sprint velocity"
+                  : "Ranked by revenue closed and deal conversion velocity"}
+              </p>
             </div>
             <Link href="/employees" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-              View All Employees →
+              View Team Directory →
             </Link>
           </div>
 
@@ -561,30 +670,61 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
                 <tr>
-                  <th className="py-2.5 px-3">Employee</th>
-                  <th className="py-2.5 px-3 text-center">Leads</th>
-                  <th className="py-2.5 px-3 text-center">Converted</th>
-                  <th className="py-2.5 px-3 text-right">Sales</th>
-                  <th className="py-2.5 px-3 text-center">Tasks</th>
-                  <th className="py-2.5 px-3 text-center">Completion</th>
+                  <th className="py-2.5 px-3">Team Member</th>
+                  {isAdmin || isSales ? (
+                    <>
+                      <th className="py-2.5 px-3 text-center">Leads</th>
+                      <th className="py-2.5 px-3 text-center">Converted</th>
+                      <th className="py-2.5 px-3 text-right">Sales Closed</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="py-2.5 px-3 text-center">Assigned Projects</th>
+                      <th className="py-2.5 px-3 text-center">Role</th>
+                    </>
+                  )}
+                  <th className="py-2.5 px-3 text-center">Sprint Tasks</th>
+                  <th className="py-2.5 px-3 text-center">Completion Rate</th>
                   <th className="py-2.5 px-3 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {employeeRows.map((emp, i) => (
+                {(isMarketing
+                  ? [
+                      { name: "Priya Sharma", role: "Digital Marketing Manager", projects: "All Clients", tasks: "18/20", completion: 90, status: "ACTIVE" },
+                      { name: "Rahul Deshmukh", role: "Content & Reel Creator", projects: "4 Clients", tasks: "15/16", completion: 94, status: "ACTIVE" },
+                      { name: "Sneha Patil", role: "Graphic & Ads Specialist", projects: "4 Clients", tasks: "17/18", completion: 94, status: "ACTIVE" },
+                    ]
+                  : isTech
+                  ? [
+                      { name: "Amit Kulkarni", role: "Technical Project Manager", projects: "All Tech Contracts", tasks: "19/20", completion: 95, status: "ACTIVE" },
+                      { name: "Neha Joshi", role: "Senior Full Stack Dev", projects: "3 Contracts", tasks: "14/15", completion: 93, status: "ACTIVE" },
+                      { name: "Vikram Shinde", role: "UI/UX & Mobile Engineer", projects: "3 Contracts", tasks: "16/18", completion: 89, status: "ACTIVE" },
+                    ]
+                  : employeeRows
+                ).map((emp: any, i: number) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
                     <td className="py-2.5 px-3 font-semibold text-slate-800">{emp.name}</td>
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-600">{emp.leads}</td>
-                    <td className="py-2.5 px-3 text-center font-mono text-blue-600 font-bold">{emp.converted}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
-                      {formatCurrency(emp.sales)}
-                    </td>
+                    {isAdmin || isSales ? (
+                      <>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-600">{emp.leads}</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-blue-600 font-bold">{emp.converted}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
+                          {formatCurrency(emp.sales)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-600">{emp.projects}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-500 font-medium">{emp.role}</td>
+                      </>
+                    )}
                     <td className="py-2.5 px-3 text-center font-mono text-slate-500">{emp.tasks}</td>
                     <td className="py-2.5 px-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <div className="w-12 bg-slate-200 rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="bg-emerald-500 h-full rounded-full"
+                            className={isMarketing ? "bg-purple-500 h-full rounded-full" : isTech ? "bg-cyan-500 h-full rounded-full" : "bg-emerald-500 h-full rounded-full"}
                             style={{ width: `${emp.completion}%` }}
                           />
                         </div>
@@ -601,77 +741,123 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           </div>
         </div>
 
-        {/* Recent Sales Table (5 Cols) */}
-        <div className="lg:col-span-5 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">Recent Sales</h3>
-              <p className="text-xs text-slate-500">Latest enterprise transactions</p>
+        {/* Recent Transactions (Visible for Sales & Admin Only) */}
+        {(isAdmin || isSales) && (
+          <div className="lg:col-span-5 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Recent Sales Orders</h3>
+                <p className="text-xs text-slate-500">Latest enterprise transactions</p>
+              </div>
+              <Link href="/sales" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                View All Orders →
+              </Link>
             </div>
-            <Link href="/sales" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-              View All Orders →
-            </Link>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
-                <tr>
-                  <th className="py-2.5 px-3">Order ID</th>
-                  <th className="py-2.5 px-3">Customer</th>
-                  <th className="py-2.5 px-3 text-right">Amount</th>
-                  <th className="py-2.5 px-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentSales.map((ord) => (
-                  <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{ord.id}</td>
-                    <td className="py-2.5 px-3 text-slate-800 font-medium">{ord.customer}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
-                      {formatCurrency(ord.amount)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <StatusBadge status={ord.status} size="sm" />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <tr>
+                    <th className="py-2.5 px-3">Order ID</th>
+                    <th className="py-2.5 px-3">Customer</th>
+                    <th className="py-2.5 px-3 text-right">Amount</th>
+                    <th className="py-2.5 px-3 text-right">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentSales.map((ord) => (
+                    <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{ord.id}</td>
+                      <td className="py-2.5 px-3 text-slate-800 font-medium">{ord.customer}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
+                        {formatCurrency(ord.amount)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <StatusBadge status={ord.status} size="sm" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 6. Today's Business & Activity Timeline */}
+      {/* 6. Today's Department Operations & Live Stream */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Today's Business (4 Cols) */}
+        {/* Today's Operational Run-Rate (4 Cols) */}
         <div className="lg:col-span-4 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">Today&apos;s Business</h3>
-            <p className="text-xs text-slate-500">Daily enterprise operational run-rate</p>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
+              {isMarketing
+                ? "Today's Content Run-Rate"
+                : isTech
+                ? "Today's Tech Operations"
+                : "Today's Business Run-Rate"}
+            </h3>
+            <p className="text-xs text-slate-500">Live department metrics and milestones for today</p>
           </div>
 
           <div className="space-y-2.5">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Sales Revenue</span>
-              <span className="text-sm font-bold text-emerald-600 font-mono">₹45,000</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">New Leads</span>
-              <span className="text-sm font-bold text-slate-900 font-mono">18</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Follow-ups Scheduled</span>
-              <span className="text-sm font-bold text-amber-600 font-mono">12</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Tasks Completed</span>
-              <span className="text-sm font-bold text-blue-600 font-mono">24</span>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Customer Visits</span>
-              <span className="text-sm font-bold text-purple-600 font-mono">9</span>
-            </div>
+            {isMarketing ? (
+              <>
+                <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-200/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Reels & Videos Scheduled</span>
+                  <span className="text-sm font-bold text-purple-700 font-mono">8</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Graphics & Posts Approved</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono">14</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Active Ad Campaigns</span>
+                  <span className="text-sm font-bold text-blue-600 font-mono">6</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Sprint Tasks Resolved</span>
+                  <span className="text-sm font-bold text-emerald-600 font-mono">11</span>
+                </div>
+              </>
+            ) : isTech ? (
+              <>
+                <div className="p-3 rounded-xl bg-cyan-50/60 border border-cyan-200/60 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Deployments & Code Releases</span>
+                  <span className="text-sm font-bold text-cyan-700 font-mono">4 Releases</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Active GitHub PRs Merged</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono">9 Merged</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Sprint Tasks Resolved</span>
+                  <span className="text-sm font-bold text-emerald-600 font-mono">16</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Engineers Punched In</span>
+                  <span className="text-sm font-bold text-indigo-600 font-mono">{presentToday} Active</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Sales Revenue</span>
+                  <span className="text-sm font-bold text-emerald-600 font-mono">₹45,000</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">New Leads</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono">18</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Follow-ups Scheduled</span>
+                  <span className="text-sm font-bold text-amber-600 font-mono">12</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Tasks Completed</span>
+                  <span className="text-sm font-bold text-blue-600 font-mono">24</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -688,7 +874,22 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           </div>
 
           <div className="space-y-3">
-            {activities.map((act, i) => {
+            {(isMarketing
+              ? [
+                  { time: "09:30", user: "Rahul Deshmukh", action: "published client weekly reel on Instagram", icon: Sparkles, color: "text-purple-500" },
+                  { time: "10:15", user: "Sneha Patil", action: "uploaded 4 graphics for Meta ad campaign", icon: Briefcase, color: "text-blue-500" },
+                  { time: "11:20", user: "Priya Sharma", action: "reviewed and approved client monthly progress report", icon: CheckSquare, color: "text-emerald-500" },
+                  { time: "12:05", user: "Sneha Patil", action: "forwarded completed deliverables to sales for billing", icon: CheckCircle2, color: "text-amber-500" },
+                ]
+              : isTech
+              ? [
+                  { time: "09:45", user: "Neha Joshi", action: "committed and pushed fix for auth middleware", icon: Sparkles, color: "text-cyan-500" },
+                  { time: "10:30", user: "Amit Kulkarni", action: "approved sprint code merge for client workspace", icon: CheckSquare, color: "text-indigo-500" },
+                  { time: "11:10", user: "Vikram Shinde", action: "completed UI component for dynamic progress sheet", icon: Briefcase, color: "text-blue-500" },
+                  { time: "11:55", user: "Neha Joshi", action: "deployed release to production server", icon: CheckCircle2, color: "text-emerald-500" },
+                ]
+              : activities
+            ).map((act: any, i: number) => {
               const Icon = act.icon;
               return (
                 <div
