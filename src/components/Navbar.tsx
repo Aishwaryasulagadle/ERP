@@ -26,6 +26,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/Cards";
+import { JdsLogo } from "@/components/ui/JdsLogo";
 
 interface NavbarProps {
   user: any;
@@ -105,23 +106,15 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
 
   return (
     <>
-      <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-xl px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs">
+      <header className="h-15 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 select-none shadow-[0_1px_2px_0_rgba(0,0,0,0.02)]">
         {/* Left Brand & Module Navigation Links */}
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-blue-500 flex items-center justify-center text-white font-black shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform border border-blue-400/30">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold tracking-tight text-slate-900 text-sm">ERP CORE</span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                ENTERPRISE
-              </span>
-            </div>
+          <Link href="/dashboard" className="flex items-center gap-2 group">
+            <JdsLogo size="sm" showText={true} subtitle="Enterprise" />
           </Link>
 
           {/* Top Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1.5">
+          <nav className="hidden lg:flex items-center gap-1">
             {filteredNav.map((item) => {
               const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               const Icon = item.icon;
@@ -130,13 +123,13 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150",
                     isActive
-                      ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-xs font-bold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                      ? "bg-[#1674B9]/10 text-[#14558A] border border-[#1674B9]/20 font-bold"
+                      : "text-[#64748B] hover:text-slate-900 hover:bg-slate-50 border border-transparent"
                   )}
                 >
-                  <Icon className={cn("w-3.5 h-3.5", isActive ? "text-blue-600" : "text-slate-500")} />
+                  <Icon className={cn("w-3.5 h-3.5", isActive ? "text-[#1674B9]" : "text-[#64748B]")} />
                   <span>{item.name}</span>
                 </Link>
               );
@@ -149,13 +142,13 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
           {/* Global Search Button with Ctrl + K */}
           <button
             onClick={() => setShowCommandModal(true)}
-            className="flex items-center justify-between w-40 sm:w-60 lg:w-72 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 hover:text-slate-900 hover:bg-white hover:border-blue-400 transition-all cursor-pointer shadow-xs"
+            className="flex items-center justify-between w-40 sm:w-60 lg:w-72 px-3 py-1.5 bg-[#F5F7FA] border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:text-slate-900 hover:bg-white hover:border-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-3.5 h-3.5 text-[#64748B]" />
               <span className="truncate">Search records...</span>
             </div>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-blue-600 bg-white border border-slate-200 rounded shadow-xs">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[#14558A] bg-white border border-[#E2E8F0] rounded shadow-xs">
               Ctrl K
             </kbd>
           </button>
@@ -163,7 +156,7 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
           {/* Mobile Menu Toggle Button */}
           <button
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            className="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
+            className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-[#E2E8F0]"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -172,28 +165,28 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200 cursor-pointer"
+              className="relative p-2 rounded-lg text-[#64748B] hover:text-slate-900 hover:bg-slate-50 transition-colors border border-[#E2E8F0] cursor-pointer"
             >
               <Bell className="w-4 h-4" />
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center font-mono shadow-sm">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#F28C16] text-white text-[10px] font-bold flex items-center justify-center font-mono shadow-sm">
                   {notifications.length}
                 </span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-[#E2E8F0] rounded-xl shadow-lg p-3 z-50 animate-in fade-in zoom-in-95">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100 px-1">
                   <span className="text-xs font-bold text-slate-900">Notifications</span>
-                  <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-mono font-bold border border-blue-200">
+                  <span className="text-[10px] bg-[#1674B9]/10 text-[#14558A] px-2 py-0.5 rounded-full font-mono font-bold border border-[#1674B9]/20">
                     {notifications.length} Unread
                   </span>
                 </div>
                 <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto">
                   {notifications.length > 0 ? (
                     notifications.map((n) => (
-                      <div key={n.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                      <div key={n.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs">
                         <p className="font-semibold text-slate-800">{n.title}</p>
                         <p className="text-[11px] text-slate-500 mt-0.5">{n.message}</p>
                       </div>
@@ -210,23 +203,23 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all text-left cursor-pointer"
+              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 border border-transparent hover:border-[#E2E8F0] transition-all text-left cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-blue-500/20 shadow-sm">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#1674B9] to-[#14558A] flex items-center justify-center text-white text-xs font-bold shadow-xs">
                 {user?.name?.charAt(0) || "A"}
               </div>
               <div className="hidden md:block">
                 <span className="text-xs font-semibold text-slate-900 block truncate max-w-[90px]">
                   {user?.name || "Admin"}
                 </span>
-                <span className="text-[10px] text-blue-600 font-mono font-semibold block">{userRole}</span>
+                <span className="text-[10px] text-[#1674B9] font-mono font-semibold block">{userRole}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="p-3 border-b border-slate-100 mb-1">
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E2E8F0] rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95">
+                <div className="p-2.5 border-b border-slate-100 mb-1">
                   <p className="text-xs font-bold text-slate-900">{user?.name || "Admin"}</p>
                   <p className="text-[11px] text-slate-500 truncate">{user?.email || "admin@erp.local"}</p>
                   <div className="mt-1.5">
@@ -236,14 +229,14 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
                 <Link
                   href="/settings"
                   onClick={() => setShowUserMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
                 >
-                  <Settings className="w-4 h-4 text-blue-600" />
+                  <Settings className="w-4 h-4 text-[#1674B9]" />
                   <span>Enterprise Settings</span>
                 </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer mt-1"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer mt-1"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign Out Session</span>

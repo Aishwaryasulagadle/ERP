@@ -15,17 +15,20 @@ import {
   BarChart3,
   LineChart,
   PieChart,
-  Bell,
   Settings,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Building2,
   Calendar,
   Layers,
+  MapPin,
+  CalendarCheck,
+  FolderKanban,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { JdsLogo } from "@/components/ui/JdsLogo";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -49,7 +52,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
 
   const navigationGroups = [
     {
-      group: "MAIN",
+      group: "Overview",
       items: [
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
       ],
@@ -57,55 +60,47 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
     ...(isSalesOrAdmin
       ? [
           {
-            group: "CRM",
+            group: "Sales & CRM",
             items: [
-              { name: "Leads Pipeline", href: "/crm", icon: Target, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], badge: "New", visible: true },
-              { name: "Customers", href: "/sales?tab=CUSTOMERS", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
-              { name: "Follow-ups", href: "/crm?tab=FOLLOW_UP", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
-            ],
-          },
-          {
-            group: "SALES",
-            items: [
-              { name: "Orders & Deals", href: "/sales", icon: TrendingUp, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "CRM & Leads", href: "/crm", icon: Target, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], badge: "Active", visible: true },
+              { name: "Sales Management", href: "/sales", icon: TrendingUp, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
               { name: "Quotations", href: "/sales?tab=QUOTATIONS", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
-              { name: "Invoices Ledger", href: "/sales?tab=INVOICES", icon: FileText, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Invoices & Ledger", href: "/sales?tab=INVOICES", icon: FileSpreadsheet, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
               { name: "Payments", href: "/sales?tab=PAYMENTS", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
+              { name: "Customer Directory", href: "/sales?tab=CUSTOMERS", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"], visible: true },
             ],
           },
         ]
       : []),
     {
-      group: "PEOPLE & HR",
+      group: "Workforce & HR",
       items: [
-        { name: "Staff Directory", href: "/employees", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Attendance & Punch", href: "/employees?tab=ATTENDANCE", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Leave & WFH", href: "/employees?tab=LEAVE", icon: Calendar, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Salary Slips", href: "/employees?tab=PAYROLL", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Holidays & Weekends", href: "/employees?tab=HOLIDAYS", icon: Sparkles, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Helpdesk Queries", href: "/employees?tab=QUERIES", icon: Activity, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "Sprint Tasks", href: "/employees?tab=TASKS", icon: CheckSquare, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-        { name: "My Work Reports", href: "/employee/reports", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Employee Directory", href: "/employees", icon: Users, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Attendance", href: "/employees?tab=ATTENDANCE", icon: Clock, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Leave Management", href: "/employees?tab=LEAVE", icon: CalendarCheck, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Employee Tracking", href: "/employee/reports", icon: MapPin, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Task Management", href: "/employees?tab=TASKS", icon: CheckSquare, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Payroll & Salary Slips", href: "/employees?tab=PAYROLL", icon: CreditCard, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+        { name: "Helpdesk & Queries", href: "/employees?tab=QUERIES", icon: Activity, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
       ],
     },
     ...(isClientsVisible
       ? [
           {
-            group: "CLIENTS & PROJECTS",
+            group: "Projects & Operations",
             items: [
-              { name: "Clients & Deliverables", href: "/reports", icon: Layers, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+              { name: "Client Deliverables", href: "/reports", icon: Layers, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
               { name: "Progress Tracker", href: "/reports?tab=TIMELINE", icon: LineChart, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-              { name: "Dynamic Sheets", href: "/reports?tab=CUSTOM_COLUMNS", icon: BarChart3, roles: ["ADMIN", "MANAGER", "EMPLOYEE"] },
-              { name: "Analytics & P&L", href: "/reports?tab=ANALYTICS", icon: PieChart, roles: ["ADMIN", "MANAGER"] },
+              { name: "Reports & Analytics", href: "/reports?tab=ANALYTICS", icon: PieChart, roles: ["ADMIN", "MANAGER"] },
             ],
           },
         ]
       : []),
     {
-      group: "SYSTEM",
+      group: "Administration",
       items: [
+        { name: "System Settings", href: "/settings?tab=SECURITY", icon: Settings, roles: ["ADMIN"] },
         { name: "Audit Trail", href: "/settings", icon: ShieldCheck, roles: ["ADMIN"] },
-        { name: "Settings & RBAC", href: "/settings?tab=SECURITY", icon: Settings, roles: ["ADMIN"] },
       ],
     },
   ];
@@ -113,50 +108,42 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
   return (
     <aside
       className={cn(
-        "bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all duration-300 h-screen sticky top-0 z-40 select-none shadow-xs",
+        "bg-white border-r border-[#E2E8F0] flex flex-col shrink-0 transition-all duration-200 h-screen sticky top-0 z-40 select-none shadow-[1px_0_3px_0_rgba(0,0,0,0.02)]",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-white">
-        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shrink-0 shadow-md shadow-blue-600/20">
-            <Building2 className="w-4 h-4" />
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0">
-              <span className="font-bold text-sm tracking-tight text-slate-900 block truncate">MY ERP</span>
-              <span className="text-[10px] text-blue-600 font-mono tracking-wider font-semibold uppercase block">
-                Enterprise SaaS
-              </span>
-            </div>
-          )}
+      {/* Brand Header with JDS Logo */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[#E2E8F0] bg-white">
+        <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden group">
+          <JdsLogo size="sm" showText={!isCollapsed} subtitle="Enterprise" />
         </Link>
         <button
           onClick={onToggleCollapse}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer hidden md:block"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer hidden md:flex items-center justify-center"
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Navigation Tree */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-5 scrollbar-thin">
+      {/* Navigation Groups */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {navigationGroups.map((group) => {
           const visibleItems = group.items.filter((i) => i.roles.includes(userRole));
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={group.group} className="space-y-1">
+            <div key={group.group} className="space-y-0.5">
               {!isCollapsed && (
-                <div className="px-3 pb-1 text-[10px] font-bold text-slate-400 tracking-wider font-mono uppercase">
+                <div className="px-3 py-1 text-[10px] font-bold text-[#64748B] tracking-wider uppercase font-mono">
                   {group.group}
                 </div>
               )}
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href.split("?")[0]));
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/dashboard" && pathname.startsWith(item.href.split("?")[0]));
 
                 return (
                   <Link
@@ -164,23 +151,27 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
                     href={item.href}
                     title={isCollapsed ? item.name : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group cursor-pointer",
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all group cursor-pointer relative",
                       isActive
-                        ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-600/20"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        ? "bg-[#1674B9]/10 text-[#14558A] font-bold"
+                        : "text-[#1E293B] hover:text-slate-900 hover:bg-slate-50"
                     )}
                   >
+                    {/* Active Left Indicator Bar */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#1674B9] rounded-r-full" />
+                    )}
                     <Icon
                       className={cn(
                         "w-4 h-4 shrink-0 transition-colors",
-                        isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                        isActive ? "text-[#1674B9]" : "text-[#64748B] group-hover:text-slate-900"
                       )}
                     />
                     {!isCollapsed && (
                       <div className="flex items-center justify-between flex-1 min-w-0">
                         <span className="truncate">{item.name}</span>
                         {(item as any).badge && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#08764D]/10 text-[#08764D] border border-[#08764D]/20">
                             {(item as any).badge}
                           </span>
                         )}
@@ -194,12 +185,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
         })}
       </div>
 
-      {/* Collapse Toggle Footer for Mobile / Bottom display */}
-      <div className="p-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+      {/* Sidebar Footer */}
+      <div className="p-3 border-t border-[#E2E8F0] flex items-center justify-between text-xs text-[#64748B] bg-slate-50/50">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-[11px] font-mono text-slate-500">System v1.0.0</span>
+            <span className="w-2 h-2 rounded-full bg-[#08764D] animate-pulse" />
+            <span className="text-[11px] font-mono font-medium text-slate-600">JDS Core v2.4</span>
           </div>
         )}
         <button
@@ -212,3 +203,4 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
     </aside>
   );
 }
+

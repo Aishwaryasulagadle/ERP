@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import { JdsLogo } from "@/components/ui/JdsLogo";
 import {
   Building2,
   TrendingUp,
@@ -50,17 +51,17 @@ export default async function HomePage() {
   const session = await auth();
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white font-sans antialiased">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1E293B] flex flex-col selection:bg-[#1674B9] selection:text-white font-sans antialiased">
       {/* 1. Global Announcement / Live Status Bar */}
-      <div className="bg-slate-950 text-slate-300 text-xs py-2.5 px-4 border-b border-slate-800">
+      <div className="bg-slate-950 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex h-2 w-2 rounded-full bg-[#08764D] animate-pulse" />
             <span className="font-mono text-[11px] font-bold text-slate-400">NODE STATUS:</span>
-            <span className="text-slate-100 font-semibold text-xs">ERP Core v2.4 Operating Online</span>
+            <span className="text-slate-100 font-semibold text-xs">JDS ERP Core v2.4 Operating Online</span>
             <span className="hidden sm:inline-block text-slate-700">|</span>
             <span className="hidden sm:inline-flex items-center gap-1 text-slate-400 text-[11px]">
-              <Database className="w-3 h-3 text-blue-400" /> PostgreSQL 16 Relational Engine Active
+              <Database className="w-3 h-3 text-[#1674B9]" /> Neon PostgreSQL Relational Engine Active
             </span>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-slate-400">
@@ -68,27 +69,16 @@ export default async function HomePage() {
               <Lock className="w-3 h-3" /> RBAC Enforced
             </span>
             <span className="hidden md:inline-block text-slate-700">•</span>
-            <span className="hidden md:inline-block text-slate-300 font-medium">9 Connected ESS Portals</span>
+            <span className="hidden md:inline-block text-slate-300 font-medium">9 Connected Workspaces</span>
           </div>
         </div>
       </div>
 
       {/* 2. Top Enterprise Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200/90 erp-glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-600/25 group-hover:scale-105 transition-transform border border-blue-400/30">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-black tracking-tight text-slate-900 text-lg">ERP CORE</span>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold erp-badge-blue tracking-wider">
-                  ENTERPRISE
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-500 font-semibold tracking-tight">Cloud Business & Workforce Platform</span>
-            </div>
+      <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] erp-glass">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 group">
+            <JdsLogo size="md" showText={true} subtitle="Enterprise Platform" />
           </Link>
 
           {/* Navigation Links */}
