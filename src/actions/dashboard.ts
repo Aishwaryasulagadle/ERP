@@ -24,8 +24,9 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
 
   if (userRole === "MANAGER" && deptId) {
     empWhere.departmentId = deptId;
-    taskWhere.assignedTo = { departmentId: deptId };
-    attWhere.employee = { departmentId: deptId };
+    empWhere.user = { role: { not: "ADMIN" } };
+    taskWhere.assignedTo = { departmentId: deptId, user: { role: { not: "ADMIN" } } };
+    attWhere.employee = { departmentId: deptId, user: { role: { not: "ADMIN" } } };
     if (deptName.includes("sales")) {
       // Sales manager sees all sales department leads
     } else {
@@ -152,23 +153,33 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
 
   const presentEmployeesCount = attendances.filter((a) => a.status === "PRESENT" || a.status === "LATE" || a.checkIn).length;
 
-  // Employee-wise Sales Table Calculation
-  const employeeSalesMap: Record<string, { name: string; orders: number; sales: number; role: string }> = {};
-  for (const emp of employees) {
-    employeeSalesMap[emp.id] = {
-      name: emp.user.name,
-      orders: 0,
-      sales: 0,
-      role: emp.designation?.name || "Executive",
+  // Dynamic Employee Performance Table Calculation
+  const dynamicEmployeeRows = employees.map((emp) => {
+    const empLeads = emp.leads || [];
+    const empOrders = orders.filter((o) => o.employeeId === emp.id);
+    const convertedCount = empLeads.filter((l: any) => l.status === "CONVERTED").length;
+    const salesTotal = empOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const empTasks = emp.assignedTasks || [];
+    const compTasks = empTasks.filter((t: any) => t.status === "COMPLETED").length;
+    const taskRatio = empTasks.length > 0 ? `${compTasks}/${empTasks.length}` : "10/10";
+    const taskPct = empTasks.length > 0 ? Math.round((compTasks / empTasks.length) * 100) : 100;
+
+    return {
+      id: emp.id,
+      name: emp.user?.name || "Staff Member",
+      role: emp.designation?.name || "Senior Executive",
+      leads: empLeads.length,
+      converted: convertedCount,
+      sales: salesTotal,
+      tasks: taskRatio,
+      completion: taskPct,
+      status: emp.employmentStatus || "ACTIVE",
     };
-  }
-  for (const ord of orders) {
-    if (ord.employeeId && employeeSalesMap[ord.employeeId]) {
-      employeeSalesMap[ord.employeeId].orders += 1;
-      employeeSalesMap[ord.employeeId].sales += ord.totalAmount;
-    }
-  }
-  const employeeSalesList = Object.values(employeeSalesMap).sort((a, b) => b.sales - a.sales);
+  });
+
+  const employeeSalesList = dynamicEmployeeRows
+    .map((r) => ({ name: r.name, orders: r.leads, sales: r.sales, role: r.role }))
+    .sort((a, b) => b.sales - a.sales);
 
   const salesChartData = [
     { name: "Mon", sales: 45000, revenue: 53100 },
@@ -216,6 +227,7 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     salesChartData,
     leadDistributionData,
     employeeSalesList,
+    employeeRows: dynamicEmployeeRows,
     taskStats: {
       totalTasks,
       completedTasks,

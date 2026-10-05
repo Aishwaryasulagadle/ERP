@@ -123,13 +123,16 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
     { label: "LOST", count: 14, value: 65000, color: "border-rose-500/30 text-rose-400 bg-rose-500/10" },
   ];
 
-  // 4. Employee Performance Table
-  const employeeRows = [
-    { name: "Rahul Sharma", leads: 32, converted: 10, sales: 240000, tasks: "18/20", completion: 90, status: "ACTIVE" },
-    { name: "Priya Sharma", leads: 28, converted: 8, sales: 180000, tasks: "15/18", completion: 83, status: "ACTIVE" },
-    { name: "Amit Patel", leads: 24, converted: 7, sales: 120000, tasks: "17/20", completion: 85, status: "ACTIVE" },
-    { name: "Sneha Reddy", leads: 21, converted: 6, sales: 95000, tasks: "14/15", completion: 93, status: "ACTIVE" },
-  ];
+  // 4. Employee Performance Table (Uses dynamic department staff from backend)
+  const employeeRows =
+    metrics.employeeRows && metrics.employeeRows.length > 0
+      ? metrics.employeeRows
+      : [
+          { name: "Rahul Sharma", leads: 32, converted: 10, sales: 240000, tasks: "18/20", completion: 90, status: "ACTIVE" },
+          { name: "Priya Sharma", leads: 28, converted: 8, sales: 180000, tasks: "15/18", completion: 83, status: "ACTIVE" },
+          { name: "Amit Patel", leads: 24, converted: 7, sales: 120000, tasks: "17/20", completion: 85, status: "ACTIVE" },
+          { name: "Sneha Reddy", leads: 21, converted: 6, sales: 95000, tasks: "14/15", completion: 93, status: "ACTIVE" },
+        ];
 
   // 5. Recent Sales Table
   const recentSales = [

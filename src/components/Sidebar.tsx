@@ -24,6 +24,8 @@ import {
   Building2,
   Calendar,
   Layers,
+  FileSpreadsheet,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

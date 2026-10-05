@@ -68,6 +68,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.department = (user as any).department;
         token.designation = (user as any).designation;
       }
+
+      // If token is missing departmentId or employee info, query DB to keep session synced
+      if (token.id && (!token.departmentId || !token.employeeId || !token.role)) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          include: {
+            employee: {
+              include: { department: true, designation: true },
+            },
+          },
+        });
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.employeeId = dbUser.employee?.id;
+          token.employeeCode = dbUser.employee?.employeeCode;
+          token.departmentId = dbUser.employee?.departmentId;
+          token.department = dbUser.employee?.department?.name;
+          token.designation = dbUser.employee?.designation?.name;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

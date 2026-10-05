@@ -173,6 +173,11 @@ export function EmployeesClient({
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState<any | null>(null);
+
+  // Sync state if server props change (e.g., after login switch or revalidation)
+  useEffect(() => {
+    setEmployees(initialEmployees);
+  }, [initialEmployees]);
   const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedAttendanceYear, setSelectedAttendanceYear] = useState<number>(new Date().getFullYear());
 
@@ -1085,34 +1090,50 @@ export function EmployeesClient({
             <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="space-y-1">
                 <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                  Departments
+                  {userRole === "ADMIN" ? "Departments" : "My Department"}
                 </div>
                 <div className="space-y-1">
-                  <button
-                    onClick={() => setSelectedDept("ALL")}
-                    className={cn(
-                      "flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
-                      selectedDept === "ALL" ? "bg-slate-200/70 text-slate-900 font-semibold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    )}
-                  >
-                    <span>All Departments</span>
-                    <span className="text-[10px] font-mono font-bold text-slate-500">{employees.length}</span>
-                  </button>
-                  {departments.map((d) => (
-                    <button
-                      key={d.id}
-                      onClick={() => setSelectedDept(d.id)}
-                      className={cn(
-                        "flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
-                        selectedDept === d.id ? "bg-slate-200/70 text-slate-900 font-semibold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                      )}
-                    >
-                      <span className="truncate">{d.name}</span>
-                      <span className="text-[10px] font-mono font-bold text-slate-500">
-                        {employees.filter((e) => e.departmentId === d.id).length}
-                      </span>
-                    </button>
-                  ))}
+                  {userRole === "ADMIN" ? (
+                    <>
+                      <button
+                        onClick={() => setSelectedDept("ALL")}
+                        className={cn(
+                          "flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
+                          selectedDept === "ALL" ? "bg-slate-200/70 text-slate-900 font-semibold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        )}
+                      >
+                        <span>All Departments</span>
+                        <span className="text-[10px] font-mono font-bold text-slate-500">{employees.length}</span>
+                      </button>
+                      {departments.map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => setSelectedDept(d.id)}
+                          className={cn(
+                            "flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
+                            selectedDept === d.id ? "bg-slate-200/70 text-slate-900 font-semibold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          )}
+                        >
+                          <span className="truncate">{d.name}</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-500">
+                            {employees.filter((e) => e.departmentId === d.id).length}
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    departments
+                      .filter((d) => !userDeptId || d.id === userDeptId)
+                      .map((d) => (
+                        <div
+                          key={d.id}
+                          className="flex items-center justify-between w-full px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60"
+                        >
+                          <span className="truncate">{d.name}</span>
+                          <span className="text-[10px] font-mono font-bold text-blue-600">{employees.length} Staff</span>
+                        </div>
+                      ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1353,7 +1374,7 @@ export function EmployeesClient({
               <KpiCard
                 title="DEPARTMENTS"
                 value={departments.length}
-                comparisonText="Sales, Tech, HR, Ops"
+                comparisonText="Sales, Marketing, Tech"
                 isPositive={true}
                 icon={Building}
                 iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
@@ -1380,27 +1401,42 @@ export function EmployeesClient({
             {/* Search and Table */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
               <div className="flex items-center gap-1 overflow-x-auto">
-                <button
-                  onClick={() => setSelectedDept("ALL")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
-                    selectedDept === "ALL" ? "bg-blue-600 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
-                  )}
-                >
-                  All ({employees.length})
-                </button>
-                {departments.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setSelectedDept(d.id)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
-                      selectedDept === d.id ? "bg-blue-600 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
-                    )}
-                  >
-                    {d.name} ({employees.filter((e) => e.departmentId === d.id).length})
-                  </button>
-                ))}
+                {userRole === "ADMIN" ? (
+                  <>
+                    <button
+                      onClick={() => setSelectedDept("ALL")}
+                      className={cn(
+                        "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
+                        selectedDept === "ALL" ? "bg-blue-600 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                      )}
+                    >
+                      All ({employees.length})
+                    </button>
+                    {departments.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setSelectedDept(d.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
+                          selectedDept === d.id ? "bg-blue-600 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                        )}
+                      >
+                        {d.name} ({employees.filter((e) => e.departmentId === d.id).length})
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  departments
+                    .filter((d) => !userDeptId || d.id === userDeptId)
+                    .map((d) => (
+                      <span
+                        key={d.id}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white whitespace-nowrap"
+                      >
+                        {d.name} Department ({employees.length} Staff)
+                      </span>
+                    ))
+                )}
               </div>
 
               <div className="relative w-56">

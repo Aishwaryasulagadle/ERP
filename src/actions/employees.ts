@@ -10,13 +10,27 @@ export async function getEmployees(filters?: { departmentId?: string; search?: s
   if (!session?.user) throw new Error("Unauthorized");
 
   const currentUserRole = (session.user as any).role;
-  const currentDeptId = (session.user as any).departmentId;
+  let currentDeptId = (session.user as any).departmentId;
+
+  // Resilient fallback: fetch department from database if session token is stale or missing it
+  if (!currentDeptId && session.user.id) {
+    const dbEmp = await prisma.employee.findUnique({
+      where: { userId: session.user.id },
+      select: { departmentId: true },
+    });
+    if (dbEmp?.departmentId) {
+      currentDeptId = dbEmp.departmentId;
+    }
+  }
 
   const where: any = {};
 
-  // Manager only sees employees under their own department
-  if (currentUserRole === "MANAGER" && currentDeptId) {
-    where.departmentId = currentDeptId;
+  // Manager only sees their own department, and never sees ADMIN users
+  if (currentUserRole === "MANAGER") {
+    if (currentDeptId) {
+      where.departmentId = currentDeptId;
+    }
+    where.user = { role: { not: "ADMIN" } };
   } else if (filters?.departmentId && filters.departmentId !== "ALL") {
     where.departmentId = filters.departmentId;
   }
