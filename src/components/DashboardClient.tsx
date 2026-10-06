@@ -73,13 +73,13 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
   const isAdmin = role === "ADMIN";
 
   // 1. KPI Values
-  const totalRev = metrics.kpis.totalSalesRevenue || 565000;
-  const totalLeads = metrics.kpis.totalLeads || 126;
-  const convertedCount = metrics.kpis.convertedLeads || 31;
-  const convRate = totalLeads > 0 ? ((convertedCount / totalLeads) * 100).toFixed(1) : "24.5";
-  const totalEmp = metrics.kpis.totalEmployees || 32;
-  const presentToday = metrics.kpis.presentToday || 29;
-  const taskRate = metrics.taskStats?.completionRate || 82;
+  const totalRev = metrics.kpis?.totalSalesRevenue ?? 0;
+  const totalLeads = metrics.kpis?.totalLeads ?? 0;
+  const convertedCount = metrics.kpis?.convertedLeads ?? 0;
+  const convRate = totalLeads > 0 ? ((convertedCount / totalLeads) * 100).toFixed(1) : "0.0";
+  const totalEmp = metrics.kpis?.totalEmployees ?? 0;
+  const presentToday = metrics.kpis?.presentToday ?? 0;
+  const taskRate = metrics.taskStats?.completionRate ?? 0;
 
   // 2. Sales Overview Chart Data for controls 7D / 30D / 90D / 1Y
   const chartDataMap: Record<string, any[]> = {
@@ -115,12 +115,12 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
 
   // 3. Horizontal CRM Pipeline Funnel Stages
   const pipelineStages = [
-    { label: "NEW", count: metrics.kpis.newLeads || 126, value: 420000, color: "border-blue-500/30 text-blue-400 bg-blue-500/10" },
-    { label: "CONTACTED", count: 92, value: 340000, color: "border-indigo-500/30 text-indigo-400 bg-indigo-500/10" },
-    { label: "FOLLOW-UP", count: metrics.kpis.followUpsToday || 64, value: 280000, color: "border-amber-500/30 text-amber-400 bg-amber-500/10" },
-    { label: "QUALIFIED", count: 38, value: 210000, color: "border-cyan-500/30 text-cyan-400 bg-cyan-500/10" },
-    { label: "CONVERTED", count: convertedCount, value: 150000, color: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" },
-    { label: "LOST", count: 14, value: 65000, color: "border-rose-500/30 text-rose-400 bg-rose-500/10" },
+    { label: "NEW", count: metrics.kpis?.newLeads ?? 0, value: 0, color: "border-blue-500/30 text-blue-400 bg-blue-500/10" },
+    { label: "CONTACTED", count: metrics.kpis?.contactedLeads ?? 0, value: 0, color: "border-indigo-500/30 text-indigo-400 bg-indigo-500/10" },
+    { label: "FOLLOW-UP", count: metrics.kpis?.followUpLeads ?? 0, value: 0, color: "border-amber-500/30 text-amber-400 bg-amber-500/10" },
+    { label: "QUALIFIED", count: 0, value: 0, color: "border-cyan-500/30 text-cyan-400 bg-cyan-500/10" },
+    { label: "CONVERTED", count: convertedCount, value: totalRev, color: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" },
+    { label: "LOST", count: metrics.kpis?.lostLeads ?? 0, value: 0, color: "border-rose-500/30 text-rose-400 bg-rose-500/10" },
   ];
 
   // 4. Employee Performance Table (Uses dynamic department staff from backend)

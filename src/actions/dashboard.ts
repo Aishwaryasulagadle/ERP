@@ -203,7 +203,10 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     kpis: {
       totalLeads,
       newLeads,
+      contactedLeads,
+      followUpLeads,
       convertedLeads,
+      lostLeads,
       totalSalesRevenue,
       totalOrdersCount,
       totalEmployees: employees.length,

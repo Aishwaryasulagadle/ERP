@@ -8,6 +8,10 @@ export async function getLeads(filters?: { status?: string; search?: string; ass
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  const currentUserRole = (session.user as any).role;
+  const currentEmpId = (session.user as any).employeeId;
+  let currentDeptId = (session.user as any).departmentId;
+
   const where: any = {};
   if (filters?.status && filters.status !== "ALL") {
     where.status = filters.status;
@@ -22,14 +26,28 @@ export async function getLeads(filters?: { status?: string; search?: string; ass
       { company: { contains: filters.search } },
       { phone: { contains: filters.search } },
       { email: { contains: filters.search } },
+      { notes: { contains: filters.search } },
     ];
   }
 
-  // Employee role can only see their own assigned leads
-  if ((session.user as any).role === "EMPLOYEE") {
-    const empId = (session.user as any).employeeId;
-    if (empId) {
-      where.assignedToId = empId;
+  // 1. Employee role sees only their own assigned leads
+  if (currentUserRole === "EMPLOYEE" && currentEmpId) {
+    where.assignedToId = currentEmpId;
+  } else if (currentUserRole === "MANAGER") {
+    // 2. Manager sees leads belonging to employees in their department + their own leads
+    if (!currentDeptId && session.user.id) {
+      const dbEmp = await prisma.employee.findUnique({
+        where: { userId: session.user.id },
+        select: { departmentId: true },
+      });
+      currentDeptId = dbEmp?.departmentId;
+    }
+
+    if (currentDeptId) {
+      where.OR = [
+        { assignedTo: { departmentId: currentDeptId } },
+        { assignedToId: currentEmpId },
+      ];
     }
   }
 
@@ -54,12 +72,21 @@ export async function createLead(data: {
   productInterest?: string;
   expectedValue: number;
   assignedToId?: string;
-  priority: string;
+  priority?: string;
   notes?: string;
   followUpDate?: string;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
+
+  const currentEmpId = (session.user as any).employeeId;
+  const currentUserRole = (session.user as any).role;
+
+  // Auto-assign to logged-in user if employee or manager creating their own lead, unless admin assigned someone else
+  let finalAssignedToId = data.assignedToId;
+  if (!finalAssignedToId || currentUserRole === "EMPLOYEE" || (currentUserRole === "MANAGER" && !data.assignedToId)) {
+    finalAssignedToId = currentEmpId || null;
+  }
 
   const leadCount = await prisma.lead.count();
   const leadCode = `LEAD-${100 + leadCount + 1}`;
@@ -69,17 +96,22 @@ export async function createLead(data: {
       leadCode,
       customerName: data.customerName,
       phone: data.phone,
-      email: data.email,
-      company: data.company,
-      location: data.location,
-      source: data.source,
-      productInterest: data.productInterest,
+      email: data.email || null,
+      company: data.company || null,
+      location: data.location || null,
+      source: data.source || "CALLING",
+      productInterest: data.productInterest || null,
       expectedValue: Number(data.expectedValue) || 0,
-      assignedToId: data.assignedToId || null,
-      priority: data.priority,
-      notes: data.notes,
+      assignedToId: finalAssignedToId,
+      priority: data.priority || "MEDIUM",
+      notes: data.notes || null,
       followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
       status: "NEW",
+    },
+    include: {
+      assignedTo: { include: { user: true } },
+      customer: true,
+      followUps: true,
     },
   });
 
@@ -100,6 +132,74 @@ export async function createLead(data: {
   return lead;
 }
 
+export async function updateLeadDetails(
+  id: string,
+  data: {
+    customerName?: string;
+    phone?: string;
+    email?: string;
+    company?: string;
+    location?: string;
+    source?: string;
+    productInterest?: string;
+    expectedValue?: number;
+    priority?: string;
+    notes?: string;
+    assignedToId?: string;
+  }
+) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const updateData: any = {};
+  if (data.customerName !== undefined) updateData.customerName = data.customerName;
+  if (data.phone !== undefined) updateData.phone = data.phone;
+  if (data.email !== undefined) updateData.email = data.email || null;
+  if (data.company !== undefined) updateData.company = data.company || null;
+  if (data.location !== undefined) updateData.location = data.location || null;
+  if (data.source !== undefined) updateData.source = data.source;
+  if (data.productInterest !== undefined) updateData.productInterest = data.productInterest || null;
+  if (data.expectedValue !== undefined) updateData.expectedValue = Number(data.expectedValue) || 0;
+  if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.notes !== undefined) updateData.notes = data.notes || null;
+  if (data.assignedToId !== undefined && (session.user as any).role === "ADMIN") {
+    updateData.assignedToId = data.assignedToId || null;
+  }
+
+  const updatedLead = await prisma.lead.update({
+    where: { id },
+    data: updateData,
+    include: {
+      assignedTo: { include: { user: true } },
+      customer: true,
+      followUps: true,
+    },
+  });
+
+  await prisma.leadActivity.create({
+    data: {
+      leadId: id,
+      type: "EDIT_LEAD",
+      note: `Lead parameters updated by ${session.user.name}`,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: session.user.name || "User",
+      action: "EDIT_LEAD",
+      module: "CRM",
+      recordId: updatedLead.leadCode,
+      details: `Updated details for lead ${updatedLead.leadCode} (${updatedLead.customerName})`,
+    },
+  });
+
+  revalidatePath("/crm");
+  revalidatePath("/dashboard");
+  return updatedLead;
+}
+
 export async function updateLeadStatus(id: string, status: string, notes?: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -109,6 +209,11 @@ export async function updateLeadStatus(id: string, status: string, notes?: strin
     data: {
       status,
       notes: notes ? `${notes}` : undefined,
+    },
+    include: {
+      assignedTo: { include: { user: true } },
+      customer: true,
+      followUps: true,
     },
   });
 
@@ -135,6 +240,7 @@ export async function updateLeadStatus(id: string, status: string, notes?: strin
   revalidatePath("/dashboard");
   return lead;
 }
+
 
 export async function convertLeadToCustomerAndOrder(
   leadId: string,
