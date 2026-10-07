@@ -260,6 +260,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,
           category: s.category,
+          target: s.target,
           targetCount: s.targetCount,
           billingCycle: s.billingCycle,
           milestoneAmount: s.milestoneAmount,
@@ -1109,7 +1110,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                         ? "Web & Application Development"
                         : "Instagram Reels & Social Media Deliverables"),
                     category: (selectedLead.departmentType as any) === "TECHNICAL" ? "DEVELOPMENT" : "MARKETING",
-                    targetCount: (selectedLead.departmentType as any) === "TECHNICAL" ? 1 : 15,
+                    target: (selectedLead.departmentType as any) === "TECHNICAL" ? "1 Milestone" : "15 Reels",
                     billingCycle: (selectedLead.billingType as any) || "MONTHLY",
                     milestoneAmount: (selectedLead.billingType as any) === "ONE_TIME" ? selectedLead.expectedValue || 0 : 0,
                     notes: "",

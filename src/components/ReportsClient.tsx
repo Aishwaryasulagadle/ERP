@@ -269,7 +269,8 @@ export function ReportsClient({
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,
           category: s.category,
-          targetCount: Number(s.targetCount) || 0,
+          target: s.target,
+          targetCount: s.targetCount,
           billingCycle: s.billingCycle || formData.billingType,
           milestoneAmount: Number(s.milestoneAmount) || 0,
           notes: s.notes,

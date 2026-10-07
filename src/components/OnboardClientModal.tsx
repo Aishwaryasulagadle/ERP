@@ -20,11 +20,12 @@ import { cn } from "@/lib/utils";
 export interface OnboardServiceItem {
   id: string;
   serviceName: string;
-  category: string;
-  targetCount: number;
-  billingCycle: string;
-  milestoneAmount: number;
-  notes: string;
+  category?: string;
+  target: string;
+  targetCount?: number;
+  billingCycle?: string;
+  milestoneAmount?: number;
+  notes?: string;
 }
 
 export interface OnboardClientFormData {
@@ -64,12 +65,12 @@ const SOURCES = [
 ];
 
 const SERVICE_PRESETS = [
-  { label: "15 Instagram Reels", name: "Instagram Reels & Shorts", cat: "MARKETING", count: 15 },
-  { label: "25 Social Graphics", name: "Static Graphics & Carousels", cat: "MARKETING", count: 25 },
-  { label: "Meta & Google Ads", name: "Meta & Google Ads Management", cat: "ADS", count: 2 },
-  { label: "Website Development", name: "Website UI/UX & Full-Stack Development", cat: "DEVELOPMENT", count: 1 },
-  { label: "Custom ERP Suite", name: "Enterprise ERP System Deployment", cat: "DEVELOPMENT", count: 1 },
-  { label: "SEO & Content Writing", name: "On-Page & Technical SEO Articles", cat: "SEO", count: 8 },
+  { label: "15 Reels", name: "Instagram Reels & Shorts", target: "15 Reels" },
+  { label: "25 Posts", name: "Static Graphics & Carousels", target: "25 Posts" },
+  { label: "Meta & Google Ads", name: "Meta & Google Ads Campaign", target: "2 Campaigns" },
+  { label: "Website Dev", name: "Website UI/UX & Development", target: "Complete Launch" },
+  { label: "Custom ERP Suite", name: "Enterprise ERP System Deployment", target: "Full Build" },
+  { label: "SEO & Content", name: "On-Page & Technical SEO Articles", target: "8 Articles" },
 ];
 
 export function OnboardClientModal({
@@ -96,13 +97,15 @@ export function OnboardClientModal({
       assignedEmployeeIds: initialData?.assignedEmployeeIds || [],
       services:
         initialData?.services && initialData.services.length > 0
-          ? initialData.services
+          ? initialData.services.map((s) => ({
+              ...s,
+              target: s.target || (s.targetCount !== undefined ? String(s.targetCount) : "15"),
+            }))
           : [
               {
                 id: "srv-1",
                 serviceName: "Instagram Reels & Content Deliverables",
-                category: "MARKETING",
-                targetCount: 15,
+                target: "15",
                 billingCycle: "MONTHLY",
                 milestoneAmount: 0,
                 notes: "",
@@ -131,7 +134,10 @@ export function OnboardClientModal({
         assignedEmployeeIds: initialData.assignedEmployeeIds || [],
         services:
           initialData.services && initialData.services.length > 0
-            ? initialData.services
+            ? initialData.services.map((s) => ({
+                ...s,
+                target: s.target || (s.targetCount !== undefined ? String(s.targetCount) : "1"),
+              }))
             : [
                 {
                   id: "srv-1",
@@ -139,8 +145,7 @@ export function OnboardClientModal({
                     initialData.departmentType === "TECHNICAL"
                       ? "Web & Application Development"
                       : "Instagram Reels & Content Deliverables",
-                  category: initialData.departmentType === "TECHNICAL" ? "DEVELOPMENT" : "MARKETING",
-                  targetCount: initialData.departmentType === "TECHNICAL" ? 1 : 15,
+                  target: initialData.departmentType === "TECHNICAL" ? "1 Milestone" : "15 Reels",
                   billingCycle: initialData.billingType || "MONTHLY",
                   milestoneAmount: initialData.billingType === "ONE_TIME" ? initialData.amount || 0 : 0,
                   notes: "",
@@ -158,8 +163,7 @@ export function OnboardClientModal({
     const newService: OnboardServiceItem = {
       id: `srv-${Date.now()}`,
       serviceName: isTech ? "Feature Module / Sprint Milestone" : "Graphics & Posts",
-      category: isTech ? "DEVELOPMENT" : "DESIGN",
-      targetCount: isTech ? 1 : 10,
+      target: isTech ? "1 Milestone" : "10",
       billingCycle: formData.billingType,
       milestoneAmount: 0,
       notes: "",
@@ -174,8 +178,7 @@ export function OnboardClientModal({
     const newService: OnboardServiceItem = {
       id: `srv-${Date.now()}`,
       serviceName: preset.name,
-      category: preset.cat,
-      targetCount: preset.count,
+      target: preset.target,
       billingCycle: formData.billingType,
       milestoneAmount: 0,
       notes: "",
@@ -473,34 +476,22 @@ export function OnboardClientModal({
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <select
-                      value={srv.category}
-                      onChange={(e) => handleServiceChange(srv.id, "category", e.target.value)}
-                      className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-xs"
-                    >
-                      <option value="MARKETING">Marketing</option>
-                      <option value="DEVELOPMENT">Development</option>
-                      <option value="DESIGN">Design</option>
-                      <option value="ADS">Ads</option>
-                      <option value="SEO">SEO</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-slate-400 font-mono">Target:</span>
+                    <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+                      <span className="text-[11px] text-slate-500 font-semibold shrink-0">Target:</span>
                       <input
-                        type="number"
-                        min={1}
-                        value={srv.targetCount}
-                        onChange={(e) => handleServiceChange(srv.id, "targetCount", Number(e.target.value))}
-                        className="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-mono text-center text-xs font-bold"
+                        type="text"
+                        placeholder="e.g. 15, 20 Reels, MVP Launch"
+                        value={srv.target}
+                        onChange={(e) => handleServiceChange(srv.id, "target", e.target.value)}
+                        className="w-full sm:w-44 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-medium text-xs focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleRemoveService(srv.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title="Remove deliverable"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

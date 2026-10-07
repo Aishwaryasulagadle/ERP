@@ -94,7 +94,8 @@ export async function createClient(data: {
   assignedEmployeeIds?: string[];
   initialServices?: {
     serviceName: string;
-    category: string;
+    category?: string;
+    target?: string | number;
     targetCount?: number;
     billingCycle?: string;
     milestoneAmount?: number;
@@ -168,14 +169,26 @@ export async function createClient(data: {
         : undefined,
       services: data.initialServices && data.initialServices.length > 0
         ? {
-            create: data.initialServices.map((srv) => ({
-              serviceName: srv.serviceName,
-              category: srv.category || "OTHER",
-              targetCount: Number(srv.targetCount) || 0,
-              billingCycle: srv.billingCycle || data.billingType,
-              milestoneAmount: Number(srv.milestoneAmount) || 0,
-              notes: srv.notes || null,
-            })),
+            create: data.initialServices.map((srv) => {
+              const rawTarget = srv.target !== undefined ? String(srv.target).trim() : (srv.targetCount !== undefined ? String(srv.targetCount) : "");
+              const parsedNum = parseInt(rawTarget, 10);
+              const numericCount = !isNaN(parsedNum) ? parsedNum : (srv.targetCount || 0);
+
+              // If user provided a descriptive text target that isn't just pure digits (e.g. "15 Reels", "Full Build"), note it down
+              let targetNote = srv.notes || "";
+              if (rawTarget && isNaN(Number(rawTarget))) {
+                targetNote = targetNote ? `[Target: ${rawTarget}] ${targetNote}` : `[Target: ${rawTarget}]`;
+              }
+
+              return {
+                serviceName: srv.serviceName,
+                category: srv.category || (data.departmentType === "TECHNICAL" ? "DEVELOPMENT" : "MARKETING"),
+                targetCount: numericCount,
+                billingCycle: srv.billingCycle || data.billingType,
+                milestoneAmount: Number(srv.milestoneAmount) || 0,
+                notes: targetNote || null,
+              };
+            }),
           }
         : undefined,
     },
