@@ -35,10 +35,11 @@ import {
   createLead,
   updateLeadStatus,
   updateLeadDetails,
-  convertLeadToCustomerAndOrder,
   requestLeadConversionApproval,
 } from "@/actions/crm";
+import { createClient } from "@/actions/clients";
 import { StatusBadge, KpiCard } from "@/components/ui/Cards";
+import { OnboardClientModal, OnboardClientFormData } from "@/components/OnboardClientModal";
 import { cn } from "@/lib/utils";
 import { ShieldCheck } from "lucide-react";
 
@@ -218,24 +219,58 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
     }
   };
 
-  const handleConvertLead = async () => {
+  const handleEmployeeSubmitForApproval = async (leadId: string) => {
+    const lead = leads.find((l) => l.id === leadId) || selectedLead;
+    if (!lead) return;
+    setLoading(true);
+    try {
+      const updated = await requestLeadConversionApproval(lead.id, {
+        totalAmount: lead.expectedValue || 0,
+        itemTitle: lead.productInterest || "Client Contract",
+        departmentType: (lead.departmentType as any) || "DIGITAL_MARKETING",
+        billingType: (lead.billingType as any) || "MONTHLY",
+        serviceDetails: lead.notes || "",
+      });
+      setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, ...updated } : l)));
+      if (selectedLead?.id === lead.id) {
+        setSelectedLead((prev: any) => ({ ...prev, ...updated }));
+      }
+      alert(`✓ Lead ${lead.leadCode} (${lead.customerName}) submitted for Manager Approval!`);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOnboardClientSubmit = async (formData: OnboardClientFormData) => {
     if (!selectedLead) return;
     setLoading(true);
     try {
-      if (isEmployee) {
-        const updated = await requestLeadConversionApproval(selectedLead.id, convertData);
-        setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? { ...l, ...updated } : l)));
-        setSelectedLead((prev: any) => ({ ...prev, ...updated }));
-        setShowConvertModal(false);
-        alert(`✓ Conversion request for ${selectedLead.customerName} submitted to Sales Manager for final approval!`);
-      } else {
-        await convertLeadToCustomerAndOrder(selectedLead.id, convertData);
-        const updated = { ...selectedLead, status: "CONVERTED" };
-        setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updated : l)));
-        setSelectedLead(updated);
-        setShowConvertModal(false);
-        alert(`✓ Lead ${selectedLead.leadCode} successfully approved and converted into Client Account and Sales Order!`);
-      }
+      await createClient({
+        name: formData.name,
+        company: formData.company,
+        phone: formData.phone,
+        email: formData.email,
+        departmentType: formData.departmentType,
+        billingType: formData.billingType,
+        amount: formData.amount,
+        notes: formData.notes,
+        leadId: selectedLead.id,
+        initialServices: formData.services.map((s) => ({
+          serviceName: s.serviceName,
+          category: s.category,
+          targetCount: s.targetCount,
+          billingCycle: s.billingCycle,
+          milestoneAmount: s.milestoneAmount,
+          notes: s.notes,
+        })),
+      });
+      const updated = { ...selectedLead, status: "CONVERTED" };
+      setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updated : l)));
+      setSelectedLead(updated);
+      setShowConvertModal(false);
+      alert(`✓ Lead ${selectedLead.leadCode} successfully approved & immediately onboarded into Client Accounts and Sales Order!`);
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -252,18 +287,17 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
     const leadId = e.dataTransfer.getData("text/plain");
     if (!leadId) return;
 
-    // If an employee drags into CONVERTED directly, route them to conversion request approval
-    if (isEmployee && targetStage === "CONVERTED") {
+    // If an employee drags into CONVERTED or PENDING_APPROVAL, directly submit for manager approval
+    if (isEmployee && (targetStage === "CONVERTED" || targetStage === "PENDING_APPROVAL")) {
+      handleEmployeeSubmitForApproval(leadId);
+      return;
+    }
+
+    // If manager or admin drags into CONVERTED, open OnboardClientModal
+    if (!isEmployee && targetStage === "CONVERTED") {
       const lead = leads.find((l) => l.id === leadId);
       if (lead) {
         handleOpenLead(lead);
-        setConvertData({
-          totalAmount: lead.expectedValue || 100000,
-          itemTitle: lead.productInterest || "Client Contract",
-          departmentType: (lead.departmentType as any) || "DIGITAL_MARKETING",
-          billingType: (lead.billingType as any) || "MONTHLY",
-          serviceDetails: lead.notes || "",
-        });
         setShowConvertModal(true);
       }
       return;
@@ -980,45 +1014,38 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                       </div>
                       <p className="text-[11px] text-amber-700">
                         {isEmployee
-                          ? "You submitted this lead for Manager Approval. Your Sales Manager will review and convert it into an active client."
-                          : `Sales rep ${selectedLead.assignedTo?.user?.name || "Employee"} requested client conversion. Approve below to onboard.`}
+                          ? "You have submitted this lead for Manager Approval. Your Sales Manager or Admin will review and onboard them as a client."
+                          : `Sales rep ${selectedLead.assignedTo?.user?.name || "Employee"} requested client conversion. Review and onboard below.`}
                       </p>
                       {!isEmployee && (
                         <button
-                          onClick={() => {
-                            setConvertData({
-                              totalAmount: selectedLead.expectedValue || 180000,
-                              itemTitle: selectedLead.productInterest || "Client Retainer Contract",
-                              departmentType: (selectedLead.departmentType as any) || "DIGITAL_MARKETING",
-                              billingType: (selectedLead.billingType as any) || "MONTHLY",
-                              serviceDetails: selectedLead.notes || "",
-                            });
-                            setShowConvertModal(true);
-                          }}
+                          onClick={() => setShowConvertModal(true)}
                           className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Approve & Convert to Active Client</span>
+                          <span>Approve & Onboard Client</span>
                         </button>
                       )}
                     </div>
                   ) : selectedLead.status !== "CONVERTED" && selectedLead.status !== "LOST" && (
-                    <button
-                      onClick={() => {
-                        setConvertData({
-                          totalAmount: selectedLead.expectedValue || 180000,
-                          itemTitle: selectedLead.productInterest || "Client Retainer Contract",
-                          departmentType: (selectedLead.departmentType as any) || "DIGITAL_MARKETING",
-                          billingType: (selectedLead.billingType as any) || "MONTHLY",
-                          serviceDetails: selectedLead.notes || "",
-                        });
-                        setShowConvertModal(true);
-                      }}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>{isEmployee ? "Submit for Client Conversion (Manager Approval)" : "Convert to Active Client & Order"}</span>
-                    </button>
+                    isEmployee ? (
+                      <button
+                        onClick={() => handleEmployeeSubmitForApproval(selectedLead.id)}
+                        disabled={loading}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-blue-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Submit for Manager Approval</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowConvertModal(true)}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Convert & Onboard Client</span>
+                      </button>
+                    )
                   )}
 
                   {/* Stage Status Selector (Includes option to mark as LOST without a kanban section) */}
@@ -1049,130 +1076,47 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
             </div>
           )}
 
-          {/* Convert Deal Modal */}
+          {/* Onboard Client Modal directly opened on Conversion */}
           {showConvertModal && selectedLead && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                <h3 className="text-base font-bold text-slate-900">
-                  {isEmployee ? "Submit Lead for Client Conversion Approval" : "Convert Lead to Active Client & Order"}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {isEmployee
-                    ? "Set the proposed package and retainer. Once submitted, your Sales Manager will give final approval."
-                    : "Instantly create active client account, assign deliverables, and create sales ledger order."}
-                </p>
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-semibold">Service Department</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setConvertData({ ...convertData, departmentType: "DIGITAL_MARKETING" })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
-                          convertData.departmentType === "DIGITAL_MARKETING"
-                            ? "bg-purple-50 border-purple-500 text-purple-700 font-bold"
-                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        Digital Marketing
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConvertData({ ...convertData, departmentType: "TECHNICAL" })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
-                          convertData.departmentType === "TECHNICAL"
-                            ? "bg-blue-50 border-blue-500 text-blue-700 font-bold"
-                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        Technical / Dev
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-semibold">Billing Frequency</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setConvertData({ ...convertData, billingType: "MONTHLY" })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
-                          convertData.billingType === "MONTHLY"
-                            ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-bold"
-                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        Monthly Retainer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConvertData({ ...convertData, billingType: "ONE_TIME" })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer",
-                          convertData.billingType === "ONE_TIME"
-                            ? "bg-indigo-50 border-indigo-500 text-indigo-700 font-bold"
-                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                        )}
-                      >
-                        One-Time Project
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-semibold">Service Deliverables / Scope Description</label>
-                    <input
-                      type="text"
-                      value={convertData.itemTitle}
-                      onChange={(e) => setConvertData({ ...convertData, itemTitle: e.target.value })}
-                      placeholder="e.g. 15 Reels + 20 Graphics + Meta Ads"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-semibold">Total Amount / Retainer (₹)</label>
-                    <input
-                      type="number"
-                      value={convertData.totalAmount}
-                      onChange={(e) => setConvertData({ ...convertData, totalAmount: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500 focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-semibold">Client Requirements & Onboarding Notes</label>
-                    <textarea
-                      rows={2}
-                      value={convertData.serviceDetails}
-                      onChange={(e) => setConvertData({ ...convertData, serviceDetails: e.target.value })}
-                      placeholder="Notes for the team manager regarding deliverables, accounts, access..."
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowConvertModal(false)}
-                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleConvertLead}
-                    disabled={loading}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm shadow-emerald-600/20"
-                  >
-                    {loading ? "Processing..." : isEmployee ? "Submit for Manager Approval" : "Confirm & Create Client Order"}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <OnboardClientModal
+              isOpen={showConvertModal}
+              onClose={() => setShowConvertModal(false)}
+              onSubmit={handleOnboardClientSubmit}
+              title={isEmployee ? "Submit Lead for Client Onboarding Approval" : "Onboard Converted Client Account"}
+              subtitle={
+                isEmployee
+                  ? `Set package, deliverables, and commercial model for ${selectedLead.customerName}. Manager will approve.`
+                  : `Prefilled from lead ${selectedLead.leadCode}. Allocate to department, configure deliverable targets, and onboard.`
+              }
+              submitButtonText={isEmployee ? "Submit for Manager Approval" : "Confirm & Onboard to Department"}
+              initialData={{
+                name: selectedLead.customerName || "",
+                company: selectedLead.company || "",
+                phone: selectedLead.phone || "",
+                email: selectedLead.email || "",
+                source: selectedLead.source || "CALLING",
+                departmentType: (selectedLead.departmentType as any) || "DIGITAL_MARKETING",
+                billingType: (selectedLead.billingType as any) || "MONTHLY",
+                amount: selectedLead.expectedValue || 50000,
+                notes: selectedLead.notes || "",
+                leadId: selectedLead.id,
+                services: [
+                  {
+                    id: "srv-init",
+                    serviceName:
+                      selectedLead.productInterest ||
+                      ((selectedLead.departmentType as any) === "TECHNICAL"
+                        ? "Web & Application Development"
+                        : "Instagram Reels & Social Media Deliverables"),
+                    category: (selectedLead.departmentType as any) === "TECHNICAL" ? "DEVELOPMENT" : "MARKETING",
+                    targetCount: (selectedLead.departmentType as any) === "TECHNICAL" ? 1 : 15,
+                    billingCycle: (selectedLead.billingType as any) || "MONTHLY",
+                    milestoneAmount: (selectedLead.billingType as any) === "ONE_TIME" ? selectedLead.expectedValue || 0 : 0,
+                    notes: "",
+                  },
+                ],
+              }}
+            />
           )}
 
           {/* Create Lead Modal */}

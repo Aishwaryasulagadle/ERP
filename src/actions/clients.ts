@@ -108,6 +108,41 @@ export async function createClient(data: {
   const count = await prisma.client.count();
   const clientCode = `CLT-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
+  // If customer doesn't exist, create customer
+  let customerId: string | null = null;
+  if (data.leadId) {
+    const existingLead = await prisma.lead.findUnique({
+      where: { id: data.leadId },
+      include: { customer: true },
+    });
+    if (existingLead?.customerId) {
+      customerId = existingLead.customerId;
+    } else if (existingLead) {
+      const newCust = await prisma.customer.create({
+        data: {
+          name: data.name,
+          email: data.email || `${existingLead.leadCode.toLowerCase()}@customer.com`,
+          phone: data.phone || existingLead.phone,
+          company: data.company || existingLead.company || null,
+          address: data.address || existingLead.location || null,
+        },
+      });
+      customerId = newCust.id;
+    }
+  } else {
+    const custEmail = data.email || `client-${clientCode.toLowerCase()}@client.com`;
+    const newCust = await prisma.customer.create({
+      data: {
+        name: data.name,
+        email: custEmail,
+        phone: data.phone || null,
+        company: data.company || null,
+        address: data.address || null,
+      },
+    });
+    customerId = newCust.id;
+  }
+
   const client = await prisma.client.create({
     data: {
       clientCode,
@@ -121,6 +156,7 @@ export async function createClient(data: {
       amount: Number(data.amount) || 0,
       notes: data.notes || null,
       leadId: data.leadId || null,
+      customerId,
       createdById: currentEmpId || null,
       assignments: data.assignedEmployeeIds && data.assignedEmployeeIds.length > 0
         ? {
@@ -146,6 +182,51 @@ export async function createClient(data: {
     include: {
       assignments: true,
       services: true,
+      customer: true,
+    },
+  });
+
+  // Create Corresponding Sales Order
+  const orderCount = await prisma.order.count();
+  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`;
+  const totalAmt = Number(data.amount) || 0;
+
+  await prisma.order.create({
+    data: {
+      orderCode,
+      customerId,
+      clientId: client.id,
+      employeeId: currentEmpId || null,
+      leadId: data.leadId || null,
+      totalAmount: totalAmt,
+      discount: 0,
+      tax: totalAmt * 0.18,
+      paymentStatus: "PAID",
+      notes: `Onboarded as Client ${client.clientCode} (${data.departmentType})`,
+      orderItems: {
+        create: {
+          itemTitle: data.initialServices?.[0]?.serviceName || `${data.departmentType} Retainer`,
+          quantity: 1,
+          unitPrice: totalAmt,
+          total: totalAmt,
+        },
+      },
+      invoices: {
+        create: {
+          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+          dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
+          totalAmount: totalAmt * 1.18,
+          paymentStatus: "PAID",
+        },
+      },
+      payments: {
+        create: {
+          paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+          amount: totalAmt * 1.18,
+          paymentMethod: "Bank Transfer",
+          paymentStatus: "PAID",
+        },
+      },
     },
   });
 
@@ -153,7 +234,12 @@ export async function createClient(data: {
   if (data.leadId) {
     await prisma.lead.update({
       where: { id: data.leadId },
-      data: { status: "CONVERTED" },
+      data: {
+        status: "CONVERTED",
+        customerId,
+        departmentType: data.departmentType,
+        billingType: data.billingType,
+      },
     });
   }
 
@@ -165,12 +251,14 @@ export async function createClient(data: {
       action: "CREATE_CLIENT",
       module: "CLIENTS",
       recordId: client.clientCode,
-      details: `Created client ${client.name} (${client.departmentType}) with ${data.assignedEmployeeIds?.length || 0} assigned staff`,
+      details: `Onboarded client ${client.name} (${client.departmentType}) with ${data.initialServices?.length || 0} deliverable services`,
     },
   });
 
   revalidatePath("/reports");
   revalidatePath("/crm");
+  revalidatePath("/sales");
+  revalidatePath("/dashboard");
   return client;
 }
 

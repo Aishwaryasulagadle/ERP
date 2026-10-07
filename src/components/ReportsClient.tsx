@@ -38,6 +38,7 @@ import {
   forwardClientDeliverableToSales,
   createClientSprintTask,
 } from "@/actions/clients";
+import { OnboardClientModal, OnboardClientFormData } from "@/components/OnboardClientModal";
 
 interface ReportsClientProps {
   reports: any;
@@ -248,36 +249,36 @@ export function ReportsClient({
     return c.departmentType === departmentFilter;
   });
 
+  // Restrict Onboard Client button to ONLY Admin and Sales Manager
+  const canOnboardClient = userRole === "ADMIN" || isSalesManager;
+
   // Handlers
-  const handleCreateClient = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateClient = async (formData: OnboardClientFormData) => {
     setLoading(true);
     try {
       const created = await createClient({
-        name: newClientData.name,
-        email: newClientData.email,
-        phone: newClientData.phone,
-        company: newClientData.company,
-        address: newClientData.address,
-        departmentType: newClientData.departmentType,
-        billingType: newClientData.billingType,
-        amount: Number(newClientData.amount) || 0,
-        notes: newClientData.notes,
-        assignedEmployeeIds: newClientData.assignedEmployeeIds,
-        initialServices: [
-          {
-            serviceName: newClientData.initialServiceName,
-            category: newClientData.initialCategory,
-            targetCount: Number(newClientData.initialTargetCount) || 0,
-            billingCycle: newClientData.billingType,
-            milestoneAmount: Number(newClientData.initialMilestoneAmount) || 0,
-          },
-        ],
+        name: formData.name,
+        company: formData.company,
+        phone: formData.phone,
+        email: formData.email,
+        departmentType: formData.departmentType,
+        billingType: formData.billingType,
+        amount: Number(formData.amount) || 0,
+        notes: formData.notes,
+        assignedEmployeeIds: formData.assignedEmployeeIds,
+        initialServices: formData.services.map((s) => ({
+          serviceName: s.serviceName,
+          category: s.category,
+          targetCount: Number(s.targetCount) || 0,
+          billingCycle: s.billingCycle || formData.billingType,
+          milestoneAmount: Number(s.milestoneAmount) || 0,
+          notes: s.notes,
+        })),
       });
       setClients([created, ...clients]);
       setSelectedClient(created);
       setShowNewClientModal(false);
-      alert(`Client ${created.name} onboarded successfully!`);
+      alert(`✓ Client ${created.name} onboarded successfully!`);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -649,7 +650,7 @@ export function ReportsClient({
             </p>
           </div>
           <div className="flex items-center gap-2.5">
-            {isManagerOrAdmin && (
+            {canOnboardClient && (
               <button
                 onClick={() => setShowNewClientModal(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
@@ -1338,95 +1339,16 @@ export function ReportsClient({
         )}
       </div>
 
-      {/* MODAL 1: ONBOARD NEW CLIENT */}
+      {/* MODAL 1: ONBOARD NEW CLIENT (UNIFIED COMPONENT) */}
       {showNewClientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Onboard New Client & Project</h3>
-              <button onClick={() => setShowNewClientModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleCreateClient} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Client Name / Business Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={newClientData.name}
-                  onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
-                  placeholder="e.g. JVM Institute"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Department</label>
-                  <select
-                    value={newClientData.departmentType}
-                    onChange={(e: any) => setNewClientData({ ...newClientData, departmentType: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="DIGITAL_MARKETING">Digital Marketing</option>
-                    <option value="TECHNICAL">Technical / Dev</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Billing Frequency</label>
-                  <select
-                    value={newClientData.billingType}
-                    onChange={(e: any) => setNewClientData({ ...newClientData, billingType: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="MONTHLY">Monthly Retainer</option>
-                    <option value="ONE_TIME">One-Time Project</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Contract / Retainer Amount (₹) *</label>
-                <input
-                  type="number"
-                  required
-                  value={newClientData.amount}
-                  onChange={(e) => setNewClientData({ ...newClientData, amount: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Project Scope / Notes</label>
-                <textarea
-                  rows={2}
-                  value={newClientData.notes}
-                  onChange={(e) => setNewClientData({ ...newClientData, notes: e.target.value })}
-                  placeholder="Client objectives, scope of work, deliverables summary..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowNewClientModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
-                >
-                  {loading ? "Onboarding..." : "Confirm & Onboard"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <OnboardClientModal
+          isOpen={showNewClientModal}
+          onClose={() => setShowNewClientModal(false)}
+          onSubmit={handleCreateClient}
+          title="Onboard New Client & Account"
+          subtitle="Direct client onboarding from Active Clients module. Allocate to department and setup services."
+          submitButtonText="Confirm & Onboard Client"
+        />
       )}
 
 
