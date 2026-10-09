@@ -45,7 +45,7 @@ export async function getClients(filters?: { departmentType?: string; status?: s
 
   // 3. Admin: Full company visibility across all departments
 
-  return await prisma.client.findMany({
+  const clients = await prisma.client.findMany({
     where,
     include: {
       lead: true,
@@ -70,7 +70,7 @@ export async function getClients(filters?: { departmentType?: string; status?: s
       },
       reports: {
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 12,
       },
       orders: {
         orderBy: { saleDate: "desc" },
@@ -78,6 +78,27 @@ export async function getClients(filters?: { departmentType?: string; status?: s
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // Also attach any linked tasks whose title matches client name pattern
+  const clientNames = clients.map((c) => c.name).filter(Boolean);
+  const tasks = clientNames.length > 0
+    ? await prisma.task.findMany({
+        where: {
+          OR: clientNames.map((name) => ({
+            title: { contains: `[${name}]` },
+          })),
+        },
+        include: {
+          assignedTo: { include: { user: true, designation: true } },
+        },
+        orderBy: { dueDate: "asc" },
+      })
+    : [];
+
+  return clients.map((client) => ({
+    ...client,
+    clientTasks: tasks.filter((t) => t.title.includes(`[${client.name}]`)),
+  }));
 }
 
 export async function createClient(data: {
@@ -174,9 +195,9 @@ export async function createClient(data: {
               const parsedNum = parseInt(rawTarget, 10);
               const numericCount = !isNaN(parsedNum) ? parsedNum : (srv.targetCount || 0);
 
-              // If user provided a descriptive text target that isn't just pure digits (e.g. "15 Reels", "Full Build"), note it down
+              // Store the raw target descriptor in notes so it's always preserved (e.g. "15 Reels", "25 Posts", "Complete Launch")
               let targetNote = srv.notes || "";
-              if (rawTarget && isNaN(Number(rawTarget))) {
+              if (rawTarget) {
                 targetNote = targetNote ? `[Target: ${rawTarget}] ${targetNote}` : `[Target: ${rawTarget}]`;
               }
 
@@ -301,9 +322,10 @@ export async function assignEmployeesToClient(clientId: string, employeeIds: str
 export async function addServiceToClient(data: {
   clientId: string;
   serviceName: string;
-  category: string;
-  targetCount: number;
-  billingCycle: string;
+  category?: string;
+  target?: string | number;
+  targetCount?: number;
+  billingCycle?: string;
   milestoneAmount?: number;
   notes?: string;
   initialColumns?: { columnName: string; columnType: string; value: string }[];
@@ -311,15 +333,24 @@ export async function addServiceToClient(data: {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  const rawTarget = data.target !== undefined ? String(data.target).trim() : (data.targetCount !== undefined ? String(data.targetCount) : "");
+  const parsedNum = parseInt(rawTarget, 10);
+  const numericCount = !isNaN(parsedNum) ? parsedNum : (Number(data.targetCount) || 0);
+
+  let targetNote = data.notes || "";
+  if (rawTarget) {
+    targetNote = targetNote ? `[Target: ${rawTarget}] ${targetNote}` : `[Target: ${rawTarget}]`;
+  }
+
   const service = await prisma.clientService.create({
     data: {
       clientId: data.clientId,
       serviceName: data.serviceName,
-      category: data.category,
-      targetCount: Number(data.targetCount) || 0,
+      category: data.category || "MARKETING",
+      targetCount: numericCount,
       billingCycle: data.billingCycle || "MONTHLY",
       milestoneAmount: Number(data.milestoneAmount) || 0,
-      notes: data.notes || null,
+      notes: targetNote || null,
       metrics: data.initialColumns && data.initialColumns.length > 0
         ? {
             create: data.initialColumns.map((col, idx) => ({
@@ -335,6 +366,41 @@ export async function addServiceToClient(data: {
 
   revalidatePath("/reports");
   return service;
+}
+
+export async function updateClientService(data: {
+  serviceId: string;
+  serviceName: string;
+  target?: string;
+  notes?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const rawTarget = data.target !== undefined ? String(data.target).trim() : "";
+  const parsedNum = parseInt(rawTarget, 10);
+  const numericCount = !isNaN(parsedNum) ? parsedNum : 0;
+
+  let existingNotes = data.notes || "";
+  // Strip any old [Target: ...] tag from notes before updating
+  existingNotes = existingNotes.replace(/\[Target:\s*[^\]]+\]\s*/g, "").trim();
+
+  let finalNote = existingNotes;
+  if (rawTarget) {
+    finalNote = finalNote ? `[Target: ${rawTarget}] ${finalNote}` : `[Target: ${rawTarget}]`;
+  }
+
+  const updated = await prisma.clientService.update({
+    where: { id: data.serviceId },
+    data: {
+      serviceName: data.serviceName,
+      targetCount: numericCount,
+      notes: finalNote || null,
+    },
+  });
+
+  revalidatePath("/reports");
+  return updated;
 }
 
 export async function updateServiceProgress(data: {
@@ -878,4 +944,104 @@ export async function createClientSprintTask(data: {
   revalidatePath("/employees");
   return task;
 }
+
+export async function triggerMilestoneReceivable(data: {
+  clientId: string;
+  milestoneTitle: string;
+  amount: number;
+  percentage?: number;
+  notes?: string;
+  markClientCompleted?: boolean;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const userName = session.user.name || "Manager";
+  const client = await prisma.client.findUnique({
+    where: { id: data.clientId },
+    include: { customer: true, orders: true },
+  });
+  if (!client) throw new Error("Client not found");
+
+  const milestoneAmount = Number(data.amount) || 0;
+  if (milestoneAmount <= 0) throw new Error("Milestone amount must be greater than zero");
+
+  // Ensure Customer record exists
+  let customerId = client.customerId;
+  if (!customerId) {
+    const cust = await prisma.customer.create({
+      data: {
+        name: client.name,
+        company: client.company || client.name,
+        email: client.email || `${client.clientCode.toLowerCase()}@client.com`,
+        phone: client.phone || "9999999999",
+        address: client.address || "",
+      },
+    });
+    customerId = cust.id;
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { customerId: cust.id },
+    });
+  }
+
+  const orderCount = await prisma.order.count();
+  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(4, "0")}`;
+
+  const titleDescription = data.percentage
+    ? `Milestone (${data.percentage}%): ${data.milestoneTitle}`
+    : `Milestone: ${data.milestoneTitle}`;
+
+  const order = await prisma.order.create({
+    data: {
+      orderCode,
+      customerId,
+      clientId: client.id,
+      totalAmount: milestoneAmount,
+      paymentStatus: "PENDING",
+      notes: `[ONE-TIME MILESTONE RECEIVABLE]: ${titleDescription} for ${client.name}. Notes: ${data.notes || "None"}`,
+      orderItems: {
+        create: {
+          itemTitle: `${client.name} - ${titleDescription}`,
+          quantity: 1,
+          unitPrice: milestoneAmount,
+          total: milestoneAmount,
+        },
+      },
+      invoices: {
+        create: {
+          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          totalAmount: milestoneAmount,
+          paymentStatus: "PENDING",
+        },
+      },
+    },
+  });
+
+  // If markClientCompleted is true, mark client as COMPLETED
+  if (data.markClientCompleted) {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { status: "COMPLETED" },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: userName,
+      action: "MILESTONE_RECEIVABLE_TRIGGERED",
+      module: "CLIENTS",
+      recordId: client.clientCode,
+      details: `Triggered milestone receivable for ${client.name} (Amount: ₹${milestoneAmount}, Title: ${titleDescription}). Added to Sales receivables.`,
+    },
+  });
+
+  revalidatePath("/reports");
+  revalidatePath("/sales");
+  revalidatePath("/dashboard");
+  return order;
+}
+
 
