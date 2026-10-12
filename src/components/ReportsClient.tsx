@@ -42,7 +42,6 @@ import {
   submitReportToManager,
   updateOneTimeWorkProgress,
   completeClientProgressReport,
-  addExpense,
   forwardClientDeliverableToSales,
   createClientSprintTask,
   triggerMilestoneReceivable,
@@ -54,7 +53,6 @@ interface ReportsClientProps {
   clientReports?: any[];
   initialClients?: any[];
   employees?: any[];
-  financialSummary?: any;
   userRole?: string;
   currentEmployeeId?: string;
   user?: any;
@@ -65,13 +63,12 @@ export function ReportsClient({
   clientReports = [],
   initialClients = [],
   employees = [],
-  financialSummary,
   userRole = "EMPLOYEE",
   currentEmployeeId,
   user,
 }: ReportsClientProps) {
   const [activeTab, setActiveTab] = useState<
-    "CLIENTS" | "CUSTOM_SHEET" | "FINANCIALS" | "TEAM_AUDIT"
+    "CLIENTS" | "CUSTOM_SHEET" | "TEAM_AUDIT"
   >("CLIENTS");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [clients, setClients] = useState<any[]>(initialClients);
@@ -357,17 +354,6 @@ export function ReportsClient({
 
   const [newColName, setNewColName] = useState("");
   const [newRowTitle, setNewRowTitle] = useState("");
-
-  // New Expense state
-  const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [expenseData, setExpenseData] = useState({
-    category: "SERVER_INFRA",
-    title: "",
-    amount: 5000,
-    paymentMode: "BANK_TRANSFER",
-    paidTo: "",
-    notes: "",
-  });
 
   const userDept = ((user as any)?.department || "").toLowerCase();
   const isSalesManager = userRole === "MANAGER" && userDept.includes("sales");
@@ -814,29 +800,16 @@ export function ReportsClient({
   };
 
 
-  const handleAddExpenseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await addExpense(expenseData);
-      alert("Expense logged successfully into Financials!");
-      setShowExpenseModal(false);
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const categories = [
     { id: "CLIENTS", label: "Client Workspace", icon: Building2, count: clients.length, color: "text-blue-600" },
     { id: "CUSTOM_SHEET", label: "Client Progress Reports", icon: FileSpreadsheet, color: "text-emerald-600" },
+    /* Staff Performance Badges (temporarily disabled/commented out):
     ...(isManagerOrAdmin
       ? [
-          { id: "FINANCIALS", label: "Financials & Cash Flow", icon: DollarSign, color: "text-amber-600" },
           { id: "TEAM_AUDIT", label: "Staff Performance Badges", icon: Users, color: "text-indigo-600" },
         ]
       : []),
+    */
   ];
 
   return (
@@ -950,11 +923,9 @@ export function ReportsClient({
             <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               {activeTab === "CLIENTS" && "Active Client Accounts & Overview"}
               {activeTab === "CUSTOM_SHEET" && "Client-Wise Custom Progress Reports"}
-              {activeTab === "FINANCIALS" && "Financial Overview & Salary Balancing"}
-              {activeTab === "TEAM_AUDIT" && "Staff Performance & Evaluation Badges"}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Digital Marketing & Technical project management, dynamic deliverable logging, and cash flow balance
+              Digital Marketing & Technical project management, deliverables logging, and client progress tracking
             </p>
           </div>
           <div className="flex items-center gap-2.5">
@@ -965,15 +936,6 @@ export function ReportsClient({
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Onboard Client</span>
-              </button>
-            )}
-            {activeTab === "FINANCIALS" && isManagerOrAdmin && (
-              <button
-                onClick={() => setShowExpenseModal(true)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Log Expense</span>
               </button>
             )}
           </div>
@@ -2023,93 +1985,7 @@ export function ReportsClient({
           </div>
         )}
 
-        {/* TAB 4: FINANCIALS & CASH FLOW BALANCING */}
-        {activeTab === "FINANCIALS" && isManagerOrAdmin && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard
-                title="Month's Sales Collected"
-                value={formatCurrency(financialSummary?.totalSalesRevenue || 0)}
-                comparisonText="Paid orders & retainers"
-                icon={TrendingUp}
-              />
-              <KpiCard
-                title="Pending Receivables"
-                value={formatCurrency(financialSummary?.totalReceivables || 0)}
-                comparisonText="Milestones & completed cycles"
-                icon={Clock}
-              />
-              <KpiCard
-                title="Employee Payroll Total"
-                value={formatCurrency(financialSummary?.totalPayrollSalaries || 0)}
-                comparisonText="Committed staff salaries"
-                icon={Users}
-              />
-              <KpiCard
-                title="Net Fund Buffer"
-                value={formatCurrency(financialSummary?.netFundBuffer || 0)}
-                comparisonText={financialSummary?.netFundBuffer >= 0 ? "Surplus Buffer" : "Deficit / Attention Needed"}
-                icon={DollarSign}
-              />
-            </div>
-
-            {/* Balancing Card */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 uppercase font-mono tracking-wider">
-                Monthly Outflow vs Revenue Solvency
-              </h3>
-              <p className="text-xs text-slate-500">
-                Real-time check whether current month sales revenue fulfills employee salaries and operating expenses.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">Total Inflow (Collected)</span>
-                  <div className="text-lg font-black text-slate-900 font-mono">
-                    {formatCurrency(financialSummary?.totalSalesRevenue || 0)}
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-xs text-slate-500 font-medium">Total Outflow (Salaries + Expenses)</span>
-                  <div className="text-lg font-black text-slate-900 font-mono">
-                    {formatCurrency(financialSummary?.totalOutflow || 0)}
-                  </div>
-                </div>
-
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border space-y-1",
-                    financialSummary?.netFundBuffer >= 0
-                      ? "bg-emerald-50 border-emerald-200"
-                      : "bg-rose-50 border-rose-200"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "text-xs font-semibold",
-                      financialSummary?.netFundBuffer >= 0 ? "text-emerald-700" : "text-rose-700"
-                    )}
-                  >
-                    {financialSummary?.netFundBuffer >= 0
-                      ? "Company Funds Solvency: Healthy"
-                      : "Deficit Notice: Collections Required"}
-                  </span>
-                  <div
-                    className={cn(
-                      "text-lg font-black font-mono",
-                      financialSummary?.netFundBuffer >= 0 ? "text-emerald-800" : "text-rose-800"
-                    )}
-                  >
-                    {formatCurrency(financialSummary?.netFundBuffer || 0)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: TEAM AUDIT & EVALUATION BADGES */}
+        {/* Staff Performance Badges (temporarily disabled/commented out):
         {activeTab === "TEAM_AUDIT" && isManagerOrAdmin && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
@@ -2165,6 +2041,7 @@ export function ReportsClient({
             </div>
           </div>
         )}
+        */}
       </div>
 
       {/* MODAL 1: ONBOARD NEW CLIENT (UNIFIED COMPONENT) */}
@@ -2280,75 +2157,7 @@ export function ReportsClient({
         </div>
       )}
 
-      {/* MODAL 4: LOG EXPENSE */}
-      {showExpenseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Log Operational Expense</h3>
-              <button onClick={() => setShowExpenseModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleAddExpenseSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Expense Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={expenseData.title}
-                  onChange={(e) => setExpenseData({ ...expenseData, title: e.target.value })}
-                  placeholder="e.g. AWS Cloud Hosting, Canva Teams"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Category</label>
-                  <select
-                    value={expenseData.category}
-                    onChange={(e) => setExpenseData({ ...expenseData, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="SERVER_INFRA">Servers / Cloud</option>
-                    <option value="SOFTWARE_LICENSES">Software Tools</option>
-                    <option value="OFFICE_RENT">Office Rent</option>
-                    <option value="UTILITIES">Utilities / Internet</option>
-                    <option value="MARKETING_ADS">Marketing / Ad spend</option>
-                    <option value="OTHER">Other Expense</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={expenseData.amount}
-                    onChange={(e) => setExpenseData({ ...expenseData, amount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800"
-                >
-                  {loading ? "Logging..." : "Log Expense"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL 3: ASSIGN TEAM */}
 
       {/* MODAL 5: FORWARD DELIVERABLES TO SALES */}
       {showForwardModal && selectedClient && (
