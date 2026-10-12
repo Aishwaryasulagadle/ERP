@@ -27,6 +27,8 @@ import {
   ArrowLeft,
   Send,
   Edit3,
+  Trash2,
+  X,
 } from "lucide-react";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { StatusBadge, KpiCard } from "@/components/ui/Cards";
@@ -37,6 +39,8 @@ import {
   updateClientService,
   updateServiceProgress,
   saveClientProgressSheet,
+  submitReportToManager,
+  updateOneTimeWorkProgress,
   completeClientProgressReport,
   addExpense,
   forwardClientDeliverableToSales,
@@ -153,6 +157,7 @@ export function ReportsClient({
   // Dynamic Custom Sheet State
   const [sheetMonth, setSheetMonth] = useState<number>(new Date().getMonth() + 1);
   const [sheetYear, setSheetYear] = useState<number>(new Date().getFullYear());
+  const [oneTimeProgressPct, setOneTimeProgressPct] = useState<number>(50);
   const [customColumns, setCustomColumns] = useState<string[]>([
     "Item / Deliverable",
     "Monthly Target",
@@ -161,122 +166,187 @@ export function ReportsClient({
     "Status",
     "Notes & Links",
   ]);
-  const [sheetRows, setSheetRows] = useState<any[]>([
-    {
-      id: "1",
-      "Item / Deliverable": "Instagram Reels",
-      "Monthly Target": "15",
-      "Completed Count": "8",
-      Remaining: "7",
-      Status: "IN_PROGRESS",
-      "Notes & Links": "4 published on IG, 4 in review",
-    },
-    {
-      id: "2",
-      "Item / Deliverable": "Static Graphics & Carousels",
-      "Monthly Target": "25",
-      "Completed Count": "18",
-      Remaining: "7",
-      Status: "IN_PROGRESS",
-      "Notes & Links": "Festive batch designed and scheduled",
-    },
-    {
-      id: "3",
-      "Item / Deliverable": "Meta Ads Campaign",
-      "Monthly Target": "2 Campaigns",
-      "Completed Count": "1 Active",
-      Remaining: "1 Pending",
-      Status: "ACTIVE",
-      "Notes & Links": "ROAS 3.8x on Lead Gen set",
-    },
-  ]);
+  const [sheetRows, setSheetRows] = useState<any[]>([]);
+
+  // Calculate available months for selectedClient based on onboardingDate (starting from onboarded month up to current or future months)
+  const getAvailableBillingMonths = (client: any) => {
+    if (!client) return [];
+    const onboardDate = client.onboardingDate ? new Date(client.onboardingDate) : new Date();
+    const startYear = onboardDate.getFullYear();
+    const startMonth = onboardDate.getMonth() + 1; // 1-12
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const monthsList: { month: number; year: number; label: string }[] = [];
+
+    // Range from startYear to max(currentYear + 1, startYear)
+    const endYear = Math.max(currentYear + 1, startYear);
+    for (let y = startYear; y <= endYear; y++) {
+      const mStart = y === startYear ? startMonth : 1;
+      const mEnd = y === endYear ? 12 : 12;
+      for (let m = mStart; m <= mEnd; m++) {
+        monthsList.push({
+          month: m,
+          year: y,
+          label: `${monthNames[m - 1]} ${y}`,
+        });
+      }
+    }
+    return monthsList;
+  };
+
+  // Ensure sheetMonth and sheetYear start on or after onboardingDate when switching client
+  useEffect(() => {
+    if (!selectedClient) return;
+    if (selectedClient.billingType === "ONE_TIME") {
+      // Find one-time report (month 0, year 0) or latest
+      const oneTimeRpt = selectedClient.reports?.find((r: any) => r.month === 0) || selectedClient.reports?.[0];
+      if (oneTimeRpt?.notes && oneTimeRpt.notes.includes("[Work Completed:")) {
+        const match = oneTimeRpt.notes.match(/\[Work Completed:\s*(\d+)%\]/);
+        if (match) setOneTimeProgressPct(Number(match[1]));
+      }
+      return;
+    }
+
+    const available = getAvailableBillingMonths(selectedClient);
+    if (available.length > 0) {
+      const isCurrentInRange = available.some((a) => a.month === sheetMonth && a.year === sheetYear);
+      if (!isCurrentInRange) {
+        // Default to the first available month (onboarding month) or current month if in range
+        const now = new Date();
+        const curMatch = available.find((a) => a.month === now.getMonth() + 1 && a.year === now.getFullYear());
+        if (curMatch) {
+          setSheetMonth(curMatch.month);
+          setSheetYear(curMatch.year);
+        } else {
+          setSheetMonth(available[0].month);
+          setSheetYear(available[0].year);
+        }
+      }
+    }
+  }, [selectedClient?.id]);
+
   // Automatically load saved progress sheet for selectedClient & month
   useEffect(() => {
     if (!selectedClient) return;
-    const latestReport = selectedClient.reports?.find(
-      (r: any) => r.month === sheetMonth && r.year === sheetYear
-    ) || selectedClient.reports?.[0];
 
-    if (latestReport?.columnsJson) {
+    // Check if this is a ONE_TIME client
+    const isOneTime = selectedClient.billingType === "ONE_TIME";
+
+    const targetReport = isOneTime
+      ? selectedClient.reports?.find((r: any) => r.month === 0) || selectedClient.reports?.[0]
+      : selectedClient.reports?.find((r: any) => r.month === sheetMonth && r.year === sheetYear);
+
+    if (targetReport?.columnsJson) {
       try {
-        const parsed = JSON.parse(latestReport.columnsJson);
+        const parsed = JSON.parse(targetReport.columnsJson);
         if (parsed.columns && Array.isArray(parsed.columns)) {
           setCustomColumns(parsed.columns);
         }
         if (parsed.rows && Array.isArray(parsed.rows)) {
           setSheetRows(parsed.rows);
         }
+        return;
       } catch (e) {
         console.error("Error parsing saved progress sheet", e);
       }
-    } else {
-      // Default initial deliverable rows for client based on their onboarded services
-      if (selectedClient.services && selectedClient.services.length > 0) {
-        const dynamicRows = selectedClient.services.map((srv: any, idx: number) => {
-          let targetDisplay = "1";
-          if (srv.target) targetDisplay = String(srv.target);
-          else if (srv.notes && srv.notes.includes("[Target:")) {
-            const match = srv.notes.match(/\[Target:\s*([^\]]+)\]/);
-            if (match) targetDisplay = match[1].trim();
-          } else if (srv.targetCount > 0) {
-            targetDisplay = String(srv.targetCount);
-          } else {
-            const n = (srv.serviceName || "").toLowerCase();
-            if (n.includes("reel")) targetDisplay = "15";
-            else if (n.includes("graphic") || n.includes("carousel")) targetDisplay = "25";
-            else if (n.includes("seo")) targetDisplay = "8";
-            else if (n.includes("ad")) targetDisplay = "2";
-          }
+    }
 
-          const targetNum = parseInt(targetDisplay, 10) || srv.targetCount || 0;
-          const completedNum = srv.completedCount || 0;
-          const rem = Math.max(0, targetNum - completedNum);
+    // If report does not exist for this month yet, check if there was a previous month's report to inherit structure from!
+    // As requested: "it will get repeated but it can be changed anytime any month"
+    const priorReport = selectedClient.reports?.find((r: any) => {
+      if (isOneTime) return false;
+      return (r.year < sheetYear) || (r.year === sheetYear && r.month < sheetMonth);
+    });
 
-          return {
-            id: String(idx + 1),
-            "Item / Deliverable": srv.serviceName,
-            "Monthly Target": targetDisplay,
-            "Completed Count": String(completedNum),
-            Remaining: String(rem),
-            Status: srv.status || "IN_PROGRESS",
-            "Notes & Links": srv.notes ? srv.notes.replace(/\[Target:\s*[^\]]+\]\s*/g, "").trim() : "Deliverable target active",
-          };
-        });
-        setSheetRows(dynamicRows);
-      } else {
-        setSheetRows([
-          {
-            id: "1",
-            "Item / Deliverable": "Instagram Reels",
-            "Monthly Target": "15",
-            "Completed Count": "0",
-            Remaining: "15",
-            Status: "IN_PROGRESS",
-            "Notes & Links": "Assigned to Delivery Team",
-          },
-          {
-            id: "2",
-            "Item / Deliverable": "Graphics & Carousels",
-            "Monthly Target": "25",
-            "Completed Count": "0",
-            Remaining: "25",
-            Status: "IN_PROGRESS",
-            "Notes & Links": "Assigned to Graphic Designer",
-          },
-          {
-            id: "3",
-            "Item / Deliverable": "Meta / Google Ads",
-            "Monthly Target": "2 Campaigns",
-            "Completed Count": "0",
-            Remaining: "2",
-            Status: "PENDING",
-            "Notes & Links": "Assigned to Ads Manager",
-          },
-        ]);
+    if (priorReport?.columnsJson) {
+      try {
+        const parsedPrior = JSON.parse(priorReport.columnsJson);
+        if (parsedPrior.columns && Array.isArray(parsedPrior.columns)) {
+          setCustomColumns(parsedPrior.columns);
+        }
+        if (parsedPrior.rows && Array.isArray(parsedPrior.rows)) {
+          // Carry over the rows/deliverables structure, but reset Completed Count to 0 for fresh month
+          const carryOverRows = parsedPrior.rows.map((row: any, rIdx: number) => {
+            const rowCopy = { ...row, id: String(Date.now() + rIdx) };
+            if (rowCopy["Completed Count"] !== undefined) rowCopy["Completed Count"] = "0";
+            if (rowCopy["Remaining"] !== undefined && rowCopy["Monthly Target"] !== undefined) {
+              rowCopy["Remaining"] = rowCopy["Monthly Target"];
+            }
+            if (rowCopy["Status"] !== undefined) rowCopy["Status"] = "IN_PROGRESS";
+            return rowCopy;
+          });
+          setSheetRows(carryOverRows);
+          return;
+        }
+      } catch (e) {
+        console.error("Error parsing prior progress report", e);
       }
+    }
+
+    // Fallback: Build initial deliverable rows from client's onboarded services
+    if (selectedClient.services && selectedClient.services.length > 0) {
+      const dynamicRows = selectedClient.services.map((srv: any, idx: number) => {
+        let targetDisplay = "1";
+        if (srv.target) targetDisplay = String(srv.target);
+        else if (srv.notes && srv.notes.includes("[Target:")) {
+          const match = srv.notes.match(/\[Target:\s*([^\]]+)\]/);
+          if (match) targetDisplay = match[1].trim();
+        } else if (srv.targetCount > 0) {
+          targetDisplay = String(srv.targetCount);
+        } else {
+          const n = (srv.serviceName || "").toLowerCase();
+          if (n.includes("reel")) targetDisplay = "15";
+          else if (n.includes("graphic") || n.includes("carousel")) targetDisplay = "25";
+          else if (n.includes("seo")) targetDisplay = "8";
+          else if (n.includes("ad")) targetDisplay = "2";
+        }
+
+        const targetNum = parseInt(targetDisplay, 10) || srv.targetCount || 0;
+        const completedNum = isOneTime ? srv.completedCount || 0 : 0;
+        const rem = Math.max(0, targetNum - completedNum);
+
+        return {
+          id: String(idx + 1),
+          "Item / Deliverable": srv.serviceName,
+          [isOneTime ? "Target Scope" : "Monthly Target"]: targetDisplay,
+          "Completed Count": String(completedNum),
+          Remaining: String(rem),
+          Status: srv.status || "IN_PROGRESS",
+          "Notes & Links": srv.notes ? srv.notes.replace(/\[Target:\s*[^\]]+\]\s*/g, "").trim() : "Active deliverable",
+        };
+      });
+      setSheetRows(dynamicRows);
       setCustomColumns([
         "Item / Deliverable",
-        "Monthly Target",
+        isOneTime ? "Target Scope" : "Monthly Target",
+        "Completed Count",
+        "Remaining",
+        "Status",
+        "Notes & Links",
+      ]);
+    } else {
+      setSheetRows([
+        {
+          id: "1",
+          "Item / Deliverable": isOneTime ? "Project Milestone 1" : "Instagram Reels",
+          [isOneTime ? "Target Scope" : "Monthly Target"]: isOneTime ? "Full Launch" : "15",
+          "Completed Count": "0",
+          Remaining: isOneTime ? "1" : "15",
+          Status: "IN_PROGRESS",
+          "Notes & Links": "Delivery scope active",
+        },
+      ]);
+      setCustomColumns([
+        "Item / Deliverable",
+        isOneTime ? "Target Scope" : "Monthly Target",
         "Completed Count",
         "Remaining",
         "Status",
@@ -301,8 +371,15 @@ export function ReportsClient({
 
   const userDept = ((user as any)?.department || "").toLowerCase();
   const isSalesManager = userRole === "MANAGER" && userDept.includes("sales");
+  const isSalesUser = userDept.includes("sales");
   const isManagerOrAdmin = userRole === "ADMIN" || userRole === "MANAGER";
   const isEmployee = userRole === "EMPLOYEE";
+
+  // Delivery department roles (Marketing, Tech, Operations, etc. — NOT Sales)
+  // Department Managers (or Admin) can directly approve and forward to Sales
+  const isDeliveryManagerOrAdmin = (userRole === "ADMIN" || (userRole === "MANAGER" && !isSalesUser));
+  // Delivery Employees are the staff who fill in the report and submit to their department manager
+  const isDeliveryEmployee = userRole === "EMPLOYEE" && !isSalesUser;
 
   // Filter clients by department
   const filteredClients = clients.filter((c) => {
@@ -598,14 +675,16 @@ export function ReportsClient({
         notes: `Progress report for month ${sheetMonth}/${sheetYear}`,
       });
       // Update local client report state
+      const targetMonth = selectedClient.billingType === "ONE_TIME" ? 0 : sheetMonth;
+      const targetYear = selectedClient.billingType === "ONE_TIME" ? 0 : sheetYear;
       const existingReports = selectedClient.reports || [];
-      const updatedReports = existingReports.some((r: any) => r.id === savedReport.id || (r.month === sheetMonth && r.year === sheetYear))
-        ? existingReports.map((r: any) => (r.id === savedReport.id || (r.month === sheetMonth && r.year === sheetYear)) ? savedReport : r)
+      const updatedReports = existingReports.some((r: any) => r.id === savedReport.id || (r.month === targetMonth && r.year === targetYear))
+        ? existingReports.map((r: any) => (r.id === savedReport.id || (r.month === targetMonth && r.year === targetYear)) ? savedReport : r)
         : [savedReport, ...existingReports];
       const updatedClient = { ...selectedClient, reports: updatedReports };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
-      alert("Custom Progress Sheet saved successfully!");
+      alert("✓ Progress Sheet saved as Draft!");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -613,12 +692,93 @@ export function ReportsClient({
     }
   };
 
+  // Employee action: Submit finished report to department manager for review
+  const handleSubmitToManager = async () => {
+    if (!selectedClient) return;
+    const isOneTime = selectedClient.billingType === "ONE_TIME";
+    const targetMonth = isOneTime ? 0 : sheetMonth;
+    const targetYear = isOneTime ? 0 : sheetYear;
+
+    if (!confirm(`Submit progress report for ${selectedClient.name} to Department Manager for verification?`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const submittedReport = await submitReportToManager({
+        clientId: selectedClient.id,
+        month: targetMonth,
+        year: targetYear,
+        columnsJson: JSON.stringify({ columns: customColumns, rows: sheetRows }),
+        notes: isOneTime
+          ? `[Work Completed: ${oneTimeProgressPct}%] Submitted by staff for review`
+          : `Deliverables submitted for manager review (${sheetMonth}/${sheetYear})`,
+      });
+
+      const existingReports = selectedClient.reports || [];
+      const updatedReports = existingReports.some((r: any) => r.id === submittedReport.id || (r.month === targetMonth && r.year === targetYear))
+        ? existingReports.map((r: any) => (r.id === submittedReport.id || (r.month === targetMonth && r.year === targetYear)) ? submittedReport : r)
+        : [submittedReport, ...existingReports];
+      const updatedClient = { ...selectedClient, reports: updatedReports };
+      setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
+      setSelectedClient(updatedClient);
+
+      alert(`✓ Report successfully submitted to Department Manager for review!`);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // One-time Project: Manager updates work progress % & sends to Sales
+  const handleUpdateOneTimeProgress = async (markComplete = false) => {
+    if (!selectedClient) return;
+    const pct = markComplete ? 100 : oneTimeProgressPct;
+    const confirmMsg = markComplete
+      ? `Mark ${selectedClient.name} as 100% COMPLETED?\n\nThis will mark the project done and notify Sales of complete delivery with any final remaining balance receivable.`
+      : `Submit ${pct}% completion progress for ${selectedClient.name} to Sales?\n\nSales team will see verified progress and can choose to collect any milestone payments accordingly.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setLoading(true);
+    try {
+      const res = await updateOneTimeWorkProgress({
+        clientId: selectedClient.id,
+        completionPercentage: pct,
+        columnsJson: JSON.stringify({ columns: customColumns, rows: sheetRows }),
+        markCompleted: markComplete,
+      });
+
+      const existingReports = selectedClient.reports || [];
+      const updatedReports = existingReports.some((r: any) => r.id === res.report.id || r.month === 0)
+        ? existingReports.map((r: any) => (r.id === res.report.id || r.month === 0) ? res.report : r)
+        : [res.report, ...existingReports];
+      const updatedClient = {
+        ...selectedClient,
+        status: markComplete || pct >= 100 ? "COMPLETED" : selectedClient.status,
+        reports: updatedReports,
+        orders: res.order ? [res.order, ...(selectedClient.orders || [])] : selectedClient.orders,
+      };
+      setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
+      setSelectedClient(updatedClient);
+
+      alert(
+        markComplete || pct >= 100
+          ? `✓ Project marked as 100% COMPLETED!\n\nSales notified. ${res.order ? `Final balance order (${res.order.orderCode}) for ₹${res.order.totalAmount?.toLocaleString()} sent to Sales.` : "All payments already settled."}`
+          : `✓ Work Progress (${pct}%) submitted to Sales module!\n\nSales team can now inspect verified work and decide any payment collection.`
+      );
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Manager action for monthly retainers: Approve and forward to Sales
   const handleCompleteReport = async () => {
     if (!selectedClient) return;
-    const isMonthly = selectedClient.billingType === "MONTHLY";
-    const confirmMsg = isMonthly
-      ? `Mark progress report for ${selectedClient.name} (${sheetMonth}/${sheetYear}) as COMPLETED?\n\nThis will automatically push the monthly retainer amount (₹${selectedClient.amount?.toLocaleString()}) to Sales as a Pending Receivable ready for collection.`
-      : `Mark progress report for ${selectedClient.name} as COMPLETED?\n\nThis will mark the one-time project scope complete and create a payment collection receivable of ₹${selectedClient.amount?.toLocaleString()} in Sales.`;
+    const confirmMsg = `Approve progress report for ${selectedClient.name} (${sheetMonth}/${sheetYear}) and submit to Sales?\n\nThis will automatically push the monthly retainer amount (₹${selectedClient.amount?.toLocaleString()}) to Sales as a Pending Receivable ready for collection.`;
 
     if (!confirm(confirmMsg)) return;
 
@@ -629,7 +789,7 @@ export function ReportsClient({
         month: sheetMonth,
         year: sheetYear,
         columnsJson: JSON.stringify({ columns: customColumns, rows: sheetRows }),
-        notes: `Completed deliverables progress report for ${sheetMonth}/${sheetYear}. Auto forwarded to Sales.`,
+        notes: `Completed deliverables progress report for ${sheetMonth}/${sheetYear}. Approved by manager for Sales.`,
       });
 
       // Update local client report state
@@ -639,13 +799,13 @@ export function ReportsClient({
         : [res.report, ...existingReports];
       const updatedClient = {
         ...selectedClient,
-        status: selectedClient.billingType === "ONE_TIME" ? "COMPLETED" : selectedClient.status,
         reports: updatedReports,
+        orders: res.order ? [res.order, ...(selectedClient.orders || [])] : selectedClient.orders,
       };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
 
-      alert(`✓ Progress Report marked as COMPLETED!\n\nSales Receivable Order (${res.order.orderCode}) for ₹${res.order.totalAmount?.toLocaleString()} has been automatically generated and sent to the Sales ledger for payment collection.`);
+      alert(`✓ Progress Report APPROVED for Sales!\n\nSales Receivable Order (${res.order?.orderCode}) for ₹${res.order?.totalAmount?.toLocaleString()} has been automatically generated and sent to the Sales ledger for payment collection.`);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -1165,6 +1325,19 @@ export function ReportsClient({
                   </div>
                 </div>
 
+                {/* Client Operational Instructions / Onboarding Notes */}
+                {selectedClient.notes && (
+                  <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-slate-50 border border-blue-200/80 rounded-2xl p-4.5 space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wider font-mono">
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Client Instructions & Onboarding Notes</span>
+                    </div>
+                    <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap pl-5.5">
+                      {selectedClient.notes}
+                    </p>
+                  </div>
+                )}
+
                 {/* Section 2: Agreed Deliverable Services & Onboarding Targets */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1528,9 +1701,9 @@ export function ReportsClient({
         {activeTab === "CUSTOM_SHEET" && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-base text-slate-900">
                       Progress Report: {selectedClient?.name || "Client"}
                     </h3>
@@ -1547,24 +1720,39 @@ export function ReportsClient({
                       </span>
                     )}
                     {(() => {
-                      const currentMonthReport = selectedClient?.reports?.find(
-                        (r: any) => r.month === sheetMonth && r.year === sheetYear
-                      );
-                      const isDone = currentMonthReport?.status === "COMPLETED";
-                      return isDone ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1 font-mono">
-                          <CheckCircle2 className="w-3 h-3" />
-                          COMPLETED • RECEIVABLE SENT
-                        </span>
-                      ) : (
+                      if (!selectedClient) return null;
+                      const isOneTime = selectedClient.billingType === "ONE_TIME";
+                      const currentReport = isOneTime
+                        ? selectedClient.reports?.find((r: any) => r.month === 0) || selectedClient.reports?.[0]
+                        : selectedClient.reports?.find((r: any) => r.month === sheetMonth && r.year === sheetYear);
+
+                      if (currentReport?.status === "COMPLETED") {
+                        return (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1 font-mono">
+                            <CheckCircle2 className="w-3 h-3" />
+                            {isOneTime ? "100% COMPLETED • SENT TO SALES" : "APPROVED BY MANAGER • SENT TO SALES"}
+                          </span>
+                        );
+                      }
+                      if (currentReport?.status === "SUBMITTED_TO_MANAGER") {
+                        return (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 font-mono flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            SUBMITTED TO MANAGER (AWAITING APPROVAL)
+                          </span>
+                        );
+                      }
+                      return (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 font-mono">
-                          IN PROGRESS
+                          DRAFT / IN PROGRESS
                         </span>
                       );
                     })()}
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    Client-specific report: Enter deliverables, custom metric columns, and submit. Marking completed generates a payment collection receivable for the Sales team.
+                    {selectedClient?.billingType === "MONTHLY"
+                      ? "Monthly Retainer Progress Sheet: Reporting starts from onboarding month. Fully customizable columns & rows each month. Submit to Manager, then Manager approves for Sales collection."
+                      : "One-Time Project Progress Sheet: Track deliverable milestones and work completion percentage. Manager verifies and pushes progress percentage to Sales."}
                   </p>
                 </div>
 
@@ -1588,102 +1776,205 @@ export function ReportsClient({
                     </select>
                   </div>
 
-                  {/* Month & Year Selectors for Client Reports */}
-                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                    <select
-                      value={sheetMonth}
-                      onChange={(e) => setSheetMonth(Number(e.target.value))}
-                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
+                  {/* Monthly Retainer: Cycle Selector (Starts from Onboarding Month) */}
+                  {selectedClient?.billingType === "MONTHLY" && (
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase font-mono px-1.5 text-slate-500">Month:</span>
+                      <select
+                        value={`${sheetMonth}-${sheetYear}`}
+                        onChange={(e) => {
+                          const [m, y] = e.target.value.split("-").map(Number);
+                          setSheetMonth(m);
+                          setSheetYear(y);
+                        }}
+                        className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
+                      >
+                        {getAvailableBillingMonths(selectedClient).map((opt) => (
+                          <option key={`${opt.month}-${opt.year}`} value={`${opt.month}-${opt.year}`}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Action 1: Save Draft (Delivery Employees and Delivery Managers/Admin) */}
+                  {!isSalesUser && (
+                    <button
+                      onClick={handleSaveSheet}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      {[
-                        "January", "February", "March", "April", "May", "June",
-                        "July", "August", "September", "October", "November", "December"
-                      ].map((mName, idx) => (
-                        <option key={idx + 1} value={idx + 1}>
-                          {mName}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={sheetYear}
-                      onChange={(e) => setSheetYear(Number(e.target.value))}
-                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
+                      <Save className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{loading ? "Saving..." : "Save Draft"}</span>
+                    </button>
+                  )}
+
+                  {/* Action 2: Delivery Staff / Employee Submit to Department Manager ONLY */}
+                  {isDeliveryEmployee && (
+                    <button
+                      onClick={handleSubmitToManager}
+                      disabled={loading}
+                      className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      {[2025, 2026, 2027].map((yr) => (
-                        <option key={yr} value={yr}>
-                          {yr}
-                        </option>
-                      ))}
-                    </select>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Submit to Manager</span>
+                    </button>
+                  )}
+
+                  {/* Action 3: Department Manager / Admin directly Approves and Forwards to Sales */}
+                  {selectedClient?.billingType === "MONTHLY" && isDeliveryManagerOrAdmin && (
+                    <button
+                      onClick={handleCompleteReport}
+                      disabled={loading}
+                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Approve & Forward to Sales</span>
+                    </button>
+                  )}
+
+                  {/* For Sales Department Users: Read-only Indicator */}
+                  {isSalesUser && (
+                    <span className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-mono font-medium rounded-xl border border-slate-200">
+                      View-Only Mode (Sales)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* ONE-TIME CLIENT: Project Progress Percentage & Manager Push to Sales */}
+              {selectedClient?.billingType === "ONE_TIME" && (
+                <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-amber-900 font-mono uppercase tracking-wider block">
+                      One-Time Project Work Progress Status
+                    </span>
+                    <p className="text-[11px] text-amber-800">
+                      Department work is strictly to report deliverables and completion %. The Sales team determines milestone payment collections independently.
+                    </p>
                   </div>
 
-                  <button
-                    onClick={handleSaveSheet}
-                    disabled={loading}
-                    className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Save className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{loading ? "Saving..." : "Save Draft"}</span>
-                  </button>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-2xs">
+                      <span className="text-xs font-bold text-slate-700">Work Done:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        disabled={isSalesUser}
+                        value={oneTimeProgressPct}
+                        onChange={(e) => setOneTimeProgressPct(Number(e.target.value))}
+                        className="w-14 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-center font-mono font-bold text-xs text-amber-900 focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-xs font-bold text-slate-700">%</span>
+                    </div>
 
-                  <button
-                    onClick={handleCompleteReport}
-                    disabled={loading}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Mark Done & Add to Receivables</span>
-                  </button>
+                    {isDeliveryEmployee && (
+                      <button
+                        type="button"
+                        onClick={handleSubmitToManager}
+                        disabled={loading}
+                        className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Submit Progress to Manager</span>
+                      </button>
+                    )}
+
+                    {isDeliveryManagerOrAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOneTimeProgress(false)}
+                          disabled={loading}
+                          className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Push {oneTimeProgressPct}% Progress to Sales</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOneTimeProgress(true)}
+                          disabled={loading}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Mark 100% Completed</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Column Adder & Row Adder Tools */}
-              <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newColName}
-                    onChange={(e) => setNewColName(e.target.value)}
-                    placeholder="New custom column name..."
-                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
-                  />
-                  <button
-                    onClick={handleAddColumn}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 cursor-pointer"
-                  >
-                    + Add Column
-                  </button>
+              {/* Column Adder & Row Adder Tools (Hidden for Sales users) */}
+              {!isSalesUser && (
+                <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newColName}
+                      onChange={(e) => setNewColName(e.target.value)}
+                      placeholder="New custom column name..."
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={handleAddColumn}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 cursor-pointer"
+                    >
+                      + Add Column
+                    </button>
+                  </div>
+
+                  <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block" />
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newRowTitle}
+                      onChange={(e) => setNewRowTitle(e.target.value)}
+                      placeholder="New deliverable item / row..."
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={handleAddRow}
+                      className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 cursor-pointer"
+                    >
+                      + Add Row
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block" />
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newRowTitle}
-                    onChange={(e) => setNewRowTitle(e.target.value)}
-                    placeholder="New deliverable item / row..."
-                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500"
-                  />
-                  <button
-                    onClick={handleAddRow}
-                    className="px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 cursor-pointer"
-                  >
-                    + Add Row
-                  </button>
-                </div>
-              </div>
-
-              {/* Editable Table */}
+              {/* Editable Table (Read-only for Sales) */}
               <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase font-mono text-[10px]">
                       {customColumns.map((col, idx) => (
                         <th key={idx} className="p-3 border-r border-slate-200 last:border-r-0 min-w-[140px]">
-                          {col}
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span>{col}</span>
+                            {!isSalesUser && idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Remove column "${col}"?`)) {
+                                    setCustomColumns(customColumns.filter((_, i) => i !== idx));
+                                  }
+                                }}
+                                className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Remove Column"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </th>
                       ))}
+                      {!isSalesUser && <th className="p-3 w-12 text-center">Action</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1691,18 +1982,38 @@ export function ReportsClient({
                       <tr key={row.id || rIdx} className="border-b border-slate-200 last:border-b-0 hover:bg-slate-50/50">
                         {customColumns.map((col, cIdx) => (
                           <td key={cIdx} className="p-2 border-r border-slate-200 last:border-r-0">
-                            <input
-                              type="text"
-                              value={row[col] ?? ""}
-                              onChange={(e) => {
-                                const updated = [...sheetRows];
-                                updated[rIdx][col] = e.target.value;
-                                setSheetRows(updated);
-                              }}
-                              className="w-full px-2 py-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-xs text-slate-900 font-medium"
-                            />
+                            {isSalesUser ? (
+                              <div className="px-2 py-1 text-xs text-slate-900 font-medium">
+                                {row[col] ?? "-"}
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                value={row[col] ?? ""}
+                                onChange={(e) => {
+                                  const updated = [...sheetRows];
+                                  updated[rIdx][col] = e.target.value;
+                                  setSheetRows(updated);
+                                }}
+                                className="w-full px-2 py-1 bg-transparent border-0 focus:ring-1 focus:ring-blue-500 rounded text-xs text-slate-900 font-medium"
+                              />
+                            )}
                           </td>
                         ))}
+                        {!isSalesUser && (
+                          <td className="p-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSheetRows(sheetRows.filter((_, idx) => idx !== rIdx));
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                              title="Delete Row"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

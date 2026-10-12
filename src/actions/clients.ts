@@ -536,6 +536,187 @@ export async function saveClientProgressSheet(data: {
   return report;
 }
 
+export async function submitReportToManager(data: {
+  reportId?: string;
+  clientId: string;
+  month: number;
+  year: number;
+  columnsJson: string;
+  notes?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const userName = session.user.name || "Employee";
+
+  const existing = await prisma.clientReport.findFirst({
+    where: {
+      clientId: data.clientId,
+      month: data.month,
+      year: data.year,
+    },
+  });
+
+  let report;
+  if (existing) {
+    report = await prisma.clientReport.update({
+      where: { id: existing.id },
+      data: {
+        columnsJson: data.columnsJson,
+        notes: data.notes || existing.notes,
+        status: "SUBMITTED_TO_MANAGER",
+        submittedBy: userName,
+      },
+    });
+  } else {
+    report = await prisma.clientReport.create({
+      data: {
+        clientId: data.clientId,
+        month: data.month,
+        year: data.year,
+        columnsJson: data.columnsJson,
+        notes: data.notes || `Report submitted for review (${data.month}/${data.year})`,
+        status: "SUBMITTED_TO_MANAGER",
+        submittedBy: userName,
+      },
+    });
+  }
+
+  revalidatePath("/reports");
+  return report;
+}
+
+export async function updateOneTimeWorkProgress(data: {
+  clientId: string;
+  completionPercentage: number;
+  reportNotes?: string;
+  columnsJson?: string;
+  markCompleted?: boolean;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const userName = session.user.name || "Manager";
+
+  const client = await prisma.client.findUnique({
+    where: { id: data.clientId },
+    include: { customer: true, orders: true },
+  });
+  if (!client) throw new Error("Client not found");
+
+  const pct = Math.min(100, Math.max(0, Number(data.completionPercentage) || 0));
+
+  // Save report sheet under month=0, year=0 for one-time project progress
+  const existingReport = await prisma.clientReport.findFirst({
+    where: { clientId: data.clientId, month: 0, year: 0 },
+  });
+
+  let report;
+  const status = pct >= 100 || data.markCompleted ? "COMPLETED" : "SUBMITTED_TO_MANAGER";
+
+  if (existingReport) {
+    report = await prisma.clientReport.update({
+      where: { id: existingReport.id },
+      data: {
+        status,
+        submittedBy: userName,
+        notes: `[Work Completed: ${pct}%] ${data.reportNotes || ""}`.trim(),
+        ...(data.columnsJson ? { columnsJson: data.columnsJson } : {}),
+      },
+    });
+  } else {
+    report = await prisma.clientReport.create({
+      data: {
+        clientId: data.clientId,
+        month: 0,
+        year: 0,
+        columnsJson: data.columnsJson || JSON.stringify({ columns: [], rows: [] }),
+        notes: `[Work Completed: ${pct}%] ${data.reportNotes || ""}`.trim(),
+        status,
+        submittedBy: userName,
+      },
+    });
+  }
+
+  // If 100% completed or marked completed
+  let order = null;
+  if (pct >= 100 || data.markCompleted) {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { status: "COMPLETED" },
+    });
+
+    // Check if there is remaining balance to create final receivable in Sales
+    const totalCollected = (client.orders || []).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const remainingBalance = Math.max(0, (client.amount || 0) - totalCollected);
+
+    if (remainingBalance > 0) {
+      let customerId = client.customerId;
+      if (!customerId) {
+        const cust = await prisma.customer.create({
+          data: {
+            name: client.name,
+            company: client.company || client.name,
+            email: client.email || `${client.clientCode.toLowerCase()}@client.com`,
+            phone: client.phone || "9999999999",
+            address: client.address || "",
+          },
+        });
+        customerId = cust.id;
+        await prisma.client.update({
+          where: { id: client.id },
+          data: { customerId: cust.id },
+        });
+      }
+
+      const orderCount = await prisma.order.count();
+      const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(4, "0")}`;
+
+      order = await prisma.order.create({
+        data: {
+          orderCode,
+          customerId,
+          clientId: client.id,
+          totalAmount: remainingBalance,
+          paymentStatus: "PENDING",
+          notes: `[FINAL 100% PROJECT COMPLETION RECEIVABLE]: Remaining balance for ${client.name}. Total Project Value: ₹${client.amount}, Remaining: ₹${remainingBalance}.`,
+          orderItems: {
+            create: {
+              itemTitle: `${client.name} - 100% Completion Final Balance`,
+              quantity: 1,
+              unitPrice: remainingBalance,
+              total: remainingBalance,
+            },
+          },
+          invoices: {
+            create: {
+              invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+              dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+              totalAmount: remainingBalance,
+              paymentStatus: "PENDING",
+            },
+          },
+        },
+      });
+    }
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: userName,
+      action: "PROJECT_PROGRESS_UPDATED",
+      module: "CLIENT_REPORTS",
+      recordId: client.clientCode,
+      details: `Updated work progress for ${client.name} to ${pct}%. ${pct >= 100 ? "Project 100% completed & final balance sent to Sales." : "Sent to Sales dashboard."}`,
+    },
+  });
+
+  revalidatePath("/reports");
+  revalidatePath("/sales");
+  return { report, order, percentage: pct };
+}
+
 export async function completeClientProgressReport(data: {
   reportId?: string;
   clientId: string;
@@ -609,72 +790,73 @@ export async function completeClientProgressReport(data: {
     });
   }
 
-  // Create Receivable Order for Sales Ledger
-  const amount = client.amount || 0;
-  let customerId = client.customerId;
-  if (!customerId) {
-    const cust = await prisma.customer.create({
+  // Create Receivable Order for Sales Ledger (Only for MONTHLY retainers)
+  let order = null;
+  if (client.billingType === "MONTHLY") {
+    const amount = client.amount || 0;
+    let customerId = client.customerId;
+    if (!customerId) {
+      const cust = await prisma.customer.create({
+        data: {
+          name: client.name,
+          company: client.company || client.name,
+          email: client.email || `${client.clientCode.toLowerCase()}@client.com`,
+          phone: client.phone || "9999999999",
+          address: client.address || "",
+        },
+      });
+      customerId = cust.id;
+      await prisma.client.update({
+        where: { id: client.id },
+        data: { customerId: cust.id },
+      });
+    }
+
+    const orderCount = await prisma.order.count();
+    const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(4, "0")}`;
+
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const cycleLabel = `Monthly Retainer Deliverable (${monthNames[data.month - 1] || data.month} ${data.year})`;
+
+    order = await prisma.order.create({
       data: {
-        name: client.name,
-        company: client.company || client.name,
-        email: client.email || `${client.clientCode.toLowerCase()}@client.com`,
-        phone: client.phone || "9999999999",
-        address: client.address || "",
+        orderCode,
+        customerId,
+        clientId: client.id,
+        totalAmount: amount,
+        paymentStatus: "PENDING",
+        notes: `[AUTO RECEIVABLE from Progress Report Completed]: ${cycleLabel} for ${client.name}. Amount: ₹${amount}.`,
+        orderItems: {
+          create: {
+            itemTitle: `${client.name} - ${cycleLabel}`,
+            quantity: 1,
+            unitPrice: amount,
+            total: amount,
+          },
+        },
+        invoices: {
+          create: {
+            invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+            dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+            totalAmount: amount,
+            paymentStatus: "PENDING",
+          },
+        },
       },
-    });
-    customerId = cust.id;
-    await prisma.client.update({
-      where: { id: client.id },
-      data: { customerId: cust.id },
     });
   }
-
-  const orderCount = await prisma.order.count();
-  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(4, "0")}`;
-
-  const monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-  ];
-  const cycleLabel = client.billingType === "MONTHLY"
-    ? `Monthly Retainer Deliverable (${monthNames[data.month - 1] || data.month} ${data.year})`
-    : `One-Time Project Delivery Scope`;
-
-  const order = await prisma.order.create({
-    data: {
-      orderCode,
-      customerId,
-      clientId: client.id,
-      totalAmount: amount,
-      paymentStatus: "PENDING",
-      notes: `[AUTO RECEIVABLE from Progress Report Completed]: ${cycleLabel} for ${client.name}. Amount: ₹${amount}.`,
-      orderItems: {
-        create: {
-          itemTitle: `${client.name} - ${cycleLabel}`,
-          quantity: 1,
-          unitPrice: amount,
-          total: amount,
-        },
-      },
-      invoices: {
-        create: {
-          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
-          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
-          totalAmount: amount,
-          paymentStatus: "PENDING",
-        },
-      },
-    },
-  });
 
   await prisma.auditLog.create({
     data: {
       userId: session.user.id,
       userName: userName,
-      action: "PROGRESS_REPORT_COMPLETED",
+      action: "PROGRESS_REPORT_APPROVED_FOR_SALES",
       module: "CLIENT_REPORTS",
       recordId: client.clientCode,
-      details: `Marked Progress Report completed for ${client.name} (${cycleLabel}). Receivable ₹${amount} automatically forwarded to Sales for collection.`,
+      details: `Manager approved Progress Report for ${client.name} (${data.month}/${data.year}). ${client.billingType === "MONTHLY" ? `Receivable ₹${client.amount} sent to Sales.` : "Progress verified for Sales."}`,
     },
   });
 

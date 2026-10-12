@@ -459,42 +459,56 @@ export function OnboardClientModal({
               {formData.services.map((srv, idx) => (
                 <div
                   key={srv.id}
-                  className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row gap-2.5 items-start sm:items-center justify-between"
+                  className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2"
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1 w-full sm:w-auto">
-                    <span className="w-5 h-5 rounded-md bg-white border border-slate-200 text-slate-500 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Service / deliverable name (e.g. Reels, UI Sprints)"
-                      value={srv.serviceName}
-                      onChange={(e) => handleServiceChange(srv.id, "serviceName", e.target.value)}
-                      className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-semibold text-xs"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-                      <span className="text-[11px] text-slate-500 font-semibold shrink-0">Target:</span>
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-start sm:items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 w-full sm:w-auto">
+                      <span className="w-5 h-5 rounded-md bg-white border border-slate-200 text-slate-500 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
                       <input
                         type="text"
-                        placeholder="e.g. 15, 20 Reels, MVP Launch"
-                        value={srv.target}
-                        onChange={(e) => handleServiceChange(srv.id, "target", e.target.value)}
-                        className="w-full sm:w-44 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-medium text-xs focus:outline-none focus:border-blue-500"
+                        required
+                        placeholder="Service / deliverable name (e.g. Reels, UI Sprints)"
+                        value={srv.serviceName}
+                        onChange={(e) => handleServiceChange(srv.id, "serviceName", e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-semibold text-xs focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveService(srv.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title="Remove deliverable"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+                        <span className="text-[11px] text-slate-500 font-semibold shrink-0">Target:</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. 15 Reels, MVP Launch"
+                          value={srv.target}
+                          onChange={(e) => handleServiceChange(srv.id, "target", e.target.value)}
+                          className="w-full sm:w-40 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-medium text-xs focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveService(srv.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                        title="Remove deliverable"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Per-deliverable Note input */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+                    <span className="text-[10px] text-slate-400 font-medium shrink-0 font-mono">Note:</span>
+                    <input
+                      type="text"
+                      placeholder="Specific note/guideline for this deliverable (e.g. 60-sec video, Brand tone, Weekly review)..."
+                      value={srv.notes || ""}
+                      onChange={(e) => handleServiceChange(srv.id, "notes", e.target.value)}
+                      className="flex-1 px-2 py-1 bg-white border border-slate-200/80 rounded-md text-slate-700 text-[11px] placeholder:text-slate-400 focus:outline-none focus:border-blue-400"
+                    />
                   </div>
                 </div>
               ))}
