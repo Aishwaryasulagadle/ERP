@@ -2,152 +2,344 @@
 
 @layer base {
   :root {
-    --background: #F8FAFC;
-    --foreground: #0F172A;
-    --card: #FFFFFF;
-    --card-foreground: #0F172A;
-    --popover: #FFFFFF;
-    --popover-foreground: #0F172A;
-    --primary: #2563EB;
+    /* ==========================================
+       JDS PRIMARY BLUE
+       ========================================== */
+    --jds-blue: #167FB7;
+    --jds-blue-hover: #126D9F;
+    --jds-blue-dark: #0F5F91;
+    --jds-blue-deep: #0B4266;
+    --jds-blue-light: #EAF5FA;
+    --jds-blue-soft: #F3F9FC;
+
+    /* ==========================================
+       JDS BRAND GREEN
+       ========================================== */
+    --jds-green: #0F593E;
+    --jds-green-bright: #08764D;
+    --jds-green-hover: #075F40;
+    --jds-green-light: #E8F5EF;
+    --jds-green-soft: #F2F9F5;
+
+    /* ==========================================
+       JDS BRAND ORANGE
+       ========================================== */
+    --jds-orange: #E16A0F;
+    --jds-orange-bright: #F28C16;
+    --jds-orange-hover: #C95D0C;
+    --jds-orange-light: #FFF2E5;
+    --jds-orange-soft: #FFF8F0;
+
+    /* ==========================================
+       ENTERPRISE SURFACES
+       ========================================== */
+    --jds-bg: #F6F8FA;
+    --jds-bg-secondary: #F1F5F7;
+    --jds-card: #FFFFFF;
+    --jds-card-hover: #FCFDFD;
+
+    /* ==========================================
+       TYPOGRAPHY
+       ========================================== */
+    --jds-text: #17212B;
+    --jds-text-secondary: #647482;
+    --jds-text-muted: #8A98A5;
+    --jds-text-white: #FFFFFF;
+
+    /* ==========================================
+       BORDERS
+       ========================================== */
+    --jds-border: #DCE5E9;
+    --jds-border-light: #E8EEF1;
+    --jds-border-strong: #C7D5DC;
+
+    /* ==========================================
+       FUNCTIONAL STATES
+       ========================================== */
+    --jds-success: #08764D;
+    --jds-success-bg: #E8F5EF;
+
+    --jds-warning: #E16A0F;
+    --jds-warning-bg: #FFF2E5;
+
+    --jds-info: #167FB7;
+    --jds-info-bg: #EAF5FA;
+
+    --jds-danger: #C43D3D;
+    --jds-danger-bg: #FDECEC;
+
+    /* ==========================================
+       SHADOWS
+       ========================================== */
+    --jds-shadow-sm: 0 1px 2px rgba(15, 35, 45, 0.04);
+    --jds-shadow-md: 0 4px 12px rgba(15, 35, 45, 0.07);
+    --jds-shadow-lg: 0 10px 30px rgba(15, 35, 45, 0.09);
+
+    /* ==========================================
+       RADIUS
+       ========================================== */
+    --jds-radius-sm: 8px;
+    --jds-radius-md: 12px;
+    --jds-radius-lg: 16px;
+
+    /* ==========================================
+       BRAND GRADIENTS
+       ========================================== */
+    --jds-gradient-blue: linear-gradient(135deg, #167FB7, #0F5F91);
+    --jds-gradient-green: linear-gradient(135deg, #08764D, #0F593E);
+    --jds-gradient-brand: linear-gradient(110deg, #167FB7 0%, #08764D 58%, #E16A0F 100%);
+
+    /* Standard Component Mappings */
+    --background: var(--jds-bg);
+    --foreground: var(--jds-text);
+    --card: var(--jds-card);
+    --card-foreground: var(--jds-text);
+    --popover: var(--jds-card);
+    --popover-foreground: var(--jds-text);
+    --primary: var(--jds-blue);
     --primary-foreground: #FFFFFF;
-    --secondary: #F1F5F9;
-    --secondary-foreground: #1E293B;
-    --muted: #F8FAFC;
-    --muted-foreground: #64748B;
-    --accent: #2563EB;
-    --accent-foreground: #FFFFFF;
-    --destructive: #EF4444;
+    --secondary: var(--jds-bg-secondary);
+    --secondary-foreground: var(--jds-text);
+    --muted: var(--jds-bg-secondary);
+    --muted-foreground: var(--jds-text-secondary);
+    --accent: var(--jds-blue-light);
+    --accent-foreground: var(--jds-blue-dark);
+    --destructive: var(--jds-danger);
     --destructive-foreground: #FFFFFF;
-    --border: #E2E8F0;
+    --border: var(--jds-border);
     --input: #FFFFFF;
-    --ring: #2563EB;
-    --radius: 0.75rem;
+    --ring: var(--jds-blue);
+    --radius: var(--jds-radius-md);
   }
 }
 
 * {
-  border-color: #E2E8F0;
+  border-color: var(--jds-border);
 }
 
 html,
 body {
-  background-color: #F8FAFC !important;
-  color: #0F172A !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--jds-bg) !important;
+  color: var(--jds-text) !important;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Inter,
+    sans-serif;
   min-height: 100vh;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Clean Light Theme Scrollbars */
+/* ==========================================
+   SCROLLBAR
+   ========================================== */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
+  background: #B8C8D0;
+  border-radius: 999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--jds-blue);
 }
 
-/* Enterprise Theme Utility Classes */
+/* ==========================================
+   ERP CARD SYSTEM
+   ========================================== */
 .erp-card {
-  background-color: #FFFFFF !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 1rem !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: var(--jds-card) !important;
+  border: 1px solid var(--jds-border) !important;
+  border-radius: var(--jds-radius-md) !important;
+  box-shadow: var(--jds-shadow-sm) !important;
 }
 
-.erp-card:hover {
-  border-color: #BFDBFE !important;
-  box-shadow: 0 12px 30px -4px rgba(37, 99, 235, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.02) !important;
-  transform: translateY(-2px);
+.erp-card-interactive {
+  background: var(--jds-card) !important;
+  border: 1px solid var(--jds-border) !important;
+  border-radius: var(--jds-radius-md) !important;
+  box-shadow: var(--jds-shadow-sm) !important;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease !important;
+}
+
+.erp-card-interactive:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(22, 127, 183, 0.28) !important;
+  box-shadow: var(--jds-shadow-md) !important;
 }
 
 .erp-card-subtle {
-  background-color: #F8FAFC !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 0.875rem !important;
+  background: var(--jds-bg-secondary) !important;
+  border: 1px solid var(--jds-border-light) !important;
+  border-radius: var(--jds-radius-sm) !important;
 }
 
-.erp-card-gradient {
-  background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%) !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 1rem !important;
-}
-
+/* ==========================================
+   GLASS HEADER
+   ========================================== */
 .erp-glass {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid var(--jds-border-light) !important;
+  box-shadow: 0 2px 10px rgba(15, 35, 45, 0.04) !important;
 }
 
-.erp-glow-blue {
-  box-shadow: 0 0 50px -10px rgba(37, 99, 235, 0.15) !important;
-}
-
+/* ==========================================
+   BUTTONS
+   ========================================== */
 .btn-primary {
-  background-color: #2563EB !important;
+  background: var(--jds-gradient-blue) !important;
   color: #FFFFFF !important;
   font-weight: 600 !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.2) !important;
+  border: none !important;
+  box-shadow: 0 4px 10px rgba(22, 127, 183, 0.20) !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .btn-primary:hover {
-  background-color: #1D4ED8 !important;
-  box-shadow: 0 6px 20px -2px rgba(37, 99, 235, 0.35) !important;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #126D9F, #0B4266) !important;
+  box-shadow: 0 6px 14px rgba(22, 127, 183, 0.30) !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-primary:active {
+  transform: translateY(0.5px) !important;
+  box-shadow: 0 2px 6px rgba(22, 127, 183, 0.20) !important;
 }
 
 .btn-secondary {
-  background-color: #FFFFFF !important;
-  color: #1E293B !important;
-  border: 1px solid #CBD5E1 !important;
+  background: #FFFFFF !important;
+  color: var(--jds-blue-dark) !important;
+  border: 1px solid var(--jds-border) !important;
   font-weight: 600 !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(15, 35, 45, 0.03) !important;
 }
 
 .btn-secondary:hover {
-  background-color: #F8FAFC !important;
-  border-color: #94A3B8 !important;
-  color: #0F172A !important;
+  background: var(--jds-blue-soft) !important;
+  border-color: var(--jds-blue) !important;
+  color: var(--jds-blue-deep) !important;
 }
 
+/* ==========================================
+   BRAND BADGES
+   ========================================== */
 .erp-badge-blue {
-  background-color: #EFF6FF !important;
-  color: #1D4ED8 !important;
-  border: 1px solid #BFDBFE !important;
+  background: var(--jds-blue-light) !important;
+  color: var(--jds-blue-dark) !important;
+  border: 1px solid rgba(22, 127, 183, 0.20) !important;
 }
 
-.erp-badge-emerald {
-  background-color: #ECFDF5 !important;
-  color: #047857 !important;
-  border: 1px solid #A7F3D0 !important;
+.erp-badge-green {
+  background: var(--jds-green-light) !important;
+  color: var(--jds-green) !important;
+  border: 1px solid rgba(8, 118, 77, 0.20) !important;
 }
 
-.erp-badge-amber {
-  background-color: #FFFBEB !important;
-  color: #B45309 !important;
-  border: 1px solid #FDE68A !important;
+.erp-badge-orange {
+  background: var(--jds-orange-light) !important;
+  color: var(--jds-orange-hover) !important;
+  border: 1px solid rgba(225, 106, 15, 0.20) !important;
 }
 
-.erp-badge-purple {
-  background-color: #FAF5FF !important;
-  color: #6B21A8 !important;
-  border: 1px solid #E9D5FF !important;
+.erp-badge-danger {
+  background: var(--jds-danger-bg) !important;
+  color: var(--jds-danger) !important;
+  border: 1px solid rgba(196, 61, 61, 0.20) !important;
 }
 
-/* Background Grids */
+/* ==========================================
+   FORM ELEMENTS
+   ========================================== */
+input, select, textarea {
+  background: #FFFFFF;
+  border: 1px solid var(--jds-border);
+  color: var(--jds-text);
+  border-radius: var(--jds-radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--jds-blue);
+  box-shadow: 0 0 0 3px rgba(22, 127, 183, 0.10);
+}
+
+/* ==========================================
+   LINKS
+   ========================================== */
+a {
+  color: var(--jds-blue-dark);
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--jds-blue);
+}
+
+/* ==========================================
+   TABLE DESIGN
+   ========================================== */
+table th {
+  background: #F8FAFC;
+  color: var(--jds-text-secondary);
+  border-bottom: 1px solid var(--jds-border-light);
+}
+
+table td {
+  border-bottom: 1px solid var(--jds-border-light);
+}
+
+table tbody tr {
+  background: #FFFFFF;
+  transition: background-color 0.12s ease;
+}
+
+table tbody tr:hover {
+  background: var(--jds-blue-soft);
+}
+
+/* ==========================================
+   JDS FLOWING BACKGROUND & GRID UTILITIES
+   ========================================== */
+.jds-flow-bg {
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(22, 127, 183, 0.08),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 85% 70%,
+      rgba(8, 118, 77, 0.06),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 75% 15%,
+      rgba(242, 140, 22, 0.05),
+      transparent 25%
+    );
+}
+
 .bg-grid-slate {
-  background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+  background-image: radial-gradient(rgba(22, 127, 183, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }

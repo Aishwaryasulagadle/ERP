@@ -43,15 +43,15 @@ export function PageLayout({
   const hasTabs = tabs && tabs.length > 0 && onTabChange;
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-4rem)] bg-slate-50">
+    <div className="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-3.75rem)] bg-[#F5F7FA]">
       {/* Module Operations Sub-Sidebar (Optional) */}
       {hasTabs && isSubSidebarOpen && (
-        <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col shrink-0 p-3 space-y-3 transition-all shadow-xs">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+        <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-[#E2E8F0] flex flex-col shrink-0 p-3 space-y-3 transition-all shadow-[1px_0_2px_0_rgba(0,0,0,0.02)]">
+          <div className="p-3 rounded-lg bg-[#F5F7FA] border border-[#E2E8F0]">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 {ModuleIcon && (
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-[#1674B9]/10 border border-[#1674B9]/20 flex items-center justify-center text-[#1674B9] shrink-0">
                     <ModuleIcon className="w-3.5 h-3.5" />
                   </div>
                 )}
@@ -59,20 +59,20 @@ export function PageLayout({
                   <div className="flex items-center gap-1.5">
                     <h2 className="font-bold text-xs text-slate-900 truncate">{moduleTitle}</h2>
                     {badge && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase bg-[#1674B9]/10 text-[#14558A] border border-[#1674B9]/20">
                         {badge}
                       </span>
                     )}
                   </div>
                   {moduleSubtitle && (
-                    <p className="text-[10px] text-slate-500 truncate mt-0.5">{moduleSubtitle}</p>
+                    <p className="text-[10px] text-[#64748B] truncate mt-0.5">{moduleSubtitle}</p>
                   )}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSubSidebarOpen(false)}
-                title="Collapse sidebar"
+                title="Collapse views"
                 className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
               >
                 <PanelLeftClose className="w-3.5 h-3.5" />
@@ -81,7 +81,7 @@ export function PageLayout({
           </div>
 
           <div className="space-y-1">
-            <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+            <div className="px-2 pb-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider font-mono">
               Views & Filters
             </div>
             <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
@@ -94,10 +94,10 @@ export function PageLayout({
                     type="button"
                     onClick={() => onTabChange(tab.key)}
                     className={cn(
-                      "flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer whitespace-nowrap",
+                      "flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer whitespace-nowrap",
                       isActive
-                        ? "bg-blue-600 text-white font-bold shadow-sm shadow-blue-600/20"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                        ? "bg-[#1674B9]/10 text-[#14558A] font-bold border border-[#1674B9]/20 shadow-2xs"
+                        : "text-[#1E293B] hover:text-slate-900 hover:bg-slate-50 border border-transparent"
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -105,7 +105,7 @@ export function PageLayout({
                         <Icon
                           className={cn(
                             "w-3.5 h-3.5 shrink-0",
-                            isActive ? "text-white" : "text-slate-400"
+                            isActive ? "text-[#1674B9]" : "text-[#64748B]"
                           )}
                         />
                       )}
@@ -114,9 +114,9 @@ export function PageLayout({
                     {tab.count !== undefined && (
                       <span
                         className={cn(
-                          "px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ml-2",
+                          "px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ml-2",
                           isActive
-                            ? "bg-white/20 text-white"
+                            ? "bg-[#1674B9] text-white"
                             : tab.badgeColor || "bg-slate-100 text-slate-700 border border-slate-200"
                         )}
                       >
@@ -132,19 +132,19 @@ export function PageLayout({
       )}
 
       {/* Main Workspace */}
-      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-slate-50">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-[#F5F7FA]">
+        <div className="max-w-[1600px] mx-auto space-y-6">
           {hasTabs && !isSubSidebarOpen && (
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 mb-4 shadow-xs">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-[#E2E8F0] mb-4 shadow-xs">
               <button
                 type="button"
                 onClick={() => setIsSubSidebarOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-[#1674B9]/10 text-[#14558A] hover:bg-[#1674B9] hover:text-white border border-[#1674B9]/20 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <PanelLeft className="w-3.5 h-3.5" />
                 <span>Show Operations Filter</span>
               </button>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#64748B]">
                 Active view: <span className="text-slate-900 font-bold">{tabs.find((t) => t.key === activeTab)?.label || activeTab}</span>
               </span>
             </div>
@@ -155,3 +155,4 @@ export function PageLayout({
     </div>
   );
 }
+
