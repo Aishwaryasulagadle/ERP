@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Layers,
   Building2,
@@ -67,12 +68,26 @@ export function ReportsClient({
   currentEmployeeId,
   user,
 }: ReportsClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "CLIENTS" | "CUSTOM_SHEET" | "TEAM_AUDIT"
   >("CLIENTS");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [clients, setClients] = useState<any[]>(initialClients);
   const [selectedClient, setSelectedClient] = useState<any | null>(initialClients[0] || null);
+
+  // Sync state whenever initialClients from server re-fetch/refresh
+  useEffect(() => {
+    setClients(initialClients);
+    if (selectedClient) {
+      const refreshed = initialClients.find((c) => c.id === selectedClient.id);
+      if (refreshed) {
+        setSelectedClient(refreshed);
+      }
+    } else if (initialClients.length > 0) {
+      setSelectedClient(initialClients[0]);
+    }
+  }, [initialClients]);
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(false);
 
@@ -154,7 +169,7 @@ export function ReportsClient({
   // Dynamic Custom Sheet State
   const [sheetMonth, setSheetMonth] = useState<number>(new Date().getMonth() + 1);
   const [sheetYear, setSheetYear] = useState<number>(new Date().getFullYear());
-  const [oneTimeProgressPct, setOneTimeProgressPct] = useState<number>(50);
+  const [oneTimeProgressPct, setOneTimeProgressPct] = useState<number>(0);
   const [customColumns, setCustomColumns] = useState<string[]>([
     "Item / Deliverable",
     "Monthly Target",
@@ -208,6 +223,9 @@ export function ReportsClient({
       if (oneTimeRpt?.notes && oneTimeRpt.notes.includes("[Work Completed:")) {
         const match = oneTimeRpt.notes.match(/\[Work Completed:\s*(\d+)%\]/);
         if (match) setOneTimeProgressPct(Number(match[1]));
+        else setOneTimeProgressPct(0);
+      } else {
+        setOneTimeProgressPct(0);
       }
       return;
     }
@@ -651,18 +669,22 @@ export function ReportsClient({
 
   const handleSaveSheet = async () => {
     if (!selectedClient) return;
+    const isOneTime = selectedClient.billingType === "ONE_TIME";
+    const targetMonth = isOneTime ? 0 : sheetMonth;
+    const targetYear = isOneTime ? 0 : sheetYear;
+
     setLoading(true);
     try {
       const savedReport = await saveClientProgressSheet({
         clientId: selectedClient.id,
-        month: sheetMonth,
-        year: sheetYear,
+        month: targetMonth,
+        year: targetYear,
         columnsJson: JSON.stringify({ columns: customColumns, rows: sheetRows }),
-        notes: `Progress report for month ${sheetMonth}/${sheetYear}`,
+        notes: isOneTime
+          ? `[Work Completed: ${oneTimeProgressPct}%] Project progress sheet draft`
+          : `Progress report for month ${sheetMonth}/${sheetYear}`,
       });
       // Update local client report state
-      const targetMonth = selectedClient.billingType === "ONE_TIME" ? 0 : sheetMonth;
-      const targetYear = selectedClient.billingType === "ONE_TIME" ? 0 : sheetYear;
       const existingReports = selectedClient.reports || [];
       const updatedReports = existingReports.some((r: any) => r.id === savedReport.id || (r.month === targetMonth && r.year === targetYear))
         ? existingReports.map((r: any) => (r.id === savedReport.id || (r.month === targetMonth && r.year === targetYear)) ? savedReport : r)
@@ -670,6 +692,7 @@ export function ReportsClient({
       const updatedClient = { ...selectedClient, reports: updatedReports };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
+      router.refresh();
       alert("✓ Progress Sheet saved as Draft!");
     } catch (err: any) {
       alert(err.message);
@@ -708,7 +731,7 @@ export function ReportsClient({
       const updatedClient = { ...selectedClient, reports: updatedReports };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
-
+      router.refresh();
       alert(`✓ Report successfully submitted to Department Manager for review!`);
     } catch (err: any) {
       alert(err.message);
@@ -748,6 +771,7 @@ export function ReportsClient({
       };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
+      router.refresh();
 
       alert(
         markComplete || pct >= 100
@@ -790,6 +814,7 @@ export function ReportsClient({
       };
       setClients(clients.map((c) => (c.id === selectedClient.id ? updatedClient : c)));
       setSelectedClient(updatedClient);
+      router.refresh();
 
       alert(`✓ Progress Report APPROVED for Sales!\n\nSales Receivable Order (${res.order?.orderCode}) for ₹${res.order?.totalAmount?.toLocaleString()} has been automatically generated and sent to the Sales ledger for payment collection.`);
     } catch (err: any) {
@@ -1499,60 +1524,118 @@ export function ReportsClient({
                     </button>
                   </div>
 
-                  {/* Monthly Reports List */}
+                  {/* Progress Reports List */}
                   <div className="space-y-2">
-                    {selectedClient.reports && selectedClient.reports.length > 0 ? (
-                      selectedClient.reports.map((rpt: any) => {
-                        const monthNames = [
-                          "January", "February", "March", "April", "May", "June",
-                          "July", "August", "September", "October", "November", "December"
-                        ];
-                        const isDone = rpt.status === "COMPLETED";
+                    {selectedClient.billingType === "ONE_TIME" ? (
+                      (() => {
+                        const oneTimeReport = selectedClient.reports?.find((r: any) => r.month === 0) || selectedClient.reports?.[0];
+                        const isDone = selectedClient.status === "COMPLETED" || oneTimeReport?.status === "COMPLETED";
 
-                        return (
+                        return oneTimeReport ? (
                           <div
-                            key={rpt.id}
-                            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            key={oneTimeReport.id}
+                            className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-xs text-slate-900">
-                                  {monthNames[rpt.month - 1] || `Month ${rpt.month}`} {rpt.year} Progress Report
+                                  One-Time Project Progress Sheet
                                 </span>
                                 <span
                                   className={cn(
                                     "text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase",
                                     isDone
                                       ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-blue-100 text-blue-700"
+                                      : "bg-amber-100 text-amber-800"
                                   )}
                                 >
-                                  {isDone ? "COMPLETED • INVOICED" : "IN PROGRESS"}
+                                  {isDone ? "100% COMPLETED" : `${oneTimeProgressPct}% COMPLETED`}
                                 </span>
                               </div>
-                              <div className="text-[11px] text-slate-500 mt-0.5">
-                                Submitted by: {rpt.submittedBy || "Team"} • {rpt.notes || "Progress report logged"}
+                              <div className="text-[11px] text-slate-600 mt-1">
+                                Last updated by: <span className="font-semibold text-slate-800">{oneTimeReport.submittedBy || "Team"}</span> • {oneTimeReport.notes || "Progress sheet active"}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => {
-                                  setSheetMonth(rpt.month);
-                                  setSheetYear(rpt.year);
-                                  setActiveTab("CUSTOM_SHEET");
-                                }}
-                                className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs cursor-pointer"
+                                onClick={() => setActiveTab("CUSTOM_SHEET")}
+                                className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-lg border border-amber-300 shadow-2xs cursor-pointer flex items-center gap-1.5"
                               >
-                                View Sheet
+                                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Edit / View Sheet</span>
                               </button>
                             </div>
                           </div>
+                        ) : (
+                          <div className="text-xs text-slate-500 py-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-2">
+                            <span>No progress updates logged yet. Work Progress is currently 0%.</span>
+                            <button
+                              onClick={() => setActiveTab("CUSTOM_SHEET")}
+                              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-blue-600 text-xs font-bold rounded-lg border border-slate-200 cursor-pointer"
+                            >
+                              Open Progress Sheet (0% Progress)
+                            </button>
+                          </div>
                         );
-                      })
+                      })()
                     ) : (
-                      <div className="text-xs text-slate-400 py-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
-                        No progress reports logged yet. Open the Progress Report Sheet to track deliverables and trigger the monthly receivable invoice.
-                      </div>
+                      (() => {
+                        const monthlyReports = (selectedClient.reports || []).filter((r: any) => r.month > 0);
+                        const monthNames = [
+                          "January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"
+                        ];
+
+                        return monthlyReports.length > 0 ? (
+                          monthlyReports.map((rpt: any) => {
+                            const isDone = rpt.status === "COMPLETED";
+
+                            return (
+                              <div
+                                key={rpt.id}
+                                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs text-slate-900">
+                                      {monthNames[rpt.month - 1] || `Month ${rpt.month}`} {rpt.year} Progress Report
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        "text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase",
+                                        isDone
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : "bg-blue-100 text-blue-700"
+                                      )}
+                                    >
+                                      {isDone ? "COMPLETED • INVOICED" : "DRAFT / IN REVIEW"}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 mt-0.5">
+                                    Last updated by: {rpt.submittedBy || "Team"} • {rpt.notes || "Progress report logged"}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setSheetMonth(rpt.month);
+                                      setSheetYear(rpt.year);
+                                      setActiveTab("CUSTOM_SHEET");
+                                    }}
+                                    className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 shadow-2xs cursor-pointer"
+                                  >
+                                    View Sheet
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-xs text-slate-400 py-6 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+                            No monthly progress reports logged yet. Open the Progress Report Sheet to track deliverables and trigger the monthly receivable invoice.
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
 

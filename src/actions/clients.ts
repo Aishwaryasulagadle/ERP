@@ -220,49 +220,53 @@ export async function createClient(data: {
     },
   });
 
-  // Create Corresponding Sales Order
-  const orderCount = await prisma.order.count();
-  const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`;
-  const totalAmt = Number(data.amount) || 0;
+  // For MONTHLY clients, create initial recurring retainer Sales Order.
+  // For ONE_TIME project clients, payments are collected via progressive milestones in the Sales module,
+  // so no initial "PAID" order is created at onboarding unless triggered.
+  if (data.billingType === "MONTHLY") {
+    const orderCount = await prisma.order.count();
+    const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`;
+    const totalAmt = Number(data.amount) || 0;
 
-  await prisma.order.create({
-    data: {
-      orderCode,
-      customerId,
-      clientId: client.id,
-      employeeId: currentEmpId || null,
-      leadId: data.leadId || null,
-      totalAmount: totalAmt,
-      discount: 0,
-      tax: totalAmt * 0.18,
-      paymentStatus: "PAID",
-      notes: `Onboarded as Client ${client.clientCode} (${data.departmentType})`,
-      orderItems: {
-        create: {
-          itemTitle: data.initialServices?.[0]?.serviceName || `${data.departmentType} Retainer`,
-          quantity: 1,
-          unitPrice: totalAmt,
-          total: totalAmt,
+    await prisma.order.create({
+      data: {
+        orderCode,
+        customerId,
+        clientId: client.id,
+        employeeId: currentEmpId || null,
+        leadId: data.leadId || null,
+        totalAmount: totalAmt,
+        discount: 0,
+        tax: totalAmt * 0.18,
+        paymentStatus: "PAID",
+        notes: `Onboarded as Monthly Client ${client.clientCode} (${data.departmentType})`,
+        orderItems: {
+          create: {
+            itemTitle: data.initialServices?.[0]?.serviceName || `${data.departmentType} Retainer`,
+            quantity: 1,
+            unitPrice: totalAmt,
+            total: totalAmt,
+          },
+        },
+        invoices: {
+          create: {
+            invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+            dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
+            totalAmount: totalAmt * 1.18,
+            paymentStatus: "PAID",
+          },
+        },
+        payments: {
+          create: {
+            paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
+            amount: totalAmt * 1.18,
+            paymentMethod: "Bank Transfer",
+            paymentStatus: "PAID",
+          },
         },
       },
-      invoices: {
-        create: {
-          invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
-          dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
-          totalAmount: totalAmt * 1.18,
-          paymentStatus: "PAID",
-        },
-      },
-      payments: {
-        create: {
-          paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
-          amount: totalAmt * 1.18,
-          paymentMethod: "Bank Transfer",
-          paymentStatus: "PAID",
-        },
-      },
-    },
-  });
+    });
+  }
 
   // If created from a Lead, update lead status to CONVERTED
   if (data.leadId) {
