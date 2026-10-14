@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Users,
   Plus,
@@ -174,10 +174,45 @@ export function EmployeesClient({
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState<any | null>(null);
 
-  // Sync state if server props change (e.g., after login switch or revalidation)
+  const router = useRouter();
+
+  // Sync state if server props change (e.g., after login switch, revalidation or tab navigation)
   useEffect(() => {
     setEmployees(initialEmployees);
   }, [initialEmployees]);
+
+  useEffect(() => {
+    setTodayAttendance(initialToday);
+  }, [initialToday]);
+
+  useEffect(() => {
+    setAllAttendances(initialAll);
+  }, [initialAll]);
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
+
+  useEffect(() => {
+    setLeaves(initialLeaves);
+  }, [initialLeaves]);
+
+  useEffect(() => {
+    setHolidays(initialHolidays);
+  }, [initialHolidays]);
+
+  useEffect(() => {
+    setQueries(initialQueries);
+  }, [initialQueries]);
+
+  useEffect(() => {
+    setSalarySlips(initialSalarySlips);
+  }, [initialSalarySlips]);
+
+  useEffect(() => {
+    setReportsList(initialClientReports);
+  }, [initialClientReports]);
+
   const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedAttendanceYear, setSelectedAttendanceYear] = useState<number>(new Date().getFullYear());
 
@@ -223,7 +258,7 @@ export function EmployeesClient({
     reason: "",
   });
   const [leaveFormData, setLeaveFormData] = useState({
-    type: "CASUAL", // CASUAL, SICK, PAID, UNPAID, HALF_DAY, WORK_FROM_HOME
+    type: "PAID", // PAID, UNPAID, HALF_DAY, WORK_FROM_HOME
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     daysCount: 1,
@@ -363,6 +398,7 @@ export function EmployeesClient({
         ...reportsList,
       ]);
       setShowSubmitReportModal(false);
+      router.refresh();
       alert(`✓ ${reportFormData.reportType} report submitted successfully!`);
     } catch (err: any) {
       alert(err.message);
@@ -391,6 +427,7 @@ export function EmployeesClient({
       const newEmp = await createEmployee(employeeFormData);
       setEmployees([...employees, newEmp]);
       setShowAddEmployeeModal(false);
+      router.refresh();
       alert(`Employee ${newEmp.employeeCode} created successfully!`);
     } catch (e: any) {
       alert(e.message);
@@ -405,6 +442,7 @@ export function EmployeesClient({
     try {
       const res = await clockIn();
       setTodayAttendance(res);
+      router.refresh();
       alert("Clocked in successfully!");
     } catch (e: any) {
       alert(e.message);
@@ -453,6 +491,7 @@ export function EmployeesClient({
         },
         ...reportsList,
       ]);
+      router.refresh();
       alert("✓ Daily standup report filed and Punched Out successfully!");
     } catch (err: any) {
       alert(err.message);
@@ -478,6 +517,7 @@ export function EmployeesClient({
         dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
         estimatedHours: 4,
       });
+      router.refresh();
       alert(`Task "${newTask.title}" added to your sprint board!`);
     } catch (err: any) {
       alert(err.message);
@@ -506,6 +546,7 @@ export function EmployeesClient({
       const created = await assignLeaveOrWFH(assignLeaveFormData);
       setLeaves([...created, ...leaves]);
       setShowAssignLeaveModal(false);
+      router.refresh();
       alert(
         `✓ Successfully assigned ${assignLeaveFormData.type.replace(/_/g, " ")} to ${
           assignLeaveFormData.target === "ALL" ? "All Employees" : "the selected employee"
@@ -528,6 +569,7 @@ export function EmployeesClient({
       });
       setLeaves([newLeave, ...leaves]);
       setShowApplyLeaveModal(false);
+      router.refresh();
       alert(`Request for ${leaveFormData.type} submitted successfully!`);
     } catch (e: any) {
       alert(e.message);
@@ -541,6 +583,7 @@ export function EmployeesClient({
     try {
       const updated = await updateLeaveStatus(leaveId, status);
       setLeaves(leaves.map((l) => (l.id === leaveId ? updated : l)));
+      router.refresh();
       alert(`Leave request marked as ${status}`);
     } catch (e: any) {
       alert(e.message);
@@ -696,6 +739,7 @@ export function EmployeesClient({
       const hol = await addHoliday(holidayFormData);
       setHolidays([...holidays, hol].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
       setShowAddHolidayModal(false);
+      router.refresh();
       alert(`Holiday "${hol.title}" added to calendar!`);
     } catch (e: any) {
       alert(e.message);
@@ -710,6 +754,7 @@ export function EmployeesClient({
     try {
       await deleteHoliday(id);
       setHolidays(holidays.filter((h) => h.id !== id));
+      router.refresh();
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -726,6 +771,7 @@ export function EmployeesClient({
       setQueries([q, ...queries]);
       setShowRaiseQueryModal(false);
       setQueryFormData({ recipient: "MANAGER", category: "SALARY_PAYROLL", subject: "", description: "", priority: "MEDIUM" });
+      router.refresh();
       alert(`Helpdesk ticket ${q.queryCode} created! HR will review it.`);
     } catch (e: any) {
       alert(e.message);
@@ -743,6 +789,7 @@ export function EmployeesClient({
       setQueries(queries.map((q) => (q.id === updated.id ? updated : q)));
       setSelectedQueryForResolve(null);
       setQueryResolveText("");
+      router.refresh();
       alert(`Ticket ${updated.queryCode} resolved with response.`);
     } catch (e: any) {
       alert(e.message);
@@ -766,6 +813,7 @@ export function EmployeesClient({
         setSalarySlips([slip, ...salarySlips]);
       }
       setShowGenerateSlipModal(false);
+      router.refresh();
       alert(`Salary slip ${slip.slipCode} generated successfully!`);
     } catch (e: any) {
       alert(e.message);
@@ -790,6 +838,7 @@ export function EmployeesClient({
         dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
         estimatedHours: 8,
       });
+      router.refresh();
       alert(`Daily Task ${newTask.taskCode} created!`);
     } catch (e: any) {
       alert(e.message);
@@ -802,6 +851,7 @@ export function EmployeesClient({
     try {
       await updateTaskStatus(taskId, status);
       setTasks(tasks.map((t) => (t.id === taskId ? { ...t, status } : t)));
+      router.refresh();
     } catch (e: any) {
       alert(e.message);
     }
@@ -826,6 +876,7 @@ export function EmployeesClient({
         newStatus: taskProgressStatus,
       });
       setTasks(tasks.map((t) => (t.id === selectedTaskForProgress.id ? { ...t, ...updated } : t)));
+      router.refresh();
       alert(`Progress logged! Added ${taskProgressHours}h to ${selectedTaskForProgress.taskCode}`);
       setSelectedTaskForProgress(null);
     } catch (e: any) {
@@ -845,72 +896,13 @@ export function EmployeesClient({
         newStatus: task.status === "PENDING" ? "IN_PROGRESS" : task.status,
       });
       setTasks(tasks.map((t) => (t.id === task.id ? { ...t, ...updated } : t)));
+      router.refresh();
     } catch (e: any) {
       alert(e.message);
     }
   };
 
-  // Filtered lists
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesDept = selectedDept === "ALL" || emp.departmentId === selectedDept;
-    const matchesStatus = statusFilter === "ALL" || emp.status === statusFilter;
-    const matchesSearch =
-      emp.user?.name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-      emp.user?.email?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-      emp.employeeCode?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-      emp.designation?.name?.toLowerCase().includes(employeeSearch.toLowerCase());
-    return matchesDept && matchesStatus && matchesSearch;
-  });
-
-  const presentCount = allAttendances.filter((a) => a.status === "PRESENT").length;
-  const lateCount = allAttendances.filter((a) => a.status === "LATE").length;
-  const absentCount = allAttendances.filter((a) => a.status === "ABSENT").length;
-  const leaveCount = allAttendances.filter((a) => a.status === "LEAVE").length;
-  const wfhCount = allAttendances.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
-  const halfDayCount = allAttendances.filter((a) => a.status === "HALF_DAY").length;
-
-  const filteredAttendances = allAttendances.filter((a) => {
-    if (attendanceFilter === "ALL") return true;
-    return a.status === attendanceFilter;
-  });
-
-  const filteredLeaves = leaves.filter((l) => {
-    const matchesType = leaveTypeFilter === "ALL" || l.type === leaveTypeFilter;
-    const matchesStatus = leaveStatusFilter === "ALL" || l.status === leaveStatusFilter;
-    return matchesType && matchesStatus;
-  });
-
-  const filteredQueries = queries.filter((q) => {
-    const matchesCat = queryCategoryFilter === "ALL" || q.category === queryCategoryFilter;
-    const matchesStat = queryStatusFilter === "ALL" || q.status === queryStatusFilter;
-    return matchesCat && matchesStat;
-  });
-
-  const filteredHolidays = holidays.filter((h) => {
-    if (holidayTypeFilter === "ALL") return true;
-    return h.type === holidayTypeFilter;
-  });
-
-  // Calculate quick upcoming Sundays for current month
-  const getUpcomingSundays = () => {
-    const list = [];
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day++) {
-      const d = new Date(year, month, day);
-      if (d.getDay() === 0) {
-        list.push(d);
-      }
-    }
-    return list;
-  };
-  const sundaysThisMonth = getUpcomingSundays();
-
-  const boardColumns = ["PENDING", "IN_PROGRESS", "COMPLETED", "OVERDUE"];
-
-  // Department Scoped records
+  // Department Scoped records based on role and mode
   const scopedEmployees = isManagerMode
     ? employees.filter((e) => e.departmentId === userDeptId || (userDeptName && e.department?.name?.toLowerCase().includes(userDeptName)))
     : employees;
@@ -951,17 +943,116 @@ export function EmployeesClient({
     ? reportsList.filter((r) => r.submittedBy === user?.name || r.employeeId === currentEmployeeId)
     : reportsList;
 
-  const presentStaff = scopedAttendances.filter((a) => {
-    const isToday = new Date(a.date).toDateString() === new Date().toDateString();
-    return isToday && Boolean(a.checkIn || a.status === "PRESENT");
+  // Filtered lists (Scoped by role/login view)
+  const filteredEmployees = scopedEmployees.filter((emp) => {
+    const matchesDept = selectedDept === "ALL" || emp.departmentId === selectedDept;
+    const matchesStatus = statusFilter === "ALL" || emp.status === statusFilter;
+    const matchesSearch =
+      emp.user?.name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+      emp.user?.email?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+      emp.employeeCode?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+      emp.designation?.name?.toLowerCase().includes(employeeSearch.toLowerCase());
+    return matchesDept && matchesStatus && matchesSearch;
   });
 
-  const presentEmpIds = new Set(presentStaff.map((a) => a.employeeId));
-  const absentStaff = scopedEmployees.filter((e) => !presentEmpIds.has(e.id));
+  // Today's Date Roster Calculations
+  const todayDateStr = new Date().toDateString();
+  const todayAttendancesList = scopedAttendances.filter(
+    (a) => new Date(a.date).toDateString() === todayDateStr
+  );
 
-  const userApprovedPaidLeaves = leaves.filter(
-    (l) => l.employeeId === currentEmployeeId && l.status === "APPROVED" && (l.type === "PAID" || l.type === "CASUAL" || l.type === "SICK")
-  ).length;
+  const presentStaff = todayAttendancesList.filter(
+    (a) => a.checkIn || a.status === "PRESENT" || a.status === "LATE"
+  );
+  const wfhStaff = todayAttendancesList.filter(
+    (a) => a.status === "WORK_FROM_HOME" || a.status === "WFH"
+  );
+  const halfDayStaff = todayAttendancesList.filter(
+    (a) => a.status === "HALF_DAY"
+  );
+  const leaveStaff = todayAttendancesList.filter(
+    (a) => a.status === "LEAVE" || a.status === "HOLIDAY"
+  );
+
+  const activeEmpIdsToday = new Set([
+    ...presentStaff.map((a) => a.employeeId),
+    ...wfhStaff.map((a) => a.employeeId),
+    ...halfDayStaff.map((a) => a.employeeId),
+    ...leaveStaff.map((a) => a.employeeId),
+  ]);
+
+  const absentStaff = scopedEmployees.filter((e) => !activeEmpIdsToday.has(e.id));
+
+  // Today-based and Historical counts for KPIs
+  const presentCount = presentStaff.length;
+  const lateCount = todayAttendancesList.filter((a) => a.status === "LATE").length;
+  const wfhCount = wfhStaff.length;
+  const halfDayCount = halfDayStaff.length;
+  const leaveCount = leaveStaff.length;
+  const absentCount = absentStaff.length;
+
+  // Build a complete today timesheet list including present, on-leave, WFH, and unannounced absent staff
+  const todayTimesheetRoster = isEmployeeMode
+    ? todayAttendancesList.filter((a) => a.employeeId === currentEmployeeId)
+    : [
+        ...todayAttendancesList,
+        ...absentStaff.map((emp) => ({
+          id: `absent-${emp.id}`,
+          employeeId: emp.id,
+          employee: emp,
+          date: new Date(),
+          checkIn: null,
+          checkOut: null,
+          workingHoursMin: 0,
+          status: "ABSENT",
+          isUnannouncedAbsent: true,
+        })),
+      ];
+
+  const filteredAttendances = todayTimesheetRoster.filter((a) => {
+    if (attendanceFilter === "ALL") return true;
+    return a.status === attendanceFilter;
+  });
+
+  const filteredLeaves = scopedLeaves.filter((l) => {
+    const matchesType = leaveTypeFilter === "ALL" || l.type === leaveTypeFilter;
+    const matchesStatus = leaveStatusFilter === "ALL" || l.status === leaveStatusFilter;
+    return matchesType && matchesStatus;
+  });
+
+  const filteredQueries = scopedQueries.filter((q) => {
+    const matchesCat = queryCategoryFilter === "ALL" || q.category === queryCategoryFilter;
+    const matchesStatus = queryStatusFilter === "ALL" || q.status === queryStatusFilter;
+    return matchesCat && matchesStatus;
+  });
+
+  const filteredHolidays = holidays.filter((h) => {
+    if (holidayTypeFilter === "ALL") return true;
+    return h.type === holidayTypeFilter;
+  });
+
+  // Calculate quick upcoming Sundays for current month
+  const getUpcomingSundays = () => {
+    const list = [];
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      if (d.getDay() === 0) {
+        list.push(d);
+      }
+    }
+    return list;
+  };
+  const sundaysThisMonth = getUpcomingSundays();
+
+  const boardColumns = ["PENDING", "IN_PROGRESS", "COMPLETED", "OVERDUE"];
+
+  const userApprovedPaidLeaves = leaves
+    .filter((l) => l.employeeId === currentEmployeeId && l.status === "APPROVED" && (l.type === "PAID" || l.type === "CASUAL" || l.type === "SICK"))
+    .reduce((acc, curr) => acc + (Number(curr.daysCount) || 1), 0);
   const remainingPaidLeaves = Math.max(0, 12 - userApprovedPaidLeaves);
 
   // Sidebar navigation sections: hide DIRECTORY in employee mode!
@@ -1181,12 +1272,10 @@ export function EmployeesClient({
                 <div className="space-y-1">
                   {[
                     { key: "ALL", label: "All Requests" },
-                    { key: "CASUAL", label: "Casual Leave" },
-                    { key: "SICK", label: "Sick Leave" },
+                    { key: "PAID", label: "Paid Leave (PL)" },
+                    { key: "UNPAID", label: "Unpaid Leave (LOP)" },
                     { key: "HALF_DAY", label: "Half Day (0.5d)" },
                     { key: "WORK_FROM_HOME", label: "Work From Home (WFH)" },
-                    { key: "PAID", label: "Earned / Paid Leave" },
-                    { key: "UNPAID", label: "Unpaid / LOP" },
                   ].map((lt) => (
                     <button
                       key={lt.key}
@@ -1289,10 +1378,10 @@ export function EmployeesClient({
                 </div>
                 <div className="space-y-1">
                   {[
-                    { key: "ALL", label: "All Reports", count: reportsList.length },
-                    { key: "DAILY", label: "Daily Standups", count: reportsList.filter((r) => r.reportType === "DAILY").length },
-                    { key: "WEEKLY", label: "Weekly Milestones", count: reportsList.filter((r) => r.reportType === "WEEKLY").length },
-                    { key: "CLIENT", label: "Client Deliverables", count: reportsList.filter((r) => r.reportType === "CLIENT" || r.reportType === "MONTHLY").length },
+                    { key: "ALL", label: "All Reports", count: scopedReports.length },
+                    { key: "DAILY", label: "Daily Standups", count: scopedReports.filter((r) => r.reportType === "DAILY").length },
+                    { key: "WEEKLY", label: "Weekly Milestones", count: scopedReports.filter((r) => r.reportType === "WEEKLY").length },
+                    { key: "CLIENT", label: "Client Deliverables", count: scopedReports.filter((r) => r.reportType === "CLIENT" || r.reportType === "MONTHLY").length },
                   ].map((rt) => (
                     <button
                       key={rt.key}
@@ -1364,9 +1453,9 @@ export function EmployeesClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="TOTAL HEADCOUNT"
-                value={employees.length}
-                trend="+3 this quarter"
-                comparisonText="active staff"
+                value={scopedEmployees.length}
+                trend={`${scopedEmployees.filter((e) => e.status === "ACTIVE").length} active`}
+                comparisonText="staff profiles"
                 isPositive={true}
                 icon={Users}
                 iconColor="text-blue-600 bg-blue-50 border-blue-200"
@@ -1374,23 +1463,27 @@ export function EmployeesClient({
               <KpiCard
                 title="DEPARTMENTS"
                 value={departments.length}
-                comparisonText="Sales, Marketing, Tech"
+                comparisonText={departments.map((d) => d.name).slice(0, 3).join(", ") || "General"}
                 isPositive={true}
                 icon={Building}
                 iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
               />
               <KpiCard
-                title="ON-TIME ATTENDANCE"
-                value="95.4%"
-                trend="↑ 2.1%"
-                comparisonText="monthly avg"
+                title="TODAY'S ATTENDANCE"
+                value={
+                  scopedEmployees.length > 0
+                    ? `${Math.round((presentStaff.length / scopedEmployees.length) * 100)}%`
+                    : "0%"
+                }
+                trend={`${presentStaff.length} present`}
+                comparisonText="live presence"
                 isPositive={true}
                 icon={UserCheck}
                 iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
               />
               <KpiCard
                 title="ACTIVE LEAVES & WFH"
-                value={leaves.filter((l) => l.status === "APPROVED").length}
+                value={scopedLeaves.filter((l) => l.status === "APPROVED").length}
                 comparisonText="approved requests"
                 isPositive={true}
                 icon={Calendar}
@@ -1537,8 +1630,8 @@ export function EmployeesClient({
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/30 text-white">
                         Daily Biometric Terminal
                       </span>
-                      <span className="text-xs text-white/80 font-mono">
-                        {new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
+                      <span className="text-xs text-white/80 font-mono" suppressHydrationWarning>
+                        {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
                       </span>
                     </div>
                     <h3 className="text-xl font-black tracking-tight">
@@ -1565,26 +1658,15 @@ export function EmployeesClient({
                         <span>Punch In</span>
                       </button>
                     ) : !isCheckedOut ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleToggleBreak}
-                          disabled={loading}
-                          className="px-4 py-2.5 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-xl border border-white/30 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Coffee className="w-4 h-4" />
-                          <span>{ongoingBreak ? "Resume Work" : "Break"}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowClockOutModal(true)}
-                          disabled={loading}
-                          className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
-                        >
-                          <Square className="w-4 h-4 fill-white" />
-                          <span>Punch Out (Submit Report)</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowClockOutModal(true)}
+                        disabled={loading}
+                        className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
+                      >
+                        <Square className="w-4 h-4 fill-white" />
+                        <span>Punch Out (Submit Report)</span>
+                      </button>
                     ) : (
                       <div className="px-4 py-2 rounded-xl bg-white/20 border border-white/30 text-xs font-bold text-white flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-300" />
@@ -1986,20 +2068,41 @@ export function EmployeesClient({
                                 setSelectedAttendanceYear(new Date().getFullYear());
                               }
                             }}
-                            className="hover:bg-blue-50/50 transition-colors cursor-pointer"
+                            className={cn(
+                              "hover:bg-blue-50/50 transition-colors cursor-pointer",
+                              att.status === "ABSENT" && "bg-rose-50/30"
+                            )}
                           >
                             <td className="py-3 px-4">
                               <div className="font-semibold text-slate-900">{att.employee?.user?.name || "Staff Member"}</div>
-                              <div className="text-[11px] text-slate-500 font-mono">{att.employee?.employeeCode}</div>
+                              <div className="text-[11px] text-slate-500 font-mono">
+                                {att.employee?.employeeCode} • {att.employee?.department?.name || "General"}
+                              </div>
                             </td>
                             <td className="py-3 px-4 font-mono text-emerald-600 font-medium">
-                              {att.checkIn ? formatTime(att.checkIn) : "-"}
+                              {att.checkIn ? formatTime(att.checkIn) : <span className="text-slate-400 font-mono">-</span>}
                             </td>
                             <td className="py-3 px-4 font-mono text-slate-500">
-                              {att.checkOut ? formatTime(att.checkOut) : "Active Shift"}
+                              {att.checkOut ? formatTime(att.checkOut) : att.status === "ABSENT" ? <span className="text-slate-400 font-mono">-</span> : "Active Shift"}
                             </td>
                             <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">
-                              {Math.floor((att.workingHoursMin || 480) / 60)}h {(att.workingHoursMin || 480) % 60}m
+                              {(() => {
+                                if (att.status === "ABSENT" || !att.checkIn) {
+                                  return <span className="text-slate-400 font-mono font-normal">0h 0m</span>;
+                                }
+                                const checkInTime = new Date(att.checkIn).getTime();
+                                const endTime = att.checkOut ? new Date(att.checkOut).getTime() : Date.now();
+                                const breakMin = att.breakDurationMin || 0;
+                                const totalElapsedMin = Math.max(0, Math.floor((endTime - checkInTime) / 60000) - breakMin);
+                                const mins = att.workingHoursMin > 0 ? att.workingHoursMin : totalElapsedMin;
+                                const hrs = Math.floor(mins / 60);
+                                const remMins = mins % 60;
+                                return (
+                                  <span>
+                                    {hrs}h {remMins}m {!att.checkOut && <span className="text-[10px] text-emerald-600 font-bold ml-1">(live)</span>}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="py-3 px-4 text-right">
                               <StatusBadge status={att.status} />
@@ -2226,7 +2329,7 @@ export function EmployeesClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="TOTAL PAYROLL PROCESSED"
-                value={formatCurrency(salarySlips.reduce((acc, s) => acc + s.netSalary, 0) || 540000)}
+                value={formatCurrency(scopedSlips.reduce((acc, s) => acc + (s.netSalary || 0), 0))}
                 comparisonText="total disbursement"
                 isPositive={true}
                 icon={DollarSign}
@@ -2234,7 +2337,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="TOTAL SLIPS ISSUED"
-                value={salarySlips.length}
+                value={scopedSlips.length}
                 comparisonText="verified records"
                 isPositive={true}
                 icon={FileText}
@@ -2243,9 +2346,9 @@ export function EmployeesClient({
               <KpiCard
                 title="AVG MONTHLY SALARY"
                 value={formatCurrency(
-                  salarySlips.length > 0
-                    ? Math.round(salarySlips.reduce((acc, s) => acc + s.grossSalary, 0) / salarySlips.length)
-                    : 65000
+                  scopedSlips.length > 0
+                    ? Math.round(scopedSlips.reduce((acc, s) => acc + (s.grossSalary || 0), 0) / scopedSlips.length)
+                    : 0
                 )}
                 comparisonText="per employee"
                 isPositive={true}
@@ -2254,7 +2357,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="PF & TAX DEDUCTED"
-                value={formatCurrency(salarySlips.reduce((acc, s) => acc + s.totalDeduction, 0) || 68000)}
+                value={formatCurrency(scopedSlips.reduce((acc, s) => acc + (s.totalDeduction || 0), 0))}
                 comparisonText="statutory deductions"
                 isPositive={true}
                 icon={Briefcase}
@@ -2265,7 +2368,9 @@ export function EmployeesClient({
             {/* Slips Table */}
             <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-slate-900">Automated Employee Salary Slips</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {isEmployeeMode ? "My Salary Slips" : "Automated Employee Salary Slips"}
+                </h3>
                 <span className="text-xs text-slate-500 font-mono">100% Automated Auto-Calculated Payroll</span>
               </div>
 
@@ -2284,7 +2389,7 @@ export function EmployeesClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {salarySlips.map((slp) => (
+                    {scopedSlips.map((slp) => (
                       <tr key={slp.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-4 font-mono font-bold text-blue-600">{slp.slipCode}</td>
                         <td className="py-3 px-4">
@@ -2322,7 +2427,7 @@ export function EmployeesClient({
                         </td>
                       </tr>
                     ))}
-                    {salarySlips.length === 0 && (
+                    {scopedSlips.length === 0 && (
                       <tr>
                         <td colSpan={8} className="py-8 text-center text-slate-500">
                           No salary slips found.
@@ -2442,7 +2547,7 @@ export function EmployeesClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="OPEN TICKETS"
-                value={queries.filter((q) => q.status === "OPEN").length}
+                value={scopedQueries.filter((q) => q.status === "OPEN").length}
                 comparisonText="awaiting resolution"
                 isPositive={false}
                 icon={HelpCircle}
@@ -2450,7 +2555,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="RESOLVED"
-                value={queries.filter((q) => q.status === "RESOLVED").length}
+                value={scopedQueries.filter((q) => q.status === "RESOLVED").length}
                 comparisonText="closed queries"
                 isPositive={true}
                 icon={CheckCircle2}
@@ -2458,16 +2563,16 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="SALARY QUERIES"
-                value={queries.filter((q) => q.category === "SALARY_PAYROLL").length}
+                value={scopedQueries.filter((q) => q.category?.includes("SALARY_PAYROLL")).length}
                 comparisonText="payroll clarification"
                 isPositive={true}
                 icon={DollarSign}
                 iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
               />
               <KpiCard
-                title="AVG RESOLUTION TIME"
-                value="< 4 hrs"
-                comparisonText="SLA target met"
+                title="TOTAL TICKETS"
+                value={scopedQueries.length}
+                comparisonText="logged in helpdesk"
                 isPositive={true}
                 icon={Clock}
                 iconColor="text-blue-600 bg-blue-50 border-blue-200"
@@ -2605,7 +2710,7 @@ export function EmployeesClient({
             {taskViewMode === "BOARD" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {boardColumns.map((col) => {
-                  const colTasks = tasks.filter((t) => t.status === col);
+                  const colTasks = scopedTasks.filter((t) => t.status === col);
                   return (
                     <div key={col} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -2721,7 +2826,7 @@ export function EmployeesClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {tasks.map((t) => {
+                    {scopedTasks.map((t) => {
                       const est = Number(t.estimatedHours) || 1;
                       const act = Number(t.actualHours) || 0;
                       const pct = Math.min(100, Math.round((act / est) * 100));
@@ -2809,7 +2914,7 @@ export function EmployeesClient({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KpiCard
                 title="DAILY STANDUPS"
-                value={reportsList.filter((r) => r.reportType === "DAILY").length}
+                value={scopedReports.filter((r) => r.reportType === "DAILY").length}
                 trend="Logged"
                 comparisonText="standup submissions"
                 isPositive={true}
@@ -2818,7 +2923,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="WEEKLY ROADMAPS"
-                value={reportsList.filter((r) => r.reportType === "WEEKLY").length}
+                value={scopedReports.filter((r) => r.reportType === "WEEKLY").length}
                 comparisonText="sprint reviews"
                 isPositive={true}
                 icon={CalendarDays}
@@ -2826,7 +2931,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="CLIENT DELIVERABLES"
-                value={reportsList.filter((r) => r.reportType === "CLIENT" || r.reportType === "MONTHLY").length}
+                value={scopedReports.filter((r) => r.reportType === "CLIENT" || r.reportType === "MONTHLY").length}
                 comparisonText="project milestones"
                 isPositive={true}
                 icon={Briefcase}
@@ -2834,7 +2939,7 @@ export function EmployeesClient({
               />
               <KpiCard
                 title="TOTAL REPORTS FILED"
-                value={reportsList.length}
+                value={scopedReports.length}
                 trend="100% compliant"
                 comparisonText="records in archive"
                 isPositive={true}
@@ -2880,7 +2985,7 @@ export function EmployeesClient({
 
             {/* Reports List */}
             <div className="space-y-4">
-              {reportsList
+              {scopedReports
                 .filter((r) => {
                   const matchesFilter =
                     reportTypeFilter === "ALL" ||
@@ -3071,12 +3176,10 @@ export function EmployeesClient({
                   onChange={(e) => setAssignLeaveFormData({ ...assignLeaveFormData, type: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 >
-                  <option value="WORK_FROM_HOME">Work From Home (WFH - Remote Work)</option>
-                  <option value="HALF_DAY">Half Day Leave (0.5 Day)</option>
-                  <option value="CASUAL">Casual Leave (CL)</option>
-                  <option value="SICK">Sick Leave (SL)</option>
-                  <option value="PAID">Earned / Paid Leave (PL)</option>
+                  <option value="PAID">Paid Leave (PL)</option>
                   <option value="UNPAID">Unpaid Leave (LOP)</option>
+                  <option value="HALF_DAY">Half Day Leave (0.5 Day)</option>
+                  <option value="WORK_FROM_HOME">Work From Home (WFH - Remote Work)</option>
                 </select>
               </div>
 
@@ -3195,12 +3298,10 @@ export function EmployeesClient({
                   onChange={(e) => setLeaveFormData({ ...leaveFormData, type: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
                 >
-                  <option value="CASUAL">Casual Leave (CL)</option>
-                  <option value="SICK">Sick Leave (SL)</option>
+                  <option value="PAID">Paid Leave (PL)</option>
+                  <option value="UNPAID">Unpaid Leave (Loss of Pay / LOP)</option>
                   <option value="HALF_DAY">Half Day Leave (0.5 Day)</option>
                   <option value="WORK_FROM_HOME">Work From Home (WFH)</option>
-                  <option value="PAID">Earned / Paid Leave (PL)</option>
-                  <option value="UNPAID">Unpaid Leave / Loss of Pay (LOP)</option>
                 </select>
               </div>
 
@@ -4475,70 +4576,26 @@ export function EmployeesClient({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Project / Department</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Core ERP, CRM, Tech, HR"
-                    value={reportFormData.customerName}
-                    onChange={(e) => setReportFormData({ ...reportFormData, customerName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Hours Spent</label>
-                  <input
-                    type="number"
-                    value={reportFormData.hoursSpent}
-                    onChange={(e) => setReportFormData({ ...reportFormData, hoursSpent: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Executive Summary / What did you work on? *</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Key activities carried out during this period..."
-                  value={reportFormData.summary}
-                  onChange={(e) => setReportFormData({ ...reportFormData, summary: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Key Deliverables & Shipped Items *</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Items delivered, features coded, tickets solved..."
-                  value={reportFormData.deliverables}
-                  onChange={(e) => setReportFormData({ ...reportFormData, deliverables: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Next Plan (Tomorrow / Next Week)</label>
-                <textarea
-                  rows={2}
-                  placeholder="What is planned next..."
-                  value={reportFormData.nextWeekPlan}
-                  onChange={(e) => setReportFormData({ ...reportFormData, nextWeekPlan: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Blockers / Dependencies (Optional)</label>
+                <label className="block text-slate-700 font-medium mb-1">Project / Report Title *</label>
                 <input
                   type="text"
-                  placeholder="Any roadblock waiting on approvals, APIs or client input..."
-                  value={reportFormData.blockers}
-                  onChange={(e) => setReportFormData({ ...reportFormData, blockers: e.target.value })}
+                  required
+                  placeholder="e.g. Daily Development & Client Updates"
+                  value={reportFormData.projectTitle}
+                  onChange={(e) => setReportFormData({ ...reportFormData, projectTitle: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Work Summary / Work Done *</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Describe what work was done today..."
+                  value={reportFormData.summary}
+                  onChange={(e) => setReportFormData({ ...reportFormData, summary: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -4594,51 +4651,15 @@ export function EmployeesClient({
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Today&apos;s Summary / Work Done *</label>
+                <label className="block text-slate-700 font-medium mb-1">Work Summary / Work Done *</label>
                 <textarea
                   required
-                  rows={2}
-                  placeholder="Key activities completed today..."
+                  rows={4}
+                  placeholder="Describe key activities and work completed today..."
                   value={clockOutReportSummary}
                   onChange={(e) => setClockOutReportSummary(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
                 />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Shipped Deliverables / Tasks Solved *</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="List files coded, reels edited, tickets resolved, campaigns launched..."
-                  value={clockOutReportDeliverables}
-                  onChange={(e) => setClockOutReportDeliverables(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Total Hours Worked *</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={16}
-                    value={clockOutReportHours}
-                    onChange={(e) => setClockOutReportHours(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Blockers / Dependencies (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Any blockers or pending approvals..."
-                    value={clockOutReportBlockers}
-                    onChange={(e) => setClockOutReportBlockers(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">

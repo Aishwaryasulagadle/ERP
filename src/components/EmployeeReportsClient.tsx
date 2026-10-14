@@ -558,70 +558,14 @@ export function EmployeeReportsClient({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Project / Department</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Core ERP, CRM, Tech, HR"
-                    value={formData.customerName}
-                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Hours Spent</label>
-                  <input
-                    type="number"
-                    value={formData.hoursSpent}
-                    onChange={(e) => setFormData({ ...formData, hoursSpent: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Executive Summary / What did you work on? *</label>
+                <label className="block text-slate-700 font-medium mb-1">Work Summary / Work Done *</label>
                 <textarea
                   required
-                  rows={2}
-                  placeholder="Key activities carried out during this period..."
+                  rows={4}
+                  placeholder="Describe what work was done today..."
                   value={formData.summary}
                   onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Key Deliverables & Shipped Items *</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Items delivered, features coded, tickets solved..."
-                  value={formData.deliverables}
-                  onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Next Plan (Tomorrow / Next Week)</label>
-                <textarea
-                  rows={2}
-                  placeholder="What is planned next..."
-                  value={formData.nextWeekPlan}
-                  onChange={(e) => setFormData({ ...formData, nextWeekPlan: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Blockers / Dependencies (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Any roadblock waiting on approvals, APIs or client input..."
-                  value={formData.blockers}
-                  onChange={(e) => setFormData({ ...formData, blockers: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
                 />
               </div>

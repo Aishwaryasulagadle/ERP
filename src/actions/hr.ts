@@ -79,15 +79,40 @@ export async function applyLeave(data: {
     calculatedDays = 0.5;
   }
 
+  let leaveType = data.type;
+  let reasonNote = data.reason;
+
+  // Auto-deduct from Paid Leaves & auto-convert to UNPAID if quota (12 days) is exhausted
+  if (leaveType === "PAID") {
+    const approvedPaidLeaves = await prisma.leaveRequest.aggregate({
+      where: {
+        employeeId: empId,
+        type: "PAID",
+        status: { in: ["APPROVED", "PENDING"] },
+      },
+      _sum: { daysCount: true },
+    });
+    const usedDays = approvedPaidLeaves._sum.daysCount || 0;
+    const quota = 12; // 12 Paid Leaves annual allowance
+    const remainingQuota = Math.max(0, quota - usedDays);
+
+    if (remainingQuota <= 0) {
+      leaveType = "UNPAID";
+      reasonNote = `${data.reason} (Auto-converted to Unpaid Leave: Annual Paid Leave quota of ${quota} days fully exhausted)`;
+    } else if (calculatedDays > remainingQuota) {
+      reasonNote = `${data.reason} (Requested ${calculatedDays}d with only ${remainingQuota}d paid quota remaining)`;
+    }
+  }
+
   const newLeave = await prisma.leaveRequest.create({
     data: {
       employeeId: empId,
-      type: data.type,
+      type: leaveType,
       startDate: start,
       endDate: end,
       daysCount: calculatedDays,
       halfDayType: data.halfDayType || null,
-      reason: data.reason,
+      reason: reasonNote,
       status: "PENDING",
     },
     include: {
@@ -102,10 +127,10 @@ export async function applyLeave(data: {
     data: {
       userId: session.user.id,
       userName: session.user.name || "Employee",
-      action: `APPLY_${data.type}`,
+      action: `APPLY_${leaveType}`,
       module: "LEAVE_MANAGEMENT",
       recordId: newLeave.id,
-      details: `Applied for ${data.type} from ${data.startDate} to ${data.endDate} (${calculatedDays} days)`,
+      details: `Applied for ${leaveType} from ${data.startDate} to ${data.endDate} (${calculatedDays} days)`,
     },
   });
 
@@ -153,15 +178,34 @@ export async function assignLeaveOrWFH(data: {
   const createdRecords = [];
 
   for (const empId of employeeIds) {
+    let leaveType = data.type;
+    let reasonText = data.reason || `Admin Assigned: ${data.type.replace(/_/g, " ")}`;
+
+    if (leaveType === "PAID") {
+      const approvedPaid = await prisma.leaveRequest.aggregate({
+        where: {
+          employeeId: empId,
+          type: "PAID",
+          status: "APPROVED",
+        },
+        _sum: { daysCount: true },
+      });
+      const used = approvedPaid._sum.daysCount || 0;
+      if (used >= 12) {
+        leaveType = "UNPAID";
+        reasonText = `${reasonText} (Auto-converted to Unpaid Leave: Quota exhausted)`;
+      }
+    }
+
     const leave = await prisma.leaveRequest.create({
       data: {
         employeeId: empId,
-        type: data.type,
+        type: leaveType,
         startDate: start,
         endDate: end,
         daysCount: calculatedDays,
         halfDayType: data.halfDayType || null,
-        reason: data.reason || `Admin Assigned: ${data.type.replace(/_/g, " ")}`,
+        reason: reasonText,
         status: "APPROVED", // Auto-approved since admin assigned it
         approvedBy: session.user.name || "Admin",
         reviewNote: "Directly assigned by Admin/Manager",
@@ -178,8 +222,9 @@ export async function assignLeaveOrWFH(data: {
     leaveDate.setHours(0, 0, 0, 0);
 
     let attStatus = "LEAVE";
-    if (data.type === "HALF_DAY") attStatus = "HALF_DAY";
-    if (data.type === "WORK_FROM_HOME") attStatus = "WORK_FROM_HOME";
+    if (leaveType === "HALF_DAY") attStatus = "HALF_DAY";
+    if (leaveType === "WORK_FROM_HOME") attStatus = "WORK_FROM_HOME";
+    if (leaveType === "UNPAID") attStatus = "LEAVE";
 
     const existingAtt = await prisma.attendance.findFirst({
       where: {
@@ -582,6 +627,10 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
     include: { user: true, department: true, designation: true },
   });
 
+  const daysInCurrentMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const monthStart = new Date(currentYear, currentMonth - 1, 1);
+  const monthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+
   for (const emp of allEmployees) {
     const existing = await prisma.salarySlip.findFirst({
       where: {
@@ -592,14 +641,51 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
     });
 
     if (!existing) {
+      // Query attendance records for the month
+      const empAttendances = await prisma.attendance.findMany({
+        where: {
+          employeeId: emp.id,
+          date: { gte: monthStart, lte: monthEnd },
+        },
+      });
+
+      // Count sundays in the month
+      let sundaysCount = 0;
+      for (let day = 1; day <= daysInCurrentMonth; day++) {
+        if (new Date(currentYear, currentMonth - 1, day).getDay() === 0) {
+          sundaysCount++;
+        }
+      }
+
+      // Query official holidays for this month
+      const holidaysCount = await prisma.holiday.count({
+        where: {
+          date: { gte: monthStart, lte: monthEnd },
+        },
+      });
+
+      const checkedInDays = empAttendances.filter((a) => a.checkIn || a.status === "PRESENT" || a.status === "LATE").length;
+      const wfhDays = empAttendances.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
+      const halfDays = empAttendances.filter((a) => a.status === "HALF_DAY").length;
+      const unpaidLeaves = empAttendances.filter((a) => a.status === "ABSENT" || a.status === "UNPAID_LEAVE").length;
+
+      // Sundays and holidays are paid by default, as well as regular WFH and standard paid quota
+      const paidLeavesQuota = (emp as any).monthlyLeaveQuota ?? 2;
+      const presentDays = Math.min(daysInCurrentMonth, checkedInDays + wfhDays + sundaysCount + holidaysCount);
+
       const basic = emp.salary ? Math.round(emp.salary * 0.5) : 35000;
       const hra = Math.round(basic * 0.4);
       const specialAllow = Math.round(basic * 0.2);
       const grossSalary = emp.salary || (basic + hra + specialAllow);
       const pfDeduction = Math.round(basic * 0.12);
       const taxDeduction = grossSalary > 50000 ? Math.round(grossSalary * 0.05) : 0;
-      const totalDeduction = pfDeduction + taxDeduction;
-      const netSalary = grossSalary - totalDeduction;
+
+      // Only half days and unpaid leaves cause leave deductions
+      const perDaySalary = grossSalary / daysInCurrentMonth;
+      const leaveDeduction = Math.round((unpaidLeaves * perDaySalary) + (halfDays * 0.5 * perDaySalary));
+
+      const totalDeduction = pfDeduction + taxDeduction + leaveDeduction;
+      const netSalary = Math.max(0, grossSalary - totalDeduction);
 
       const monthStr = String(currentMonth).padStart(2, "0");
       const slipCode = `PAY-${currentYear}${monthStr}-${emp.employeeCode || Math.floor(1000 + Math.random() * 9000)}`;
@@ -617,19 +703,19 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
           grossSalary,
           pfDeduction,
           taxDeduction,
-          leaveDeduction: 0,
+          leaveDeduction,
           otherDeduction: 0,
           totalDeduction,
           netSalary,
-          totalWorkingDays: 30,
-          presentDays: 28,
-          paidLeaves: (emp as any).monthlyLeaveQuota || 2,
-          wfhDays: 0,
-          halfDays: 0,
-          unpaidLeaves: 0,
+          totalWorkingDays: daysInCurrentMonth,
+          presentDays,
+          paidLeaves: paidLeavesQuota,
+          wfhDays,
+          halfDays,
+          unpaidLeaves,
           paymentStatus: "PAID",
           paymentDate: new Date(),
-          notes: `Auto-generated payroll slip for ${monthStr}/${currentYear}`,
+          notes: `Auto-generated payroll: ${presentDays} days paid (including Sundays & Holidays). Deductions: ${halfDays} half-days, ${unpaidLeaves} unpaid.`,
         },
       });
     }

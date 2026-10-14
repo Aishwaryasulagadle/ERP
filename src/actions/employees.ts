@@ -174,3 +174,45 @@ export async function getDepartmentsAndDesignations() {
   ]);
   return { departments, designations };
 }
+
+export async function clearEmployeeActivityData() {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = (session.user as any)?.role;
+  if (role !== "ADMIN") {
+    throw new Error("Only Admin can reset employee activity data");
+  }
+
+  const [breaks, attendances, taskComments, taskHistories, tasks, leaves, queries, slips, logs] =
+    await Promise.all([
+      prisma.break.deleteMany({}),
+      prisma.attendance.deleteMany({}),
+      prisma.taskComment.deleteMany({}),
+      prisma.taskHistory.deleteMany({}),
+      prisma.task.deleteMany({}),
+      prisma.leaveRequest.deleteMany({}),
+      prisma.employeeQuery.deleteMany({}),
+      prisma.salarySlip.deleteMany({}),
+      prisma.deliverableLog.deleteMany({}),
+    ]);
+
+  revalidatePath("/employees");
+  revalidatePath("/attendance");
+  revalidatePath("/employee/reports");
+  revalidatePath("/reports");
+
+  return {
+    success: true,
+    cleared: {
+      breaks: breaks.count,
+      attendances: attendances.count,
+      tasks: tasks.count,
+      leaves: leaves.count,
+      queries: queries.count,
+      salarySlips: slips.count,
+      deliverableLogs: logs.count,
+    },
+  };
+}
+
