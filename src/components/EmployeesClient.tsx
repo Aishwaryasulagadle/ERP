@@ -4541,16 +4541,7 @@ export function EmployeesClient({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Report Title / Sprint Goal *</label>
-                <input
-                  type="text"
-                  required
-                  value={reportFormData.projectTitle}
-                  onChange={(e) => setReportFormData({ ...reportFormData, projectTitle: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+
 
               {assignedClients.length > 0 && (
                 <div>
