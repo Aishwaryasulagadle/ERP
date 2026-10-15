@@ -55,7 +55,6 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
     assignedToId: employees[0]?.id || "",
     priority: "MEDIUM",
     dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
-    estimatedHours: 8,
   });
 
   const [loading, setLoading] = useState(false);
@@ -73,7 +72,6 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
         assignedToId: employees[0]?.id || "",
         priority: "MEDIUM",
         dueDate: new Date(Date.now() + 1 * 24 * 3600 * 1000).toISOString().split("T")[0],
-        estimatedHours: 8,
       });
       alert(`Daily Task ${newTask.taskCode} created and assigned!`);
     } catch (e: any) {
@@ -136,7 +134,22 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
     }
   };
 
-  const filteredTasks = tasks.filter((t) => {
+  // Ensure overdue status is dynamically reflected if deadline has passed
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+
+  const processedTasks = tasks.map((t) => {
+    if (t.status !== "COMPLETED" && t.dueDate) {
+      const due = new Date(t.dueDate);
+      due.setHours(0, 0, 0, 0);
+      if (due < todayMidnight) {
+        return { ...t, status: "OVERDUE" };
+      }
+    }
+    return t;
+  });
+
+  const filteredTasks = processedTasks.filter((t) => {
     const matchesTab = activeTab === "ALL" || t.status === activeTab;
     const matchesSearch =
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -148,16 +161,15 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
 
   const boardColumns = ["PENDING", "IN_PROGRESS", "COMPLETED", "OVERDUE"];
 
-  const pendingCount = tasks.filter((t) => t.status === "PENDING").length;
-  const inProgCount = tasks.filter((t) => t.status === "IN_PROGRESS").length;
-  const compCount = tasks.filter((t) => t.status === "COMPLETED").length;
-  const overdueCount = tasks.filter((t) => t.status === "OVERDUE").length;
+  const pendingCount = processedTasks.filter((t) => t.status === "PENDING").length;
+  const inProgCount = processedTasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const compCount = processedTasks.filter((t) => t.status === "COMPLETED").length;
+  const overdueCount = processedTasks.filter((t) => t.status === "OVERDUE").length;
 
-  const totalEstimatedHours = tasks.reduce((sum, t) => sum + (Number(t.estimatedHours) || 0), 0);
-  const totalActualHours = tasks.reduce((sum, t) => sum + (Number(t.actualHours) || 0), 0);
+  const totalActualHours = processedTasks.reduce((sum, t) => sum + (Number(t.actualHours) || 0), 0);
 
   const taskCategories = [
-    { key: "ALL", label: "All Sprint Tasks", icon: Layers, count: tasks.length, color: "text-blue-500" },
+    { key: "ALL", label: "All Sprint Tasks", icon: Layers, count: processedTasks.length, color: "text-blue-500" },
     { key: "PENDING", label: "Pending Backlog", icon: Clock, count: pendingCount, color: "text-amber-500" },
     { key: "IN_PROGRESS", label: "In Development", icon: CheckSquare, count: inProgCount, color: "text-indigo-500" },
     { key: "COMPLETED", label: "Delivered & Done", icon: CheckCircle2, count: compCount, color: "text-emerald-500" },
@@ -240,24 +252,12 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                 <Timer className="w-4 h-4 text-blue-700" />
                 <span>Daily Logged Hours</span>
               </div>
-              <span className="font-mono text-[11px] text-blue-800">
-                {totalActualHours} / {totalEstimatedHours}h
+              <span className="font-mono text-[11px] text-blue-800 font-bold">
+                {totalActualHours} hrs
               </span>
             </div>
-            {/* Progress Bar */}
-            <div className="w-full bg-blue-200/60 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    totalEstimatedHours > 0 ? (totalActualHours / totalEstimatedHours) * 100 : 0
-                  )}%`,
-                }}
-              />
-            </div>
             <p className="text-[10px] text-blue-800 leading-tight">
-              Report your completed hours (1h, 2h, etc.) on each assigned daily task to track sprint completion.
+              Report your completed hours (1h, 2h, etc.) on each assigned daily task to track active sprint delivery.
             </p>
           </div>
         </aside>
@@ -345,9 +345,9 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
 
           <KpiCard
             title="HOURLY TIME LOGGED"
-            value={`${totalActualHours}h / ${totalEstimatedHours}h`}
-            trend={`${totalEstimatedHours > 0 ? Math.round((totalActualHours / totalEstimatedHours) * 100) : 0}% logged`}
-            comparisonText="progress rate"
+            value={`${totalActualHours} hrs`}
+            trend="active sprint"
+            comparisonText="logged by team"
             isPositive={true}
             icon={Timer}
             iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
@@ -397,9 +397,7 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
 
                   <div className="space-y-3">
                     {colTasks.map((task) => {
-                      const est = Number(task.estimatedHours) || 1;
                       const act = Number(task.actualHours) || 0;
-                      const pct = Math.min(100, Math.round((act / est) * 100));
 
                       return (
                         <div
@@ -420,24 +418,13 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                             <span className="font-mono text-blue-600 font-medium">Due: {formatDate(task.dueDate)}</span>
                           </div>
 
-                          {/* Hourly Progress Bar */}
-                          <div className="space-y-1 bg-white p-2 rounded-lg border border-slate-200">
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className="font-semibold text-slate-700 flex items-center gap-1">
-                                <Timer className="w-3 h-3 text-blue-600" />
-                                <span>Progress: {act}h / {est}h</span>
-                              </span>
-                              <span className="font-mono font-bold text-blue-700">{pct}%</span>
-                            </div>
-                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-1.5 rounded-full transition-all duration-300",
-                                  pct >= 100 ? "bg-emerald-500" : pct > 50 ? "bg-blue-600" : "bg-amber-500"
-                                )}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
+                          {/* Logged Hours Badge */}
+                          <div className="bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between text-[10px]">
+                            <span className="font-semibold text-slate-700 flex items-center gap-1">
+                              <Timer className="w-3 h-3 text-blue-600" />
+                              <span>Logged:</span>
+                            </span>
+                            <span className="font-mono font-bold text-slate-900">{act} hrs</span>
                           </div>
 
                           {/* Action Buttons: Log Hours & Status Change */}
@@ -500,7 +487,7 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                     <th className="py-3 px-4">Task Code</th>
                     <th className="py-3 px-4">Title & Details</th>
                     <th className="py-3 px-4">Assignee</th>
-                    <th className="py-3 px-4 text-center">Hours (Actual / Est)</th>
+                    <th className="py-3 px-4 text-center">Hours Logged</th>
                     <th className="py-3 px-4 text-center">Priority</th>
                     <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4 text-right">Action</th>
@@ -508,9 +495,7 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredTasks.map((t) => {
-                    const est = Number(t.estimatedHours) || 1;
                     const act = Number(t.actualHours) || 0;
-                    const pct = Math.min(100, Math.round((act / est) * 100));
 
                     return (
                       <tr key={t.id} className="hover:bg-slate-50 transition-colors">
@@ -521,15 +506,10 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                         </td>
                         <td className="py-3 px-4 text-slate-700">{t.assignedTo?.user?.name || "Unassigned"}</td>
                         <td className="py-3 px-4 text-center">
-                          <div className="font-mono font-bold text-slate-900">
-                            {act}h / {est}h <span className="text-blue-600 text-[10px]">({pct}%)</span>
-                          </div>
-                          <div className="w-24 bg-slate-200 rounded-full h-1.5 mx-auto mt-1 overflow-hidden">
-                            <div
-                              className="bg-blue-600 h-1.5 rounded-full"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-mono font-bold text-xs border border-blue-200">
+                            <Timer className="w-3 h-3" />
+                            {act} hrs
+                          </span>
                         </td>
                         <td className="py-3 px-4 text-center">
                           <StatusBadge status={t.priority} />
@@ -599,11 +579,11 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                 <div className="font-bold text-slate-900">{selectedTaskForProgress.title}</div>
                 <div className="flex justify-between text-[11px] text-slate-600">
                   <span>Assigned To: <strong>{selectedTaskForProgress.assignedTo?.user?.name || "Unassigned"}</strong></span>
-                  <span>Estimated: <strong>{selectedTaskForProgress.estimatedHours || 0} hrs</strong></span>
+                  <span>Due: <strong>{formatDate(selectedTaskForProgress.dueDate)}</strong></span>
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-600">
                   <span>Already Logged: <strong className="text-blue-600">{selectedTaskForProgress.actualHours || 0} hrs</strong></span>
-                  <span>Due: <strong>{formatDate(selectedTaskForProgress.dueDate)}</strong></span>
+                  <span>Status: <strong>{selectedTaskForProgress.status}</strong></span>
                 </div>
               </div>
 
@@ -755,8 +735,7 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                     ))}
                   </select>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-slate-700 font-medium mb-1">Priority</label>
                     <select
@@ -771,26 +750,14 @@ export function TasksClient({ tasks: initialTasks, employees, userRole }: TasksC
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-medium mb-1">Estimated Hours</label>
+                    <label className="block text-slate-700 font-medium mb-1">Due Date</label>
                     <input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      value={formData.estimatedHours}
-                      onChange={(e) => setFormData({ ...formData, estimatedHours: Number(e.target.value) })}
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500 focus:bg-white"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Due Date</label>
-                  <input
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500 focus:bg-white"
-                  />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">

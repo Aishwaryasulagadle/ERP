@@ -8,6 +8,24 @@ export async function getTasks(filters?: { status?: string; search?: string; ass
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  // Automatically mark any non-completed task past its deadline date as OVERDUE
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  try {
+    await prisma.task.updateMany({
+      where: {
+        dueDate: { lt: todayStart },
+        status: { in: ["PENDING", "IN_PROGRESS"] },
+      },
+      data: {
+        status: "OVERDUE",
+      },
+    });
+  } catch (err) {
+    console.error("Auto overdue check failed:", err);
+  }
+
   const where: any = {};
   if (filters?.status && filters.status !== "ALL") {
     where.status = filters.status;
@@ -58,7 +76,7 @@ export async function createTask(data: {
   assignedToId?: string;
   priority: string;
   dueDate: string;
-  estimatedHours: number;
+  estimatedHours?: number;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -192,8 +210,8 @@ export async function logTaskHourlyProgress(data: {
 
   const employeeId = (session.user as any).employeeId;
   const noteText = data.progressNote?.trim() 
-    ? `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h / Est: ${existing.estimatedHours}h). Note: ${data.progressNote}`
-    : `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h / Est: ${existing.estimatedHours}h).`;
+    ? `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h). Note: ${data.progressNote}`
+    : `⏱️ Logged ${addedHours}h progress (Total: ${newActualHours}h).`;
 
   if (employeeId) {
     await prisma.taskComment.create({

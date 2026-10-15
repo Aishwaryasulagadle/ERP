@@ -14,6 +14,9 @@ export async function getTodayAttendanceStatus() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Auto-close any unclosed past shifts from previous days for this employee
+  await autoClosePastShifts(empId);
+
   const attendance = await prisma.attendance.findFirst({
     where: {
       employeeId: empId,
@@ -28,6 +31,42 @@ export async function getTodayAttendanceStatus() {
   });
 
   return attendance;
+}
+
+// Auto close shifts from yesterday or earlier if user forgot to punch out
+async function autoClosePastShifts(empId?: string) {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const whereClause: any = {
+      date: { lt: today },
+      checkIn: { not: null },
+      checkOut: null,
+    };
+    if (empId) whereClause.employeeId = empId;
+
+    const unclosedPastAtts = await prisma.attendance.findMany({
+      where: whereClause,
+    });
+
+    for (const att of unclosedPastAtts) {
+      if (att.checkIn) {
+        // Close at 9 hours after check-in or 07:00 PM of that date
+        const autoCheckOut = new Date(att.checkIn.getTime() + 8 * 60 * 60 * 1000);
+        await prisma.attendance.update({
+          where: { id: att.id },
+          data: {
+            checkOut: autoCheckOut,
+            workingHoursMin: 480, // Standard 8 hours
+            notes: (att.notes ? att.notes + " • " : "") + "Auto-closed: Shift concluded at end of day",
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to auto-close past shifts:", err);
+  }
 }
 
 export async function clockIn() {
@@ -177,6 +216,9 @@ export async function toggleBreak() {
 export async function getAllAttendances(filters?: { date?: string; departmentId?: string }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
+
+  // Automatically close any unclosed shifts from previous calendar days
+  await autoClosePastShifts();
 
   const currentUserRole = (session.user as any).role;
   const currentDeptId = (session.user as any).departmentId;

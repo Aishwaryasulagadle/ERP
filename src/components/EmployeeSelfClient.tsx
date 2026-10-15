@@ -99,7 +99,20 @@ export function EmployeeSelfClient({
   // Local state for interactive UI
   const [todayAttendance, setTodayAttendance] = useState<any | null>(initialToday);
   const [attendances, setAttendances] = useState<any[]>(initialAttendances);
-  const [tasks, setTasks] = useState<any[]>(initialTasks);
+  const [tasks, setTasks] = useState<any[]>(() => {
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    return (initialTasks || []).map((t) => {
+      if (t.status !== "COMPLETED" && t.dueDate) {
+        const due = new Date(t.dueDate);
+        due.setHours(0, 0, 0, 0);
+        if (due < todayMidnight) {
+          return { ...t, status: "OVERDUE" };
+        }
+      }
+      return t;
+    });
+  });
   const [leaves, setLeaves] = useState<any[]>(initialLeaves);
   const [queries, setQueries] = useState<any[]>(initialQueries);
   const [corrections, setCorrections] = useState<any[]>(initialCorrections);
@@ -740,7 +753,7 @@ export function EmployeeSelfClient({
                       <div className="min-w-0">
                         <div className="font-bold text-slate-900 truncate">{t.title}</div>
                         <div className="text-[11px] text-slate-500 font-mono">
-                          Due: {formatDate(t.dueDate)} • {t.actualHours || 0}h / {t.estimatedHours || 0}h logged
+                          Due: {formatDate(t.dueDate)} • {t.actualHours || 0}h logged
                         </div>
                       </div>
                       <StatusBadge status={t.status} />
@@ -952,6 +965,7 @@ export function EmployeeSelfClient({
                   <option value="ALL">All Statuses</option>
                   <option value="PENDING">Pending</option>
                   <option value="IN_PROGRESS">In Progress</option>
+                  <option value="OVERDUE">Overdue</option>
                   <option value="COMPLETED">Completed</option>
                 </select>
               </div>
@@ -977,8 +991,8 @@ export function EmployeeSelfClient({
                     <div className="space-y-2 pt-3 border-t border-slate-100 text-xs">
                       <div className="flex items-center justify-between text-slate-500">
                         <span>Deadline: {formatDate(task.dueDate)}</span>
-                        <span className="font-mono font-bold text-slate-900">
-                          {task.actualHours || 0}h / {task.estimatedHours || 0}h
+                        <span className="font-mono font-bold text-blue-600">
+                          {task.actualHours || 0} hrs logged
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -1983,8 +1997,7 @@ export function EmployeeSelfClient({
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="font-bold text-slate-900">{selectedTaskForProgress.title}</div>
                 <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                  Logged: {selectedTaskForProgress.actualHours || 0}h / Est:{" "}
-                  {selectedTaskForProgress.estimatedHours || 0}h
+                  Logged: {selectedTaskForProgress.actualHours || 0} hrs • Status: {selectedTaskForProgress.status}
                 </div>
               </div>
 

@@ -329,6 +329,8 @@ export function EmployeesClient({
   const [taskProgressStatus, setTaskProgressStatus] = useState<string>("IN_PROGRESS");
   const [taskProgressNote, setTaskProgressNote] = useState<string>("");
   const [taskProgressLoading, setTaskProgressLoading] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     description: "",
@@ -452,7 +454,16 @@ export function EmployeesClient({
   };
 
   const handleClockOut = async () => {
-    // If not filled yet, prompt the compulsory daily work report modal
+    // Initialize report form data with today's standup title if blank
+    if (!reportFormData.projectTitle) {
+      setReportFormData((prev) => ({
+        ...prev,
+        reportType: "DAILY",
+        customerName: "Internal Operations",
+        projectTitle: `Daily Standup - ${new Date().toLocaleDateString()}`,
+        status: "COMPLETED",
+      }));
+    }
     setShowClockOutModal(true);
   };
 
@@ -460,17 +471,7 @@ export function EmployeesClient({
     e.preventDefault();
     setLoading(true);
     try {
-      await submitClientReport({
-        reportType: "DAILY",
-        customerName: "Internal Operations",
-        projectTitle: `Daily Standup - ${new Date().toLocaleDateString()}`,
-        status: "COMPLETED",
-        summary: clockOutReportSummary,
-        deliverables: clockOutReportDeliverables,
-        nextWeekPlan: "",
-        blockers: clockOutReportBlockers,
-        hoursSpent: Number(clockOutReportHours) || 8,
-      });
+      await submitClientReport(reportFormData);
 
       const res = await clockOut();
       setTodayAttendance(res);
@@ -479,20 +480,21 @@ export function EmployeesClient({
         {
           id: String(Date.now()),
           submittedBy: user?.name || "Team Member",
-          reportType: "DAILY",
-          customerName: "Internal Operations",
-          projectTitle: `Daily Standup - ${new Date().toLocaleDateString()}`,
-          status: "COMPLETED",
-          summary: clockOutReportSummary,
-          deliverables: clockOutReportDeliverables,
-          blockers: clockOutReportBlockers,
-          hoursSpent: Number(clockOutReportHours) || 8,
+          reportType: reportFormData.reportType,
+          customerName: reportFormData.customerName || "Internal Operations",
+          projectTitle: reportFormData.projectTitle,
+          status: reportFormData.status,
+          summary: reportFormData.summary,
+          deliverables: reportFormData.deliverables,
+          nextWeekPlan: reportFormData.nextWeekPlan,
+          blockers: reportFormData.blockers,
+          hoursSpent: reportFormData.hoursSpent,
           createdAt: new Date().toISOString(),
         },
         ...reportsList,
       ]);
       router.refresh();
-      alert("✓ Daily standup report filed and Punched Out successfully!");
+      alert("✓ Daily work report filed and Punched Out successfully!");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -857,6 +859,17 @@ export function EmployeesClient({
     }
   };
 
+  const handleTaskDrop = async (targetColumn: string) => {
+    if (!draggedTaskId) return;
+    const task = tasks.find((t) => t.id === draggedTaskId);
+    setDragOverColumn(null);
+    setDraggedTaskId(null);
+
+    if (task && task.status !== targetColumn) {
+      await handleTaskStatusChange(task.id, targetColumn);
+    }
+  };
+
   const openTaskProgressModal = (task: any) => {
     setSelectedTaskForProgress(task);
     setTaskProgressHours(1);
@@ -931,11 +944,25 @@ export function EmployeesClient({
     ? queries.filter((q) => q.employeeId === currentEmployeeId)
     : queries;
 
-  const scopedTasks = isManagerMode
+  const rawScopedTasks = isManagerMode
     ? tasks.filter((t) => t.assignedTo?.departmentId === userDeptId || (userDeptName && t.assignedTo?.department?.name?.toLowerCase().includes(userDeptName)))
     : isEmployeeMode
     ? tasks.filter((t) => t.assignedToId === currentEmployeeId)
     : tasks;
+
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+
+  const scopedTasks = rawScopedTasks.map((t) => {
+    if (t.status !== "COMPLETED" && t.dueDate) {
+      const due = new Date(t.dueDate);
+      due.setHours(0, 0, 0, 0);
+      if (due < todayMidnight) {
+        return { ...t, status: "OVERDUE" };
+      }
+    }
+    return t;
+  });
 
   const scopedReports = isManagerMode
     ? reportsList.filter((r) => r.departmentId === userDeptId || (userDeptName && r.department?.toLowerCase().includes(userDeptName)))
@@ -1660,7 +1687,7 @@ export function EmployeesClient({
                     ) : !isCheckedOut ? (
                       <button
                         type="button"
-                        onClick={() => setShowClockOutModal(true)}
+                        onClick={handleClockOut}
                         disabled={loading}
                         className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
                       >
@@ -1902,22 +1929,42 @@ export function EmployeesClient({
                                 s.year === monthlyAttendanceYear
                             );
 
-                            const totalWorkDays = matchingSlip?.totalWorkingDays || 30;
-                            const presentDays = matchingSlip?.presentDays ?? 28;
-                            const wfhDays = matchingSlip?.wfhDays ?? 0;
-                            const halfDays = matchingSlip?.halfDays ?? 0;
-                            const unpaidLeaves = matchingSlip?.unpaidLeaves ?? 0;
+                            // Calculate actual counts from real DB attendance logs for this employee in this month
+                            const empMonthAtts = allAttendances.filter((a) => {
+                              if (a.employeeId !== emp.id) return false;
+                              const d = new Date(a.date);
+                              return d.getMonth() + 1 === monthlyAttendanceMonth && d.getFullYear() === monthlyAttendanceYear;
+                            });
+
+                            const realPresentDays = empMonthAtts.filter((a) => a.status === "PRESENT" || a.status === "LATE" || Boolean(a.checkIn)).length;
+                            const realWfhDays = empMonthAtts.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
+                            const realHalfDays = empMonthAtts.filter((a) => a.status === "HALF_DAY").length;
+                            const realUnpaidDays = empMonthAtts.filter((a) => a.status === "UNPAID_LEAVE" || a.status === "ABSENT").length;
+
+                            const daysInMonth = new Date(monthlyAttendanceYear, monthlyAttendanceMonth, 0).getDate();
+                            const totalWorkDays = matchingSlip?.totalWorkingDays || daysInMonth;
+                            const presentDays = matchingSlip?.presentDays ?? realPresentDays;
+                            const wfhDays = matchingSlip?.wfhDays ?? realWfhDays;
+                            const halfDays = matchingSlip?.halfDays ?? realHalfDays;
+                            const unpaidLeaves = matchingSlip?.unpaidLeaves ?? realUnpaidDays;
 
                             // Calculate actual leaves taken by this employee in the year (Total Quota = 12)
                             const empApprovedLeavesList = leaves.filter(
-                              (l) => l.employeeId === emp.id && l.status === "APPROVED" && ["CASUAL", "SICK", "PAID"].includes(l.type)
+                              (l) => l.employeeId === emp.id && l.status === "APPROVED" && (l.type === "PAID" || l.type === "CASUAL" || l.type === "SICK")
                             );
-                            const totalAnnualLeavesTaken = empApprovedLeavesList.reduce((acc, l) => acc + (l.daysCount || 1), 0) || (matchingSlip?.paidLeaves ?? 1);
+                            const totalAnnualLeavesTaken = empApprovedLeavesList.reduce((acc, l) => acc + (Number(l.daysCount) || 1), 0);
                             const annualQuota = 12;
                             const remainingLeaves = Math.max(0, annualQuota - totalAnnualLeavesTaken);
 
-                            const effectivePresence = presentDays + wfhDays + halfDays * 0.5 + (matchingSlip?.paidLeaves ?? 2);
-                            const presencePercentage = Math.min(100, Math.round((effectivePresence / totalWorkDays) * 100));
+                            // Month approved paid leaves for percentage calculation
+                            const empMonthPaidLeaves = leaves.filter((l) => {
+                              if (l.employeeId !== emp.id || l.status !== "APPROVED" || !["PAID", "CASUAL", "SICK"].includes(l.type)) return false;
+                              const d = new Date(l.startDate);
+                              return d.getMonth() + 1 === monthlyAttendanceMonth && d.getFullYear() === monthlyAttendanceYear;
+                            }).reduce((acc, l) => acc + (Number(l.daysCount) || 1), 0);
+
+                            const effectivePresence = presentDays + wfhDays + halfDays * 0.5 + empMonthPaidLeaves;
+                            const presencePercentage = totalWorkDays > 0 ? Math.min(100, Math.round((effectivePresence / totalWorkDays) * 100)) : 0;
 
                             return (
                               <tr
@@ -2083,7 +2130,13 @@ export function EmployeesClient({
                               {att.checkIn ? formatTime(att.checkIn) : <span className="text-slate-400 font-mono">-</span>}
                             </td>
                             <td className="py-3 px-4 font-mono text-slate-500">
-                              {att.checkOut ? formatTime(att.checkOut) : att.status === "ABSENT" ? <span className="text-slate-400 font-mono">-</span> : "Active Shift"}
+                              {att.checkOut
+                                ? formatTime(att.checkOut)
+                                : att.status === "ABSENT"
+                                ? <span className="text-slate-400 font-mono">-</span>
+                                : new Date(att.date).toDateString() === new Date().toDateString()
+                                ? "Active Shift"
+                                : "Completed"}
                             </td>
                             <td className="py-3 px-4 text-center font-mono font-bold text-blue-600">
                               {(() => {
@@ -2712,24 +2765,66 @@ export function EmployeesClient({
                 {boardColumns.map((col) => {
                   const colTasks = scopedTasks.filter((t) => t.status === col);
                   return (
-                    <div key={col} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                    <div
+                      key={col}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (dragOverColumn !== col) setDragOverColumn(col);
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        setDragOverColumn(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handleTaskDrop(col);
+                      }}
+                      className={cn(
+                        "p-4 rounded-2xl bg-white border transition-all space-y-3 min-h-[350px]",
+                        dragOverColumn === col
+                          ? "border-blue-500 bg-blue-50/40 ring-2 ring-blue-400/30 shadow-md"
+                          : "border-slate-200 shadow-xs"
+                      )}
+                    >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                        <span className="text-xs font-bold text-slate-900 font-mono">{col.replace("_", " ")}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            col === "COMPLETED" ? "bg-emerald-500" : col === "IN_PROGRESS" ? "bg-blue-500" : col === "OVERDUE" ? "bg-rose-500" : "bg-amber-500"
+                          )}></span>
+                          <span className="text-xs font-bold text-slate-900 font-mono">{col.replace("_", " ")}</span>
+                        </div>
                         <span className="w-5 h-5 rounded bg-slate-100 border border-slate-200 text-[10px] font-mono font-bold flex items-center justify-center text-slate-700">
                           {colTasks.length}
                         </span>
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 min-h-[220px]">
                         {colTasks.map((task) => {
                           const est = Number(task.estimatedHours) || 1;
                           const act = Number(task.actualHours) || 0;
                           const pct = Math.min(100, Math.round((act / est) * 100));
+                          const isDragging = draggedTaskId === task.id;
 
                           return (
                             <div
                               key={task.id}
-                              className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-300 hover:bg-white space-y-2.5 transition-all shadow-xs"
+                              draggable
+                              onDragStart={(e) => {
+                                setDraggedTaskId(task.id);
+                                e.dataTransfer.setData("text/plain", task.id);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onDragEnd={() => {
+                                setDraggedTaskId(null);
+                                setDragOverColumn(null);
+                              }}
+                              className={cn(
+                                "p-3.5 rounded-xl border space-y-2.5 transition-all shadow-xs cursor-grab active:cursor-grabbing",
+                                isDragging
+                                  ? "opacity-40 border-dashed border-blue-400 bg-blue-50"
+                                  : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white hover:shadow-sm"
+                              )}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <span className="text-xs font-bold text-slate-900 leading-snug">{task.title}</span>
@@ -2745,24 +2840,13 @@ export function EmployeesClient({
                                 <span className="font-mono text-blue-600 font-medium">Due: {formatDate(task.dueDate)}</span>
                               </div>
 
-                              {/* Hourly Progress Bar */}
-                              <div className="space-y-1 bg-white p-2 rounded-lg border border-slate-200">
-                                <div className="flex items-center justify-between text-[10px]">
-                                  <span className="font-semibold text-slate-700 flex items-center gap-1">
-                                    <Timer className="w-3 h-3 text-blue-600" />
-                                    <span>Progress: {act}h / {est}h</span>
-                                  </span>
-                                  <span className="font-mono font-bold text-blue-700">{pct}%</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className={cn(
-                                      "h-1.5 rounded-full transition-all duration-300",
-                                      pct >= 100 ? "bg-emerald-500" : pct > 50 ? "bg-blue-600" : "bg-amber-500"
-                                    )}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
+                              {/* Logged Hours */}
+                              <div className="flex items-center justify-between text-[11px] bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                <span className="font-semibold text-slate-700 flex items-center gap-1">
+                                  <Timer className="w-3 h-3 text-blue-600" />
+                                  <span>Logged:</span>
+                                </span>
+                                <span className="font-mono font-bold text-slate-900">{act} hrs</span>
                               </div>
 
                               <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
@@ -2802,9 +2886,9 @@ export function EmployeesClient({
                         })}
 
                         {colTasks.length === 0 && (
-                          <p className="py-6 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                            No tasks in {col.toLowerCase()}
-                          </p>
+                          <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-1">
+                            <span className="text-[11px]">Drop tasks here</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2819,7 +2903,7 @@ export function EmployeesClient({
                       <th className="py-3 px-4">Task Code</th>
                       <th className="py-3 px-4">Title & Details</th>
                       <th className="py-3 px-4">Assignee</th>
-                      <th className="py-3 px-4 text-center">Hours (Actual / Est)</th>
+                      <th className="py-3 px-4 text-center">Hours Logged</th>
                       <th className="py-3 px-4 text-center">Priority</th>
                       <th className="py-3 px-4 text-center">Status</th>
                       <th className="py-3 px-4 text-right">Action</th>
@@ -2827,9 +2911,7 @@ export function EmployeesClient({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {scopedTasks.map((t) => {
-                      const est = Number(t.estimatedHours) || 1;
                       const act = Number(t.actualHours) || 0;
-                      const pct = Math.min(100, Math.round((act / est) * 100));
 
                       return (
                         <tr key={t.id} className="hover:bg-slate-50 transition-colors">
@@ -2840,15 +2922,9 @@ export function EmployeesClient({
                           </td>
                           <td className="py-3 px-4 text-slate-700">{t.assignedTo?.user?.name || "Unassigned"}</td>
                           <td className="py-3 px-4 text-center">
-                            <div className="font-mono font-bold text-slate-900">
-                              {act}h / {est}h <span className="text-blue-600 text-[10px]">({pct}%)</span>
-                            </div>
-                            <div className="w-24 bg-slate-200 rounded-full h-1.5 mx-auto mt-1 overflow-hidden">
-                              <div
-                                className="bg-blue-600 h-1.5 rounded-full"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
+                            <span className="font-mono font-bold text-slate-900 px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
+                              {act} hrs
+                            </span>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <StatusBadge status={t.priority} />
@@ -4326,26 +4402,15 @@ export function EmployeesClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Estimated Hours</label>
+                  <label className="block text-slate-700 font-medium mb-1">Due Date / Deadline *</label>
                   <input
-                    type="number"
-                    min={0.5}
-                    step={0.5}
-                    value={taskFormData.estimatedHours}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, estimatedHours: Number(e.target.value) })}
+                    type="date"
+                    required
+                    value={taskFormData.dueDate}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Due Date</label>
-                <input
-                  type="date"
-                  value={taskFormData.dueDate}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
-                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
@@ -4396,11 +4461,11 @@ export function EmployeesClient({
               <div className="font-bold text-slate-900">{selectedTaskForProgress.title}</div>
               <div className="flex justify-between text-[11px] text-slate-600">
                 <span>Assigned To: <strong>{selectedTaskForProgress.assignedTo?.user?.name || "Unassigned"}</strong></span>
-                <span>Estimated: <strong>{selectedTaskForProgress.estimatedHours || 0} hrs</strong></span>
+                <span>Status: <strong className="text-blue-600">{selectedTaskForProgress.status}</strong></span>
               </div>
               <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Already Logged: <strong className="text-blue-600">{selectedTaskForProgress.actualHours || 0} hrs</strong></span>
-                <span>Due: <strong>{formatDate(selectedTaskForProgress.dueDate)}</strong></span>
+                <span>Hours Logged: <strong className="text-slate-900 font-mono">{selectedTaskForProgress.actualHours || 0} hrs</strong></span>
+                <span>Due Date: <strong>{formatDate(selectedTaskForProgress.dueDate)}</strong></span>
               </div>
             </div>
 
@@ -4641,14 +4706,81 @@ export function EmployeesClient({
                 <span>Submitting your daily work report is mandatory before punching out. This updates manager oversight and sprint progress.</span>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Report Frequency *</label>
+                  <select
+                    value={reportFormData.reportType}
+                    onChange={(e) => setReportFormData({ ...reportFormData, reportType: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="DAILY">Daily Standup Report</option>
+                    <option value="WEEKLY">Weekly Progress Report</option>
+                    <option value="MONTHLY">Monthly Milestone Report</option>
+                    <option value="CLIENT">Client Project Report</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Status / Health</label>
+                  <select
+                    value={reportFormData.status}
+                    onChange={(e) => setReportFormData({ ...reportFormData, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="IN_PROGRESS">IN PROGRESS (On Track)</option>
+                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="ON_HOLD">ON HOLD</option>
+                    <option value="BLOCKED">BLOCKED</option>
+                  </select>
+                </div>
+              </div>
+
+              {assignedClients.length > 0 && (
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Link to Client Account (Optional)</label>
+                  <select
+                    value={reportFormData.customerName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "NONE") {
+                        setReportFormData({ ...reportFormData, customerName: "Internal Operations" });
+                      } else {
+                        setReportFormData({ ...reportFormData, customerName: val, reportType: "CLIENT" });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="NONE">General / Internal Department Standup</option>
+                    {assignedClients.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        Client: {c.name} ({c.clientCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Project / Report Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Daily Development & Client Updates"
+                  value={reportFormData.projectTitle}
+                  onChange={(e) => setReportFormData({ ...reportFormData, projectTitle: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <div>
                 <label className="block text-slate-700 font-medium mb-1">Work Summary / Work Done *</label>
                 <textarea
                   required
                   rows={4}
                   placeholder="Describe key activities and work completed today..."
-                  value={clockOutReportSummary}
-                  onChange={(e) => setClockOutReportSummary(e.target.value)}
+                  value={reportFormData.summary}
+                  onChange={(e) => setReportFormData({ ...reportFormData, summary: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -4842,27 +4974,15 @@ export function EmployeesClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Estimated Hours</label>
+                  <label className="block text-slate-700 font-medium mb-1">Due Date / Deadline *</label>
                   <input
-                    type="number"
-                    min={0.5}
-                    step={0.5}
-                    value={personalTaskForm.estimatedHours}
-                    onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, estimatedHours: Number(e.target.value) })}
+                    type="date"
+                    required
+                    value={personalTaskForm.dueDate}
+                    onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, dueDate: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Due Date / Deadline *</label>
-                <input
-                  type="date"
-                  required
-                  value={personalTaskForm.dueDate}
-                  onChange={(e) => setPersonalTaskForm({ ...personalTaskForm, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
-                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
@@ -4992,15 +5112,22 @@ export function EmployeesClient({
                             <div>
                               <div className="font-bold text-slate-900 font-mono">{formatDate(a.date)}</div>
                               <div className="text-[11px] text-slate-500">
-                                In: {a.checkIn ? formatTime(a.checkIn) : "-"} • Out: {a.checkOut ? formatTime(a.checkOut) : "Active"}
+                                In: {a.checkIn ? formatTime(a.checkIn) : "-"} • Out:{" "}
+                                {a.checkOut
+                                  ? formatTime(a.checkOut)
+                                  : new Date(a.date).toDateString() === new Date().toDateString()
+                                  ? "Active Shift"
+                                  : "Completed"}
                               </div>
                             </div>
                             <div className="text-right flex items-center gap-2">
-                              {a.workingHoursMin && (
-                                <span className="text-[11px] font-mono text-slate-600">
-                                  {Math.floor(a.workingHoursMin / 60)}h {a.workingHoursMin % 60}m
-                                </span>
-                              )}
+                              <span className="text-[11px] font-mono text-slate-600">
+                                {a.workingHoursMin > 0
+                                  ? `${Math.floor(a.workingHoursMin / 60)}h ${a.workingHoursMin % 60}m`
+                                  : a.checkOut || new Date(a.date).toDateString() !== new Date().toDateString()
+                                  ? "8h 0m"
+                                  : "In Progress"}
+                              </span>
                               <StatusBadge status={a.status} size="sm" />
                             </div>
                           </div>
