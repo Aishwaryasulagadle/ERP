@@ -3098,9 +3098,6 @@ export function EmployeesClient({
                           {rep.reportType} REPORT
                         </span>
                         <h3 className="font-bold text-slate-900 text-sm">{rep.projectTitle}</h3>
-                        {rep.customerName && (
-                          <span className="text-xs text-slate-500 font-mono">• {rep.customerName}</span>
-                        )}
                         {rep.submittedBy && (
                           <span className="text-xs text-blue-600 font-mono bg-blue-50 px-2 py-0.5 rounded-md">
                             By: {rep.submittedBy}
@@ -3108,37 +3105,16 @@ export function EmployeesClient({
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {rep.hoursSpent && (
-                          <span className="text-xs text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded-md font-bold">
-                            {rep.hoursSpent} hrs
-                          </span>
-                        )}
                         <span className="text-xs text-slate-400 font-mono">{formatDate(rep.createdAt)}</span>
                         <StatusBadge status={rep.status || "COMPLETED"} size="sm" />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
-                          Summary & Accomplishments
-                        </span>
-                        <p className="text-slate-800 leading-relaxed">{rep.summary || "Daily activities on track."}</p>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-1">
-                        <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono">
-                          Key Deliverables
-                        </span>
-                        <p className="text-emerald-950 leading-relaxed">{rep.deliverables || "Completed tasks."}</p>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 space-y-1">
-                        <span className="text-[10px] font-bold text-blue-800 uppercase font-mono">
-                          Next Steps & Road Ahead
-                        </span>
-                        <p className="text-blue-950 leading-relaxed">{rep.nextWeekPlan || "Continuing sprint execution."}</p>
-                      </div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
+                        Work Summary / Work Done
+                      </span>
+                      <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{rep.summary || "Daily activities completed."}</p>
                     </div>
 
                     {rep.blockers && (

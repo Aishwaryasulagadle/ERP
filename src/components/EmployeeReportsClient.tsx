@@ -396,27 +396,11 @@ export function EmployeeReportsClient({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
-                        Summary & Progress
-                      </span>
-                      <p className="text-slate-800 leading-relaxed">{rep.summary || "Tasks on track."}</p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-1">
-                      <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono">
-                        Delivered & Shipped
-                      </span>
-                      <p className="text-emerald-950 leading-relaxed">{rep.deliverables || "Completed assigned tickets."}</p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 space-y-1">
-                      <span className="text-[10px] font-bold text-blue-800 uppercase font-mono">
-                        Next Plan / Road Ahead
-                      </span>
-                      <p className="text-blue-950 leading-relaxed">{rep.nextWeekPlan || "Proceeding to next sprint phase."}</p>
-                    </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
+                      Work Summary / Work Done
+                    </span>
+                    <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{rep.summary || "Daily activities completed."}</p>
                   </div>
 
                   {rep.blockers && (
