@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Users,
   Target,
@@ -9,6 +10,7 @@ import {
   Clock,
   Briefcase,
   ArrowUpRight,
+  ArrowDownRight,
   Sparkles,
   PhoneCall,
   LayoutDashboard,
@@ -24,18 +26,31 @@ import {
   FileSpreadsheet,
   ArrowRight,
   ShieldAlert,
+  FileText,
+  CreditCard,
+  Building2,
+  Activity,
+  Layers,
+  HelpCircle,
+  RotateCcw,
+  ShoppingBag,
+  ExternalLink,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import Link from "next/link";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
 } from "recharts";
-import { KpiCard, StatusBadge } from "@/components/ui/Cards";
+import { StatusBadge } from "@/components/ui/Cards";
 
 interface DashboardClientProps {
   metrics: any;
@@ -44,739 +59,630 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
-  const [timeRange, setTimeRange] = useState("30D");
-  const [showQuickActionMenu, setShowQuickActionMenu] = useState(false);
+  const [timeRange, setTimeRange] = useState("THIS_MONTH");
+  const [activeFunnelStage, setActiveFunnelStage] = useState<string | null>(null);
 
   const userDept = (user?.department || "").toLowerCase();
   const userEmail = (user?.email || "").toLowerCase();
 
-  const isMarketing =
-    userDept.includes("marketing") ||
-    userEmail.includes("priya") ||
-    userEmail.includes("rahul") ||
-    userEmail.includes("sneha");
+  const isSalesManager = role === "MANAGER" && userDept.includes("sales");
+  const isSalesEmployee = role === "EMPLOYEE" && userDept.includes("sales");
+  const isSales = isSalesManager || isSalesEmployee || userDept.includes("sales");
 
-  const isTech =
-    userDept.includes("technical") ||
-    userDept.includes("tech") ||
-    userDept.includes("it") ||
-    userEmail.includes("tech") ||
-    userEmail.includes("amit") ||
-    userEmail.includes("neha");
+  const isTechManager = role === "MANAGER" && (userDept.includes("tech") || userDept.includes("it"));
+  const isTechEmployee = role === "EMPLOYEE" && (userDept.includes("tech") || userDept.includes("it"));
+  const isTech = isTechManager || isTechEmployee || userDept.includes("tech") || userDept.includes("it");
 
-  const isSales =
-    userDept.includes("sales") ||
-    userEmail.includes("sales") ||
-    userEmail.includes("vikas") ||
-    userEmail.includes("pooja");
+  const isMarketingManager = role === "MANAGER" && userDept.includes("marketing");
+  const isMarketingEmployee = role === "EMPLOYEE" && userDept.includes("marketing");
+  const isMarketing = isMarketingManager || isMarketingEmployee || userDept.includes("marketing");
 
   const isAdmin = role === "ADMIN";
 
-  // 1. KPI Values
-  const totalRev = metrics.kpis?.totalSalesRevenue ?? 0;
-  const totalLeads = metrics.kpis?.totalLeads ?? 0;
-  const convertedCount = metrics.kpis?.convertedLeads ?? 0;
-  const convRate = totalLeads > 0 ? ((convertedCount / totalLeads) * 100).toFixed(1) : "0.0";
-  const totalEmp = metrics.kpis?.totalEmployees ?? 0;
-  const presentToday = metrics.kpis?.presentToday ?? 0;
-  const taskRate = metrics.taskStats?.completionRate ?? 0;
+  const kpis = metrics.kpis || {};
+  const clientStats = metrics.clientStats || {};
+  const taskStats = metrics.taskStats || {};
+  const topClients = metrics.topClients || [];
+  const upcomingRenewals = metrics.upcomingRenewals || [];
+  const departmentTaskLoads = metrics.departmentTaskLoads || [];
+  const todayImportantTasks = metrics.todayImportantTasks || [];
+  const openComplaints = metrics.openComplaints || [];
+  const marketingChannels = metrics.marketingChannels || {};
+  const financeMonthlyChart = metrics.financeMonthlyChart || [];
+  const employeeRows = metrics.employeeRows || [];
 
-  // 2. Sales Overview Chart Data for controls 7D / 30D / 90D / 1Y
-  const chartDataMap: Record<string, any[]> = {
-    "7D": [
-      { name: "Mon", sales: 45000, orders: 12 },
-      { name: "Tue", sales: 120000, orders: 28 },
-      { name: "Wed", sales: 85000, orders: 19 },
-      { name: "Thu", sales: 265000, orders: 42 },
-      { name: "Fri", sales: 180000, orders: 34 },
-      { name: "Sat", sales: 65000, orders: 15 },
-      { name: "Sun", sales: 30000, orders: 6 },
-    ],
-    "30D": [
-      { name: "Week 1", sales: 110000, orders: 24 },
-      { name: "Week 2", sales: 145000, orders: 32 },
-      { name: "Week 3", sales: 195000, orders: 45 },
-      { name: "Week 4", sales: 215000, orders: 51 },
-    ],
-    "90D": [
-      { name: "Jul", sales: 420000, orders: 98 },
-      { name: "Aug", sales: 510000, orders: 118 },
-      { name: "Sep", sales: 565000, orders: 126 },
-    ],
-    "1Y": [
-      { name: "Q1", sales: 1200000, orders: 280 },
-      { name: "Q2", sales: 1450000, orders: 340 },
-      { name: "Q3", sales: 1720000, orders: 410 },
-      { name: "Q4", sales: 1980000, orders: 490 },
-    ],
-  };
+  // =========================================================================
+  // RENDER 1: ADMIN CUSTOMIZED EXECUTIVE DASHBOARD (MATCHES USER IMAGE EXACTLY)
+  // =========================================================================
+  if (isAdmin) {
+    // Lead to Renewal Process Pipeline Items
+    const processFlow = [
+      { step: "Lead", sub: `${kpis.newLeads || 18} New`, icon: Users, color: "bg-blue-50 text-blue-600 border-blue-200", href: "/crm" },
+      { step: "Sale", sub: "7 Meetings", icon: FileText, color: "bg-emerald-50 text-emerald-600 border-emerald-200", href: "/sales" },
+      { step: "Client", sub: `${kpis.activeProjects || 4} Active`, icon: Briefcase, color: "bg-purple-50 text-purple-600 border-purple-200", href: "/reports" },
+      { step: "Project", sub: `${kpis.activeProjects || 24} Active`, icon: Layers, color: "bg-amber-50 text-amber-600 border-amber-200", href: "/reports" },
+      { step: "Employee", sub: `${kpis.totalEmployees || 11} Members`, icon: UserPlus, color: "bg-indigo-50 text-indigo-600 border-indigo-200", href: "/employees" },
+      { step: "Invoice", sub: `${metrics.recentOrders?.length || 8} Generated`, icon: FileSpreadsheet, color: "bg-violet-50 text-violet-600 border-violet-200", href: "/sales" },
+      { step: "Payment", sub: `₹${((kpis.outstandingAmount || 320000) / 100000).toFixed(1)}L Due`, icon: CreditCard, color: "bg-rose-50 text-rose-600 border-rose-200", href: "/sales" },
+      { step: "Support", sub: `${kpis.openComplaintsCount || 2} Open`, icon: HelpCircle, color: "bg-cyan-50 text-cyan-600 border-cyan-200", href: "/employees?tab=QUERIES" },
+      { step: "Renewal", sub: `${upcomingRenewals.length || 5} This Month`, icon: RotateCcw, color: "bg-teal-50 text-teal-600 border-teal-200", href: "/sales" },
+    ];
 
-  const currentChartData = chartDataMap[timeRange] || chartDataMap["30D"];
+    // Project status pie data
+    const projectPieData = [
+      { name: "On Track", value: Math.max(1, (kpis.activeProjects || 4) - (kpis.delayedProjects || 1)), color: "#0ea5e9" },
+      { name: "Delayed", value: kpis.delayedProjects || 1, color: "#f43f5e" },
+      { name: "On Hold", value: 1, color: "#f59e0b" },
+      { name: "Completed", value: 2, color: "#10b981" },
+    ];
 
-  // 3. Horizontal CRM Pipeline Funnel Stages
-  const pipelineStages = [
-    { label: "NEW", count: metrics.kpis?.newLeads ?? 0, value: 0, color: "border-blue-500/30 text-blue-400 bg-blue-500/10" },
-    { label: "CONTACTED", count: metrics.kpis?.contactedLeads ?? 0, value: 0, color: "border-indigo-500/30 text-indigo-400 bg-indigo-500/10" },
-    { label: "FOLLOW-UP", count: metrics.kpis?.followUpLeads ?? 0, value: 0, color: "border-amber-500/30 text-amber-400 bg-amber-500/10" },
-    { label: "QUALIFIED", count: 0, value: 0, color: "border-cyan-500/30 text-cyan-400 bg-cyan-500/10" },
-    { label: "CONVERTED", count: convertedCount, value: totalRev, color: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" },
-    { label: "LOST", count: metrics.kpis?.lostLeads ?? 0, value: 0, color: "border-rose-500/30 text-rose-400 bg-rose-500/10" },
-  ];
+    // Invoice collection donut data
+    const paidPct = kpis.invoicedThisMonth > 0 ? Math.round((kpis.monthlyRevenue / kpis.invoicedThisMonth) * 100) : 68;
+    const invoicePieData = [
+      { name: "Paid", value: paidPct, color: "#10b981" },
+      { name: "Pending", value: 100 - paidPct, color: "#e2e8f0" },
+    ];
 
-  // 4. Employee Performance Table (Uses dynamic department staff from backend)
-  const employeeRows =
-    metrics.employeeRows && metrics.employeeRows.length > 0
-      ? metrics.employeeRows
-      : [
-          { name: "Rahul Sharma", leads: 32, converted: 10, sales: 240000, tasks: "18/20", completion: 90, status: "ACTIVE" },
-          { name: "Priya Sharma", leads: 28, converted: 8, sales: 180000, tasks: "15/18", completion: 83, status: "ACTIVE" },
-          { name: "Amit Patel", leads: 24, converted: 7, sales: 120000, tasks: "17/20", completion: 85, status: "ACTIVE" },
-          { name: "Sneha Reddy", leads: 21, converted: 6, sales: 95000, tasks: "14/15", completion: 93, status: "ACTIVE" },
-        ];
+    // HR Attendance donut data
+    const attPct = kpis.attendancePct || 88;
+    const hrPieData = [
+      { name: "Present", value: attPct, color: "#10b981" },
+      { name: "Other", value: 100 - attPct, color: "#e2e8f0" },
+    ];
 
-  // 5. Recent Sales Table
-  const recentSales = [
-    { id: "ORD-2026-001", customer: "Sidhi Bhoite", employee: "Amit Patel", amount: 265000, status: "PAID", date: "Sep 27" },
-    { id: "ORD-2026-002", customer: "Akash Jadhav", employee: "Rahul Sharma", amount: 180000, status: "PENDING", date: "Sep 25" },
-    { id: "ORD-2026-003", customer: "Sarvesh Bhoite", employee: "Sneha Reddy", amount: 120000, status: "PAID", date: "Sep 24" },
-    { id: "ORD-2026-004", customer: "Atharv Patharkar", employee: "Rahul Sharma", amount: 85000, status: "OVERDUE", date: "Sep 22" },
-  ];
-
-  // 6. Today's Activity Timeline
-  const activities = [
-    { time: "09:32", user: "Rahul Sharma", action: "created a new enterprise lead", icon: Target, color: "text-blue-400" },
-    { time: "10:05", user: "Priya Sharma", action: "completed a client follow-up call", icon: PhoneCall, color: "text-amber-400" },
-    { time: "10:42", user: "Amit Patel", action: "created order ORD-2026-001 (₹2.65L)", icon: TrendingUp, color: "text-emerald-400" },
-    { time: "11:15", user: "Sneha Reddy", action: "completed sprint task 'Quotation Review'", icon: CheckSquare, color: "text-indigo-400" },
-    { time: "11:40", user: "Rahul Sharma", action: "converted high-value enterprise lead", icon: Sparkles, color: "text-emerald-400" },
-  ];
-
-  return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
-      {/* 1. Header Banner & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            Welcome back, {user?.name || "Admin"} 👋
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isMarketing
-              ? "Digital Marketing Operations • Deliverables, Social Campaigns, Reels & Team Performance."
-              : isTech
-              ? "Technical & IT Engineering • Code Sprints, Milestones, Deployments & System Status."
-              : isSales
-              ? "Sales & Deal Operations • Pipeline Velocity, Inbound Leads, and Revenue Solvency."
-              : "Global Executive Overview • Synced across Sales, Digital Marketing, and Technical Departments."}
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
-          {/* Quick Actions Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowQuickActionMenu(!showQuickActionMenu)}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Actions</span>
-              <ChevronDown className="w-3 h-3 ml-0.5" />
-            </button>
-
-            {showQuickActionMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95">
-                {(isSales || isAdmin) && (
-                  <>
-                    <Link
-                      href="/crm"
-                      onClick={() => setShowQuickActionMenu(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                    >
-                      <Target className="w-3.5 h-3.5 text-blue-600" />
-                      <span>+ Add Lead</span>
-                    </Link>
-                    <Link
-                      href="/sales"
-                      onClick={() => setShowQuickActionMenu(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                    >
-                      <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>+ Sales Ledger</span>
-                    </Link>
-                  </>
-                )}
-                <Link
-                  href="/employees?tab=TASKS"
-                  onClick={() => setShowQuickActionMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-amber-600" />
-                  <span>+ Sprint Tasks</span>
-                </Link>
-                {(isMarketing || isTech || isAdmin) && (
-                  <Link
-                    href="/reports"
-                    onClick={() => setShowQuickActionMenu(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                  >
-                    <Briefcase className="w-3.5 h-3.5 text-purple-600" />
-                    <span>+ Client Accounts</span>
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Date Range Selector */}
-          <div className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 shadow-xs">
-            <Calendar className="w-3.5 h-3.5 text-blue-600" />
-            <span className="font-medium">Live Dashboard</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main 5 KPI Cards Section */}
-      {isMarketing ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <KpiCard
-            title="ACTIVE CLIENTS"
-            value={metrics.clientStats?.totalClients || 0}
-            trend="Marketing"
-            comparisonText="active accounts"
-            isPositive={true}
-            icon={Briefcase}
-            iconColor="text-purple-600 bg-purple-50 border-purple-200"
-          />
-          <KpiCard
-            title="REELS & POSTS"
-            value={`${metrics.clientStats?.totalCompletedDeliverables || 0}/${metrics.clientStats?.totalTargetDeliverables || 0}`}
-            trend="Deliverables"
-            comparisonText="this month's targets"
-            isPositive={true}
-            icon={Target}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="DELIVERY VELOCITY"
-            value={`${metrics.clientStats?.deliverableCompletionRate || 0}%`}
-            trend="On Track"
-            comparisonText="monthly delivery rate"
-            isPositive={true}
-            icon={Sparkles}
-            iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
-          />
-          <KpiCard
-            title="TEAM ATTENDANCE"
-            value={`${presentToday}/${totalEmp}`}
-            comparisonText="staff present today"
-            isPositive={true}
-            icon={Users}
-            iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
-          />
-          <KpiCard
-            title="SPRINT COMPLETION"
-            value={`${taskRate}%`}
-            trend="+5.4%"
-            comparisonText="tasks resolved"
-            isPositive={true}
-            icon={CheckSquare}
-            iconColor="text-amber-600 bg-amber-50 border-amber-200"
-          />
-        </div>
-      ) : isTech ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <KpiCard
-            title="DEV CLIENTS"
-            value={metrics.clientStats?.totalClients || 0}
-            trend="Web & Apps"
-            comparisonText="active engineering contracts"
-            isPositive={true}
-            icon={Briefcase}
-            iconColor="text-cyan-600 bg-cyan-50 border-cyan-200"
-          />
-          <KpiCard
-            title="MILESTONES SHIPPED"
-            value={`${metrics.clientStats?.totalCompletedDeliverables || 0}/${metrics.clientStats?.totalTargetDeliverables || 0}`}
-            trend="Shipped"
-            comparisonText="milestones completed"
-            isPositive={true}
-            icon={Target}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="SPRINT VELOCITY"
-            value={`${metrics.clientStats?.deliverableCompletionRate || 0}%`}
-            trend="Velocity"
-            comparisonText="architecture progress"
-            isPositive={true}
-            icon={Sparkles}
-            iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
-          />
-          <KpiCard
-            title="DEV ATTENDANCE"
-            value={`${presentToday}/${totalEmp}`}
-            comparisonText="engineers active"
-            isPositive={true}
-            icon={Users}
-            iconColor="text-indigo-600 bg-indigo-50 border-indigo-200"
-          />
-          <KpiCard
-            title="SPRINT TASKS"
-            value={`${taskRate}%`}
-            trend="Done"
-            comparisonText="tickets completed"
-            isPositive={true}
-            icon={CheckSquare}
-            iconColor="text-violet-600 bg-violet-50 border-violet-200"
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <KpiCard
-            title="TOTAL REVENUE"
-            value={formatCurrency(totalRev)}
-            trend="↑ 12.4%"
-            comparisonText="vs previous month"
-            isPositive={true}
-            icon={TrendingUp}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="TOTAL LEADS"
-            value={totalLeads}
-            trend="↑ 8.2%"
-            comparisonText="inbound deals"
-            isPositive={true}
-            icon={Target}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="CONVERSION RATE"
-            value={`${convRate}%`}
-            trend="↑ 4.1%"
-            comparisonText="deal velocity"
-            isPositive={true}
-            icon={Sparkles}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="ACTIVE EMPLOYEES"
-            value={totalEmp}
-            comparisonText={`${presentToday} present today`}
-            isPositive={true}
-            icon={Users}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-          <KpiCard
-            title="TASK COMPLETION"
-            value={`${taskRate}%`}
-            trend="+6.2%"
-            comparisonText="sprint status"
-            isPositive={true}
-            icon={CheckSquare}
-            iconColor="text-blue-600 bg-blue-50 border-blue-200"
-          />
-        </div>
-      )}
-
-
-      {/* 3. Dynamic Department-Tailored Velocity & Production Chart */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    return (
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto bg-slate-50/60 min-h-screen">
+        {/* Top Header Banner */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-1">
           <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">
-              {isMarketing
-                ? "Content & Campaign Deliverables Output"
-                : isTech
-                ? "Code Sprints & Milestone Progress"
-                : "Sales & Deal Turnover Velocity"}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {isMarketing
-                ? "Weekly completed reels, creatives, and ad campaign rollouts"
-                : isTech
-                ? "Weekly completed engineering tasks, commits, and sprint deliverables"
-                : "Revenue over time and deal turnover velocity across pipelines"}
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Welcome CEO 👋
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Here is your company overview. Focus only on what needs your attention.
             </p>
           </div>
 
-          {/* Timeframe Controls: 7D, 30D, 90D, 1Y */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-xl self-start sm:self-auto">
-            {["7D", "30D", "90D", "1Y"].map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  timeRange === range
-                    ? "bg-blue-600 text-white font-bold shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {range}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 shadow-2xs flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              <span>{formatDate(new Date())}</span>
+            </div>
+            <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">
+              Today ▾
+            </div>
           </div>
         </div>
 
-        {/* Department Tailored Metric Summary Ribbon */}
-        {isMarketing ? (
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-            <div className="p-3 rounded-xl bg-purple-50 border border-purple-200">
-              <span className="text-[11px] text-purple-700 font-medium">Monthly Target Deliverables</span>
-              <p className="text-xl font-bold text-purple-900 font-mono mt-0.5">
-                {metrics.clientStats?.totalTargetDeliverables || 48} Creatives
+        {/* 6 Top Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
+          {/* Card 1: Monthly Revenue */}
+          <div className="p-4 rounded-2xl bg-white border border-emerald-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">Monthly Revenue</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {formatCurrency(kpis.monthlyRevenue || 1250000)}
               </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                <span>↑ 18%</span>
+              </div>
             </div>
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-              <span className="text-[11px] text-emerald-700 font-medium">Completed & Published</span>
-              <p className="text-xl font-bold text-emerald-800 font-mono mt-0.5">
-                {metrics.clientStats?.totalCompletedDeliverables || 36} Published
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
-              <span className="text-[11px] text-blue-700 font-medium">On-Track Delivery Rate</span>
-              <p className="text-xl font-bold text-blue-800 font-mono mt-0.5">
-                {metrics.clientStats?.deliverableCompletionRate || 75}%
-              </p>
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+              <span className="font-bold text-base">₹</span>
             </div>
           </div>
-        ) : isTech ? (
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-            <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-200">
-              <span className="text-[11px] text-cyan-700 font-medium">Sprint Milestones</span>
-              <p className="text-xl font-bold text-cyan-900 font-mono mt-0.5">
-                {metrics.clientStats?.totalTargetDeliverables || 32} Modules
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-              <span className="text-[11px] text-emerald-700 font-medium">Shipped & Verified</span>
-              <p className="text-xl font-bold text-emerald-800 font-mono mt-0.5">
-                {metrics.clientStats?.totalCompletedDeliverables || 27} Deployed
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
-              <span className="text-[11px] text-indigo-700 font-medium">Sprint Completion Rate</span>
-              <p className="text-xl font-bold text-indigo-800 font-mono mt-0.5">
-                {metrics.clientStats?.deliverableCompletionRate || 84}%
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[11px] text-slate-500 font-medium">Total Revenue</span>
-              <p className="text-xl font-bold text-emerald-600 font-mono mt-0.5">{formatCurrency(totalRev)}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[11px] text-slate-500 font-medium">Orders Closed</span>
-              <p className="text-xl font-bold text-slate-900 font-mono mt-0.5">{metrics.kpis?.totalOrdersCount || 126}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[11px] text-slate-500 font-medium">Average Order Value</span>
-              <p className="text-xl font-bold text-blue-600 font-mono mt-0.5">₹4,484</p>
-            </div>
-          </div>
-        )}
 
-        {/* Recharts Area Chart */}
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={
-                isMarketing
-                  ? [
-                      { name: "Mon", output: 5, target: 8 },
-                      { name: "Tue", output: 8, target: 8 },
-                      { name: "Wed", output: 12, target: 10 },
-                      { name: "Thu", output: 14, target: 12 },
-                      { name: "Fri", output: 11, target: 10 },
-                      { name: "Sat", output: 6, target: 6 },
-                      { name: "Sun", output: 2, target: 0 },
-                    ]
-                  : isTech
-                  ? [
-                      { name: "Sprint 1", output: 18, target: 20 },
-                      { name: "Sprint 2", output: 24, target: 25 },
-                      { name: "Sprint 3", output: 28, target: 30 },
-                      { name: "Sprint 4", output: 31, target: 32 },
-                    ]
-                  : currentChartData
-              }
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="primaryGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
-                    stopOpacity={0.25}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
-                    stopOpacity={0.0}
-                  />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis
-                stroke="#94A3B8"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => (isMarketing || isTech ? `${v}` : `₹${v / 1000}k`)}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#FFFFFF",
-                  borderColor: "#E2E8F0",
-                  borderRadius: "12px",
-                  color: "#0F172A",
-                  fontSize: "12px",
-                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                }}
-                formatter={(value: any) => [
-                  isMarketing ? `${value} Deliverables` : isTech ? `${value} Tasks Completed` : formatCurrency(Number(value)),
-                  isMarketing ? "Output" : isTech ? "Shipped" : "Revenue",
-                ]}
-              />
-              <Area
-                type="monotone"
-                dataKey={isMarketing || isTech ? "output" : "sales"}
-                stroke={isMarketing ? "#9333EA" : isTech ? "#06B6D4" : "#2563EB"}
-                strokeWidth={2.5}
-                fillOpacity={1}
-                fill="url(#primaryGrad)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {/* Card 2: Outstanding */}
+          <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">Outstanding</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {formatCurrency(kpis.outstandingAmount || 320000)}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-rose-500">
+                <span>↑ 12%</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 3: New Leads */}
+          <div className="p-4 rounded-2xl bg-white border border-purple-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">New Leads</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {kpis.newLeads || 18}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-purple-600">
+                <span>↑ 28%</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 4: Active Projects */}
+          <div className="p-4 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">Active Projects</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {kpis.activeProjects || 24}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600">
+                <span>{kpis.delayedProjects || 3} Delayed</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 5: Open Complaints */}
+          <div className="p-4 rounded-2xl bg-white border border-amber-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">Open Complaints</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {kpis.openComplaintsCount || 2}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                <span>{kpis.slaRiskCount || 1} SLA Risk</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 6: Employees Present */}
+          <div className="p-4 rounded-2xl bg-white border border-teal-100 shadow-xs hover:shadow-sm transition-all flex items-center justify-between">
+            <div className="space-y-1 min-w-0">
+              <span className="text-[11px] font-semibold text-slate-500 truncate block">Employees Present</span>
+              <p className="text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight">
+                {kpis.presentToday || 28} / {kpis.totalEmployees || 32}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-teal-600">
+                <span>{kpis.onLeaveToday || 4} on Leave</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-600 shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* 4. CRM Pipeline Funnel (Only for Sales & Admin) OR Client Accounts & Deliverables (For Marketing & Tech) */}
-      {isMarketing || isTech ? (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                {isMarketing ? "Marketing Accounts & Campaign Deliverables" : "Engineering Projects & Architecture Milestones"}
-              </h3>
-              <p className="text-xs text-slate-500">Live deliverable tracker for client retainers</p>
-            </div>
-            <Link href="/reports" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              <span>View All Client Workspaces</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {metrics.clientStats?.clients && metrics.clientStats.clients.length > 0 ? (
-              metrics.clientStats.clients.map((c: any) => {
-                const totalTarget = c.services?.reduce((acc: number, s: any) => acc + (s.targetCount || 0), 0) || 0;
-                const totalDone = c.services?.reduce((acc: number, s: any) => acc + (s.completedCount || 0), 0) || 0;
-                const pct = totalTarget > 0 ? Math.min(100, Math.round((totalDone / totalTarget) * 100)) : 0;
-                return (
+        {/* Lead to Renewal Process Pipeline Horizontal Flow */}
+        <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-x-auto">
+          <div className="flex items-center justify-between min-w-[850px] gap-2 px-1">
+            {processFlow.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.step} className="flex items-center gap-2">
                   <Link
-                    key={c.id}
-                    href="/reports"
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer space-y-3"
+                    href={item.href}
+                    className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer group"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900 truncate">{c.name}</span>
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                        {c.clientCode}
-                      </span>
+                    <div className={cn("w-7 h-7 rounded-lg border flex items-center justify-center shrink-0", item.color)}>
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
-                    <div>
-                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                        <span>Deliverables: {totalDone}/{totalTarget}</span>
-                        <span className="font-bold text-slate-700">{pct}%</span>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">
+                        {item.step}
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
-                      <span>{c.billingType}</span>
-                      <span className="font-bold text-purple-600 font-mono">
-                        {c.departmentType === "DIGITAL_MARKETING" ? "Marketing Retainer" : "Tech Retainer"}
-                      </span>
+                      <div className="text-[10px] text-slate-500 font-medium">({item.sub})</div>
                     </div>
                   </Link>
-                );
-              })
-            ) : (
-              <div className="col-span-3 text-center py-6 text-slate-400 text-xs bg-slate-50 rounded-xl border border-slate-200">
-                No active clients found in this department.
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">CRM Pipeline</h3>
-              <p className="text-xs text-slate-500">Deal velocity across sales acquisition stages</p>
-            </div>
-            <Link href="/crm" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              <span>Open Pipeline</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {pipelineStages.map((stage) => (
-              <Link
-                key={stage.label}
-                href={`/crm?tab=${stage.label}`}
-                className={`p-3.5 rounded-xl border flex flex-col justify-between hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer ${stage.color}`}
-              >
-                <span className="text-[10px] font-bold uppercase tracking-wider font-mono opacity-80">{stage.label}</span>
-                <div className="mt-3">
-                  <p className="text-xl font-bold font-mono text-slate-900">{stage.count}</p>
-                  <p className="text-[11px] font-mono mt-0.5 opacity-90">{formatCurrency(stage.value)}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 5. Team Velocity & Department Operations Grid (Scoped by Role & Department) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Performance & Task Velocity (7 Cols) */}
-        <div className={isAdmin || isSales ? "lg:col-span-7 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4" : "lg:col-span-12 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4"}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                {isMarketing
-                  ? "Marketing Team Execution Velocity"
-                  : isTech
-                  ? "Engineering Sprint & Task Progress"
-                  : "Sales Rep Performance & Conversions"}
-              </h3>
-              <p className="text-xs text-slate-500">
-                {isMarketing
-                  ? "Deliverables, reels, creatives completed, and task completion percentage"
-                  : isTech
-                  ? "Architecture deliverables shipped, bugs resolved, and sprint velocity"
-                  : "Ranked by revenue closed and deal conversion velocity"}
-              </p>
-            </div>
-            <Link href="/employees" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-              View Team Directory →
-            </Link>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
-                <tr>
-                  <th className="py-2.5 px-3">Team Member</th>
-                  {isAdmin || isSales ? (
-                    <>
-                      <th className="py-2.5 px-3 text-center">Leads</th>
-                      <th className="py-2.5 px-3 text-center">Converted</th>
-                      <th className="py-2.5 px-3 text-right">Sales Closed</th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="py-2.5 px-3 text-center">Assigned Projects</th>
-                      <th className="py-2.5 px-3 text-center">Role</th>
-                    </>
+                  {index < processFlow.length - 1 && (
+                    <span className="text-slate-300 font-bold text-xs">→</span>
                   )}
-                  <th className="py-2.5 px-3 text-center">Sprint Tasks</th>
-                  <th className="py-2.5 px-3 text-center">Completion Rate</th>
-                  <th className="py-2.5 px-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(isMarketing
-                  ? [
-                      { name: "Priya Sharma", role: "Digital Marketing Manager", projects: "All Clients", tasks: "18/20", completion: 90, status: "ACTIVE" },
-                      { name: "Rahul Deshmukh", role: "Content & Reel Creator", projects: "4 Clients", tasks: "15/16", completion: 94, status: "ACTIVE" },
-                      { name: "Sneha Patil", role: "Graphic & Ads Specialist", projects: "4 Clients", tasks: "17/18", completion: 94, status: "ACTIVE" },
-                    ]
-                  : isTech
-                  ? [
-                      { name: "Amit Kulkarni", role: "Technical Project Manager", projects: "All Tech Contracts", tasks: "19/20", completion: 95, status: "ACTIVE" },
-                      { name: "Neha Joshi", role: "Senior Full Stack Dev", projects: "3 Contracts", tasks: "14/15", completion: 93, status: "ACTIVE" },
-                      { name: "Vikram Shinde", role: "UI/UX & Mobile Engineer", projects: "3 Contracts", tasks: "16/18", completion: 89, status: "ACTIVE" },
-                    ]
-                  : employeeRows
-                ).map((emp: any, i: number) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">{emp.name}</td>
-                    {isAdmin || isSales ? (
-                      <>
-                        <td className="py-2.5 px-3 text-center font-mono text-slate-600">{emp.leads}</td>
-                        <td className="py-2.5 px-3 text-center font-mono text-blue-600 font-bold">{emp.converted}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
-                          {formatCurrency(emp.sales)}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="py-2.5 px-3 text-center font-mono text-slate-600">{emp.projects}</td>
-                        <td className="py-2.5 px-3 text-center text-slate-500 font-medium">{emp.role}</td>
-                      </>
-                    )}
-                    <td className="py-2.5 px-3 text-center font-mono text-slate-500">{emp.tasks}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-12 bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={isMarketing ? "bg-purple-500 h-full rounded-full" : isTech ? "bg-cyan-500 h-full rounded-full" : "bg-emerald-500 h-full rounded-full"}
-                            style={{ width: `${emp.completion}%` }}
-                          />
-                        </div>
-                        <span className="font-mono text-[10px] text-slate-600">{emp.completion}%</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <StatusBadge status={emp.status} size="sm" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Recent Transactions (Visible for Sales & Admin Only) */}
-        {(isAdmin || isSales) && (
-          <div className="lg:col-span-5 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+        {/* Row 1: 4 Equal Department Analytics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Sales Overview (Funnel) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 tracking-tight">Recent Sales Orders</h3>
-                <p className="text-xs text-slate-500">Latest enterprise transactions</p>
-              </div>
-              <Link href="/sales" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-                View All Orders →
+              <h3 className="font-bold text-sm text-slate-900">Sales Overview</h3>
+              <Link href="/crm" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All
               </Link>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="flex items-baseline justify-between pt-1">
+              <div>
+                <p className="text-xl font-black text-slate-900 font-mono">
+                  {formatCurrency(kpis.pipelineValue || 840000)}
+                </p>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 mt-0.5">
+                  <span>↑ 25%</span>
+                  <span className="text-slate-400 font-normal">Pipeline Value</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-black text-slate-900 font-mono">{kpis.newLeads || 18}</p>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 mt-0.5">
+                  <span>↑ 28%</span>
+                  <span className="text-slate-400 font-normal">New Leads</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Inverted Trapeze Funnel */}
+            <div className="space-y-1.5 pt-2">
+              {[
+                { stage: "New Lead", count: kpis.newLeads || 18, color: "bg-blue-600", width: "100%" },
+                { stage: "Contacted", count: kpis.contactedLeads || 14, color: "bg-blue-500", width: "85%" },
+                { stage: "Qualified", count: 10, color: "bg-cyan-500", width: "70%" },
+                { stage: "Meeting", count: 7, color: "bg-teal-500", width: "55%" },
+                { stage: "Proposal", count: 4, color: "bg-emerald-500", width: "42%" },
+                { stage: "Negotiation", count: 3, color: "bg-amber-500", width: "32%" },
+                { stage: "Won", count: kpis.convertedLeads || 2, color: "bg-emerald-600", width: "24%" },
+                { stage: "Lost", count: kpis.lostLeads || 1, color: "bg-rose-500", width: "15%" },
+              ].map((item) => (
+                <div key={item.stage} className="flex items-center justify-between text-xs font-medium">
+                  <div className="flex items-center gap-2 flex-1 mr-3">
+                    <div className="h-4 rounded-sm flex items-center justify-center transition-all" style={{ width: item.width, backgroundColor: item.color }}>
+                      <span className="text-[10px] text-white font-bold px-1 truncate">{item.stage}</span>
+                    </div>
+                  </div>
+                  <span className="font-mono font-bold text-slate-700 text-xs shrink-0">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 2: Project & Operations (Donut) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-slate-900">Project & Operations</h3>
+                <Link href="/reports" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                  View All
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-4 pt-3">
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-blue-50 border border-blue-100 flex-1">
+                  <Briefcase className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <span className="text-base font-black text-slate-900 font-mono">{kpis.activeProjects || 24}</span>
+                    <span className="text-[10px] text-slate-500 block">Active Projects</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-50 border border-rose-100 flex-1">
+                  <Clock className="w-4 h-4 text-rose-600" />
+                  <div>
+                    <span className="text-base font-black text-rose-600 font-mono">{kpis.delayedProjects || 3}</span>
+                    <span className="text-[10px] text-slate-500 block">Delayed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Donut & Legend */}
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <div className="relative w-28 h-28 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={projectPieData} innerRadius={34} outerRadius={48} paddingAngle={3} dataKey="value">
+                      {projectPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-sm font-black text-slate-900 font-mono">{kpis.activeProjects || 24}</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase">Projects</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] flex-1 pl-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-sky-500" />
+                    On Track
+                  </span>
+                  <span className="font-bold font-mono">18</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Delayed
+                  </span>
+                  <span className="font-bold font-mono text-rose-600">3</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    On Hold
+                  </span>
+                  <span className="font-bold font-mono">2</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Completed
+                  </span>
+                  <span className="font-bold font-mono">1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Invoice & Payments (Donut) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-slate-900">Invoice & Payments</h3>
+                <Link href="/sales" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                  View All
+                </Link>
+              </div>
+
+              <div className="flex items-baseline justify-between pt-3">
+                <div>
+                  <p className="text-lg font-black text-slate-900 font-mono">
+                    {formatCurrency(kpis.invoicedThisMonth || 1250000)}
+                  </p>
+                  <span className="text-[10px] text-slate-500">Invoiced (This Month)</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-rose-600 font-mono">
+                    {formatCurrency(kpis.outstandingAmount || 320000)}
+                  </p>
+                  <span className="text-[10px] text-slate-500">Outstanding</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <div className="relative w-28 h-28 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={invoicePieData} innerRadius={34} outerRadius={48} paddingAngle={0} dataKey="value">
+                      <Cell fill="#10b981" />
+                      <Cell fill="#f1f5f9" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-sm font-black text-slate-900 font-mono">{paidPct}%</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase">Paid</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] flex-1 pl-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paid
+                  </span>
+                  <span className="font-bold font-mono text-emerald-600">
+                    {formatCurrency(kpis.monthlyRevenue || 850000)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Pending
+                  </span>
+                  <span className="font-bold font-mono">
+                    {formatCurrency(kpis.outstandingAmount || 320000)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Overdue
+                  </span>
+                  <span className="font-bold font-mono text-rose-600">
+                    {formatCurrency(kpis.overdueAmount || 140000)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: HR Overview (Donut) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-slate-900">HR Overview</h3>
+                <Link href="/employees" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                  View All
+                </Link>
+              </div>
+
+              <div className="flex items-baseline justify-between pt-3">
+                <div className="flex items-center gap-2 p-1.5 rounded-xl bg-blue-50 border border-blue-100 flex-1 mr-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <span className="text-base font-black text-slate-900 font-mono">{kpis.totalEmployees || 32}</span>
+                    <span className="text-[10px] text-slate-500 block">Total Employees</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-1.5 rounded-xl bg-emerald-50 border border-emerald-100 flex-1">
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  <div>
+                    <span className="text-base font-black text-emerald-600 font-mono">{kpis.presentToday || 28}</span>
+                    <span className="text-[10px] text-slate-500 block">Present Today</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <div className="relative w-28 h-28 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={hrPieData} innerRadius={34} outerRadius={48} paddingAngle={0} dataKey="value">
+                      <Cell fill="#10b981" />
+                      <Cell fill="#f1f5f9" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-sm font-black text-slate-900 font-mono">{attPct}%</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase">Present</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] flex-1 pl-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Present
+                  </span>
+                  <span className="font-bold font-mono">{kpis.presentToday || 28}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-sky-500" />
+                    On Leave
+                  </span>
+                  <span className="font-bold font-mono">{kpis.onLeaveToday || 4}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Work From Home
+                  </span>
+                  <span className="font-bold font-mono">{kpis.wfhToday || 2}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Absent
+                  </span>
+                  <span className="font-bold font-mono text-rose-600">{kpis.absentToday || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: 3 Operational Modules (Marketing Performance, Complaints/Support, Finance Overview) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Card 1: Marketing Performance (3.5 Cols) */}
+          <div className="lg:col-span-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Marketing Performance</h3>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                This Month ▾
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+              {/* Meta Ads */}
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 text-center space-y-1">
+                <div className="w-7 h-7 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                  f
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 block">Meta Ads</span>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Leads <strong className="text-slate-900">{marketingChannels.metaAds?.leads || 120}</strong>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  CPL <strong className="text-slate-900">₹{marketingChannels.metaAds?.cpl || 125}</strong>
+                </div>
+              </div>
+
+              {/* Google Ads */}
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 text-center space-y-1">
+                <div className="w-7 h-7 mx-auto rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs">
+                  G
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 block">Google Ads</span>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Leads <strong className="text-slate-900">{marketingChannels.googleAds?.leads || 85}</strong>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  CPL <strong className="text-slate-900">₹{marketingChannels.googleAds?.cpl || 140}</strong>
+                </div>
+              </div>
+
+              {/* SEO */}
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 text-center space-y-1">
+                <div className="w-7 h-7 mx-auto rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-bold text-xs">
+                  🔍
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 block">SEO</span>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Leads <strong className="text-slate-900">{marketingChannels.seo?.leads || 42}</strong>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Traffic <strong className="text-slate-900">{marketingChannels.seo?.traffic || "3.2K"}</strong>
+                </div>
+              </div>
+
+              {/* Social Media */}
+              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 text-center space-y-1">
+                <div className="w-7 h-7 mx-auto rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-xs">
+                  ▶
+                </div>
+                <span className="text-[11px] font-bold text-slate-800 block">Social Media</span>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Leads <strong className="text-slate-900">{marketingChannels.socialMedia?.leads || 58}</strong>
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Reach <strong className="text-slate-900">{marketingChannels.socialMedia?.reach || "45K"}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Complaints / Support (4 Cols) */}
+          <div className="lg:col-span-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Complaints / Support</h3>
+              <Link href="/employees?tab=QUERIES" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                <span className="text-lg font-black text-rose-600 font-mono">{kpis.openComplaintsCount || 2}</span>
+                <span className="text-[10px] text-slate-500 block">Open Complaints</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-center">
+                <span className="text-lg font-black text-amber-600 font-mono">{kpis.slaRiskCount || 1}</span>
+                <span className="text-[10px] text-slate-500 block">SLA Risk</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <span className="text-lg font-black text-slate-700 font-mono">0</span>
+                <span className="text-[10px] text-slate-500 block">Escalated</span>
+              </div>
+            </div>
+
+            {/* Complaints Mini Table */}
+            <div className="overflow-x-auto pt-1">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="text-[10px] text-slate-400 font-mono uppercase border-b border-slate-100">
                   <tr>
-                    <th className="py-2.5 px-3">Order ID</th>
-                    <th className="py-2.5 px-3">Customer</th>
-                    <th className="py-2.5 px-3 text-right">Amount</th>
-                    <th className="py-2.5 px-3 text-right">Status</th>
+                    <th className="pb-1.5">ID</th>
+                    <th className="pb-1.5">Client</th>
+                    <th className="pb-1.5">Issue</th>
+                    <th className="pb-1.5">Priority</th>
+                    <th className="pb-1.5">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentSales.map((ord) => (
-                    <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-bold text-blue-600">{ord.id}</td>
-                      <td className="py-2.5 px-3 text-slate-800 font-medium">{ord.customer}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">
-                        {formatCurrency(ord.amount)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <StatusBadge status={ord.status} size="sm" />
+                <tbody className="divide-y divide-slate-100 text-[11px]">
+                  {openComplaints.map((c: any) => (
+                    <tr key={c.id}>
+                      <td className="py-2 font-mono text-blue-600">{c.queryCode}</td>
+                      <td className="py-2 font-semibold text-slate-800">{c.employee?.user?.name || "ABC Pvt Ltd"}</td>
+                      <td className="py-2 text-slate-600 truncate max-w-[120px]">{c.subject}</td>
+                      <td className="py-2 font-bold text-rose-600">{c.priority}</td>
+                      <td className="py-2">
+                        <StatusBadge status={c.status} size="sm" />
                       </td>
                     </tr>
                   ))}
@@ -784,136 +690,514 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
               </table>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* 6. Today's Department Operations & Live Stream */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Today's Operational Run-Rate (4 Cols) */}
-        <div className="lg:col-span-4 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">
-              {isMarketing
-                ? "Today's Content Run-Rate"
-                : isTech
-                ? "Today's Tech Operations"
-                : "Today's Business Run-Rate"}
-            </h3>
-            <p className="text-xs text-slate-500">Live department metrics and milestones for today</p>
-          </div>
+          {/* Card 3: Finance Overview (4.5 Cols) */}
+          <div className="lg:col-span-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Finance Overview</h3>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                This Month ▾
+              </span>
+            </div>
 
-          <div className="space-y-2.5">
-            {isMarketing ? (
-              <>
-                <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-200/60 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Reels & Videos Scheduled</span>
-                  <span className="text-sm font-bold text-purple-700 font-mono">8</span>
+            <div className="flex items-baseline justify-between pt-1">
+              <div>
+                <p className="text-base font-black text-slate-900 font-mono">
+                  {formatCurrency(kpis.monthlyRevenue || 1250000)}
+                </p>
+                <span className="text-[10px] text-slate-500">Revenue</span>
+              </div>
+              <div>
+                <p className="text-base font-black text-rose-600 font-mono">
+                  {formatCurrency(kpis.totalExpenses || 680000)}
+                </p>
+                <span className="text-[10px] text-slate-500">Expenses</span>
+              </div>
+              <div>
+                <p className="text-base font-black text-emerald-600 font-mono">
+                  {formatCurrency(kpis.grossProfit || 570000)}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                  <span>↑ 45.6% Gross</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Graphics & Posts Approved</span>
-                  <span className="text-sm font-bold text-slate-900 font-mono">14</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Active Ad Campaigns</span>
-                  <span className="text-sm font-bold text-blue-600 font-mono">6</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Sprint Tasks Resolved</span>
-                  <span className="text-sm font-bold text-emerald-600 font-mono">11</span>
-                </div>
-              </>
-            ) : isTech ? (
-              <>
-                <div className="p-3 rounded-xl bg-cyan-50/60 border border-cyan-200/60 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Deployments & Code Releases</span>
-                  <span className="text-sm font-bold text-cyan-700 font-mono">4 Releases</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Active GitHub PRs Merged</span>
-                  <span className="text-sm font-bold text-slate-900 font-mono">9 Merged</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Sprint Tasks Resolved</span>
-                  <span className="text-sm font-bold text-emerald-600 font-mono">16</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Engineers Punched In</span>
-                  <span className="text-sm font-bold text-indigo-600 font-mono">{presentToday} Active</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Sales Revenue</span>
-                  <span className="text-sm font-bold text-emerald-600 font-mono">₹45,000</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">New Leads</span>
-                  <span className="text-sm font-bold text-slate-900 font-mono">18</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Follow-ups Scheduled</span>
-                  <span className="text-sm font-bold text-amber-600 font-mono">12</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 font-medium">Tasks Completed</span>
-                  <span className="text-sm font-bold text-blue-600 font-mono">24</span>
-                </div>
-              </>
-            )}
+              </div>
+            </div>
+
+            {/* Small Monthly Bar Chart */}
+            <div className="h-28 w-full pt-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={financeMonthlyChart} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                  <XAxis dataKey="month" stroke="#94A3B8" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 100000}L`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "8px", fontSize: "11px" }}
+                    formatter={(val: any) => formatCurrency(Number(val))}
+                  />
+                  <Bar dataKey="revenue" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="expense" fill="#cbd5e1" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Activity Timeline (8 Cols) */}
-        <div className="lg:col-span-8 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">Today&apos;s Activity Timeline</h3>
-              <p className="text-xs text-slate-500">Live operational events & team actions</p>
+        {/* Row 3: 4 Bottom Action Modules (Today's Important Tasks, Top Clients, Dept Task Load, Upcoming Renewals) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Module 1: Today's Important Tasks */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Today&apos;s Important Tasks</h3>
+              <Link href="/employees?tab=TASKS" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All
+              </Link>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold">
-              Live Stream
-            </span>
+
+            <div className="space-y-2.5">
+              {todayImportantTasks.map((t: any) => (
+                <div key={t.id} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    <input type="checkbox" className="rounded border-slate-300 text-blue-600 cursor-pointer" />
+                    <span className="font-semibold text-slate-800 truncate">{t.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                      {t.dept}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                      {t.priority}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {(isMarketing
-              ? [
-                  { time: "09:30", user: "Rahul Deshmukh", action: "published client weekly reel on Instagram", icon: Sparkles, color: "text-purple-500" },
-                  { time: "10:15", user: "Sneha Patil", action: "uploaded 4 graphics for Meta ad campaign", icon: Briefcase, color: "text-blue-500" },
-                  { time: "11:20", user: "Priya Sharma", action: "reviewed and approved client monthly progress report", icon: CheckSquare, color: "text-emerald-500" },
-                  { time: "12:05", user: "Sneha Patil", action: "forwarded completed deliverables to sales for billing", icon: CheckCircle2, color: "text-amber-500" },
-                ]
-              : isTech
-              ? [
-                  { time: "09:45", user: "Neha Joshi", action: "committed and pushed fix for auth middleware", icon: Sparkles, color: "text-cyan-500" },
-                  { time: "10:30", user: "Amit Kulkarni", action: "approved sprint code merge for client workspace", icon: CheckSquare, color: "text-indigo-500" },
-                  { time: "11:10", user: "Vikram Shinde", action: "completed UI component for dynamic progress sheet", icon: Briefcase, color: "text-blue-500" },
-                  { time: "11:55", user: "Neha Joshi", action: "deployed release to production server", icon: CheckCircle2, color: "text-emerald-500" },
-                ]
-              : activities
-            ).map((act: any, i: number) => {
-              const Icon = act.icon;
-              return (
-                <div
-                  key={i}
-                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between hover:bg-slate-100/60 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg bg-white border border-slate-200 shadow-xs ${act.color}`}>
-                      <Icon className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700">
-                        <span className="text-slate-900 font-bold">{act.user}</span> {act.action}
-                      </p>
+          {/* Module 2: Top Clients (Revenue) */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Top Clients (Revenue)</h3>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                This Month ▾
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {topClients.map((c: any, index: number) => (
+                <div key={c.id} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[11px] font-mono font-bold text-slate-400 w-4">#{index + 1}</span>
+                    <span className="font-semibold text-slate-800 truncate">{c.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-bold text-slate-900">{formatCurrency(c.amount)}</span>
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                      c.status === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                    )}>
+                      {c.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Module 3: Department Wise Task Load */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Department Wise Task Load</h3>
+              <Link href="/employees?tab=TASKS" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All
+              </Link>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              {departmentTaskLoads.map((d: any) => (
+                <div key={d.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-800">{d.name}</span>
+                    <div className="flex items-center gap-2 font-mono text-[11px]">
+                      <span className="text-slate-500">{d.ratio}</span>
+                      <span className="font-bold text-blue-600">{d.pct}%</span>
                     </div>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-500 shrink-0 ml-2">{act.time}</span>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-blue-600 h-full rounded-full transition-all" style={{ width: `${d.pct}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Module 4: Upcoming Renewals */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Upcoming Renewals</h3>
+              <Link href="/sales" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All
+              </Link>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {upcomingRenewals.map((r: any) => (
+                <div key={r.id} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-bold text-slate-900">{r.name}</div>
+                    <div className="text-[10px] text-slate-500">{r.package}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-bold text-emerald-600">{formatCurrency(r.amount || 50000)}</div>
+                    <div className="text-[10px] text-rose-500 font-mono font-semibold">{r.renewalDate}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER 2: SALES DEPARTMENT (FOR SALES MANAGER & SALES EMPLOYEE)
+  // =========================================================================
+  if (isSales) {
+    const isManager = role === "MANAGER";
+    return (
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto bg-slate-50/60 min-h-screen">
+        {/* Sales Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Sales {isManager ? "Management Operations" : "Executive Desk"} 🚀
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isManager
+                ? "Department-wide inbound lead pipeline, sales quota velocity, and staff collections."
+                : "Your personal inbound leads, assigned recovery tasks, and closed deals."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/crm"
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Lead</span>
+            </Link>
+            <Link
+              href="/sales"
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Sales Ledger</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Sales Top KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Pipeline Deal Value</span>
+            <p className="text-xl font-black text-slate-900 font-mono">{formatCurrency(kpis.pipelineValue || 0)}</p>
+            <span className="text-[10px] text-blue-600 font-bold">Active Funnel</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Inbound Leads</span>
+            <p className="text-xl font-black text-slate-900 font-mono">{kpis.totalLeads || 0}</p>
+            <span className="text-[10px] text-emerald-600 font-bold">{kpis.newLeads || 0} New</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Conversion Rate</span>
+            <p className="text-xl font-black text-slate-900 font-mono">
+              {kpis.totalLeads > 0 ? `${Math.round(((kpis.convertedLeads || 0) / kpis.totalLeads) * 100)}%` : "0%"}
+            </p>
+            <span className="text-[10px] text-emerald-600 font-bold">{kpis.convertedLeads || 0} Converted</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Monthly Cash Collected</span>
+            <p className="text-xl font-black text-emerald-600 font-mono">{formatCurrency(kpis.monthlyRevenue || 0)}</p>
+            <span className="text-[10px] text-slate-400 font-bold">Realized Inflow</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Pending Receivables</span>
+            <p className="text-xl font-black text-amber-600 font-mono">{formatCurrency(kpis.outstandingAmount || 0)}</p>
+            <span className="text-[10px] text-rose-500 font-bold">Uncollected</span>
+          </div>
+        </div>
+
+        {/* Lead Stages Funnel Grid */}
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-slate-900">Sales CRM Acquisition Stages</h3>
+            <Link href="/crm" className="text-xs font-bold text-blue-600">Open Pipeline →</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { label: "NEW LEADS", count: kpis.newLeads || 0, color: "border-blue-200 bg-blue-50 text-blue-700" },
+              { label: "CONTACTED", count: kpis.contactedLeads || 0, color: "border-indigo-200 bg-indigo-50 text-indigo-700" },
+              { label: "FOLLOW UP", count: kpis.followUpLeads || 0, color: "border-amber-200 bg-amber-50 text-amber-700" },
+              { label: "CONVERTED", count: kpis.convertedLeads || 0, color: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+              { label: "LOST", count: kpis.lostLeads || 0, color: "border-rose-200 bg-rose-50 text-rose-700" },
+            ].map((st) => (
+              <div key={st.label} className={cn("p-4 rounded-xl border flex flex-col justify-between", st.color)}>
+                <span className="text-[10px] font-bold font-mono uppercase">{st.label}</span>
+                <span className="text-2xl font-black font-mono mt-2">{st.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sales Performance Table (For Manager: all staff; For Employee: my work) */}
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-slate-900">
+              {isManager ? "Sales Representatives Performance" : "My Closed Deals & Activity"}
+            </h3>
+            <Link href="/employees" className="text-xs font-bold text-blue-600">View Roster →</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-mono border-b border-slate-200">
+                <tr>
+                  <th className="py-2.5 px-3">Sales Executive</th>
+                  <th className="py-2.5 px-3 text-center">Leads Handled</th>
+                  <th className="py-2.5 px-3 text-center">Deals Won</th>
+                  <th className="py-2.5 px-3 text-right">Revenue Closed</th>
+                  <th className="py-2.5 px-3 text-center">Tasks Completed</th>
+                  <th className="py-2.5 px-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {employeeRows
+                  .filter((e: any) => (isManager ? e.department?.includes("Sales") || true : e.name === user?.name))
+                  .map((emp: any, i: number) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-bold text-slate-900">{emp.name}</td>
+                      <td className="py-2.5 px-3 text-center font-mono">{emp.leads}</td>
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-blue-600">{emp.converted}</td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-600">
+                        {formatCurrency(emp.sales)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono">{emp.tasks}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <StatusBadge status={emp.status} size="sm" />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER 3: TECHNICAL & IT DEPARTMENT (TECH MANAGER & TECH EMPLOYEES)
+  // =========================================================================
+  if (isTech) {
+    return (
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto bg-slate-50/60 min-h-screen">
+        {/* Tech Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Technical & Engineering Hub 💻
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Code sprints, client web/app deliverables, production architecture & milestone tracking.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/employees?tab=TASKS"
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>Sprint Board</span>
+            </Link>
+            <Link
+              href="/reports"
+              className="px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Tech Contracts</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Tech KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Tech Contracts</span>
+            <p className="text-xl font-black text-slate-900 font-mono">{clientStats.totalClients || 0}</p>
+            <span className="text-[10px] text-cyan-600 font-bold">Active Projects</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Milestones Shipped</span>
+            <p className="text-xl font-black text-slate-900 font-mono">
+              {clientStats.totalCompletedDeliverables || 0} / {clientStats.totalTargetDeliverables || 0}
+            </p>
+            <span className="text-[10px] text-emerald-600 font-bold">Target Modules</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Sprint Velocity</span>
+            <p className="text-xl font-black text-emerald-600 font-mono">
+              {clientStats.deliverableCompletionRate || 0}%
+            </p>
+            <span className="text-[10px] text-emerald-600 font-bold">Completion Rate</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Open Bug Tickets</span>
+            <p className="text-xl font-black text-rose-600 font-mono">{kpis.openComplaintsCount || 0}</p>
+            <span className="text-[10px] text-rose-500 font-bold">{kpis.slaRiskCount || 0} Critical</span>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+            <span className="text-[11px] font-semibold text-slate-500">Engineers Active</span>
+            <p className="text-xl font-black text-indigo-600 font-mono">
+              {kpis.presentToday || 0} / {kpis.totalEmployees || 0}
+            </p>
+            <span className="text-[10px] text-indigo-600 font-bold">Punched In</span>
+          </div>
+        </div>
+
+        {/* Technical Contracts Grid */}
+        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-slate-900">Engineering Projects & Sprints</h3>
+            <Link href="/reports" className="text-xs font-bold text-blue-600">Open Workspaces →</Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {clientStats.clients?.map((c: any) => {
+              const totalTarget = c.services?.reduce((acc: number, s: any) => acc + (s.targetCount || 0), 0) || 0;
+              const totalDone = c.services?.reduce((acc: number, s: any) => acc + (s.completedCount || 0), 0) || 0;
+              const pct = totalTarget > 0 ? Math.min(100, Math.round((totalDone / totalTarget) * 100)) : 0;
+              return (
+                <div key={c.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">{c.name}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 border border-cyan-200 font-bold">
+                      {c.clientCode}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>Milestones: {totalDone}/{totalTarget}</span>
+                      <span className="font-bold text-slate-800">{pct}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div className="bg-cyan-600 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER 4: DIGITAL MARKETING DEPARTMENT (MARKETING MANAGER & EMPLOYEES)
+  // =========================================================================
+  return (
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full max-w-[1700px] mx-auto bg-slate-50/60 min-h-screen">
+      {/* Marketing Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            Digital Marketing Operations 📱
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Deliverables progress reports, Instagram reels, graphics, Meta ads & social media growth campaigns.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/reports"
+            className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Progress Sheets</span>
+          </Link>
+          <Link
+            href="/employees?tab=TASKS"
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+          >
+            <CheckSquare className="w-3.5 h-3.5" />
+            <span>Marketing Tasks</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Marketing KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500">Marketing Clients</span>
+          <p className="text-xl font-black text-slate-900 font-mono">{clientStats.totalClients || 0}</p>
+          <span className="text-[10px] text-purple-600 font-bold">Active Retainers</span>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500">Reels & Posts Delivered</span>
+          <p className="text-xl font-black text-slate-900 font-mono">
+            {clientStats.totalCompletedDeliverables || 0} / {clientStats.totalTargetDeliverables || 0}
+          </p>
+          <span className="text-[10px] text-emerald-600 font-bold">This Month Target</span>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500">Delivery Velocity</span>
+          <p className="text-xl font-black text-emerald-600 font-mono">
+            {clientStats.deliverableCompletionRate || 0}%
+          </p>
+          <span className="text-[10px] text-emerald-600 font-bold">On Schedule</span>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500">Ad Campaigns Active</span>
+          <p className="text-xl font-black text-blue-600 font-mono">6</p>
+          <span className="text-[10px] text-blue-600 font-bold">Meta & Google Ads</span>
+        </div>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] font-semibold text-slate-500">Team Attendance</span>
+          <p className="text-xl font-black text-indigo-600 font-mono">
+            {kpis.presentToday || 0} / {kpis.totalEmployees || 0}
+          </p>
+          <span className="text-[10px] text-indigo-600 font-bold">Present Today</span>
+        </div>
+      </div>
+
+      {/* Marketing Accounts Deliverable Progress Sheets Grid */}
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm text-slate-900">Marketing Deliverable Progress Sheets</h3>
+          <Link href="/reports" className="text-xs font-bold text-purple-600">Open Progress Sheets →</Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clientStats.clients?.map((c: any) => {
+            const totalTarget = c.services?.reduce((acc: number, s: any) => acc + (s.targetCount || 0), 0) || 0;
+            const totalDone = c.services?.reduce((acc: number, s: any) => acc + (s.completedCount || 0), 0) || 0;
+            const pct = totalTarget > 0 ? Math.min(100, Math.round((totalDone / totalTarget) * 100)) : 0;
+            return (
+              <div key={c.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-slate-900">{c.name}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
+                    {c.clientCode}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Reels & Posts: {totalDone}/{totalTarget}</span>
+                    <span className="font-bold text-slate-800">{pct}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
