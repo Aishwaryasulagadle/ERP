@@ -640,53 +640,69 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
       },
     });
 
-    if (!existing) {
-      // Query attendance records for the month
-      const empAttendances = await prisma.attendance.findMany({
-        where: {
-          employeeId: emp.id,
-          date: { gte: monthStart, lte: monthEnd },
-        },
-      });
+    // Query attendance records for the month
+    const empAttendances = await prisma.attendance.findMany({
+      where: {
+        employeeId: emp.id,
+        date: { gte: monthStart, lte: monthEnd },
+      },
+    });
 
-      // Count sundays in the month
-      let sundaysCount = 0;
-      for (let day = 1; day <= daysInCurrentMonth; day++) {
-        if (new Date(currentYear, currentMonth - 1, day).getDay() === 0) {
-          sundaysCount++;
-        }
+    // Count sundays in the month
+    let sundaysCount = 0;
+    for (let day = 1; day <= daysInCurrentMonth; day++) {
+      if (new Date(currentYear, currentMonth - 1, day).getDay() === 0) {
+        sundaysCount++;
       }
+    }
 
-      // Query official holidays for this month
-      const holidaysCount = await prisma.holiday.count({
-        where: {
-          date: { gte: monthStart, lte: monthEnd },
+    // Query official holidays for this month
+    const holidaysCount = await prisma.holiday.count({
+      where: {
+        date: { gte: monthStart, lte: monthEnd },
+      },
+    });
+
+    const checkedInDays = empAttendances.filter((a) => a.checkIn || a.status === "PRESENT" || a.status === "LATE").length;
+    const wfhDays = empAttendances.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
+    const halfDays = empAttendances.filter((a) => a.status === "HALF_DAY").length;
+    const unpaidLeaves = empAttendances.filter((a) => a.status === "ABSENT" || a.status === "UNPAID_LEAVE").length;
+
+    // Sundays and holidays are paid by default, as well as regular WFH and standard paid quota
+    const paidLeavesQuota = (emp as any).monthlyLeaveQuota ?? 2;
+    const presentDays = Math.min(daysInCurrentMonth, checkedInDays + wfhDays + sundaysCount + holidaysCount);
+
+    const basic = emp.salary ? Math.round(emp.salary * 0.5) : 35000;
+    const hra = Math.round(basic * 0.4);
+    const specialAllow = Math.round(basic * 0.2);
+    const grossSalary = emp.salary || (basic + hra + specialAllow);
+    const pfDeduction = Math.round(basic * 0.12);
+    const taxDeduction = grossSalary > 50000 ? Math.round(grossSalary * 0.05) : 0;
+
+    // Only half days and unpaid leaves cause leave deductions
+    const perDaySalary = grossSalary / daysInCurrentMonth;
+    const leaveDeduction = Math.round((unpaidLeaves * perDaySalary) + (halfDays * 0.5 * perDaySalary));
+
+    const totalDeduction = pfDeduction + taxDeduction + leaveDeduction;
+    const netSalary = Math.max(0, grossSalary - totalDeduction);
+
+    if (existing) {
+      // Refresh real-time present days, sundays, holidays and deductions
+      await prisma.salarySlip.update({
+        where: { id: existing.id },
+        data: {
+          presentDays,
+          wfhDays,
+          halfDays,
+          unpaidLeaves,
+          leaveDeduction,
+          totalDeduction,
+          netSalary,
+          totalWorkingDays: daysInCurrentMonth,
+          notes: `Auto-updated payroll: ${presentDays} days paid (${checkedInDays} checked-in + ${wfhDays} WFH + ${sundaysCount} Sundays + ${holidaysCount} Holidays). Deductions: ${halfDays} half-days, ${unpaidLeaves} unpaid.`,
         },
       });
-
-      const checkedInDays = empAttendances.filter((a) => a.checkIn || a.status === "PRESENT" || a.status === "LATE").length;
-      const wfhDays = empAttendances.filter((a) => a.status === "WORK_FROM_HOME" || a.status === "WFH").length;
-      const halfDays = empAttendances.filter((a) => a.status === "HALF_DAY").length;
-      const unpaidLeaves = empAttendances.filter((a) => a.status === "ABSENT" || a.status === "UNPAID_LEAVE").length;
-
-      // Sundays and holidays are paid by default, as well as regular WFH and standard paid quota
-      const paidLeavesQuota = (emp as any).monthlyLeaveQuota ?? 2;
-      const presentDays = Math.min(daysInCurrentMonth, checkedInDays + wfhDays + sundaysCount + holidaysCount);
-
-      const basic = emp.salary ? Math.round(emp.salary * 0.5) : 35000;
-      const hra = Math.round(basic * 0.4);
-      const specialAllow = Math.round(basic * 0.2);
-      const grossSalary = emp.salary || (basic + hra + specialAllow);
-      const pfDeduction = Math.round(basic * 0.12);
-      const taxDeduction = grossSalary > 50000 ? Math.round(grossSalary * 0.05) : 0;
-
-      // Only half days and unpaid leaves cause leave deductions
-      const perDaySalary = grossSalary / daysInCurrentMonth;
-      const leaveDeduction = Math.round((unpaidLeaves * perDaySalary) + (halfDays * 0.5 * perDaySalary));
-
-      const totalDeduction = pfDeduction + taxDeduction + leaveDeduction;
-      const netSalary = Math.max(0, grossSalary - totalDeduction);
-
+    } else {
       const monthStr = String(currentMonth).padStart(2, "0");
       const slipCode = `PAY-${currentYear}${monthStr}-${emp.employeeCode || Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -715,7 +731,7 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
           unpaidLeaves,
           paymentStatus: "PAID",
           paymentDate: new Date(),
-          notes: `Auto-generated payroll: ${presentDays} days paid (including Sundays & Holidays). Deductions: ${halfDays} half-days, ${unpaidLeaves} unpaid.`,
+          notes: `Auto-generated payroll: ${presentDays} days paid (${checkedInDays} checked-in + ${wfhDays} WFH + ${sundaysCount} Sundays + ${holidaysCount} Holidays). Deductions: ${halfDays} half-days, ${unpaidLeaves} unpaid.`,
         },
       });
     }

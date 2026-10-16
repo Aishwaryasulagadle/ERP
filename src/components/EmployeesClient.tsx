@@ -1943,7 +1943,33 @@ export function EmployeesClient({
 
                             const daysInMonth = new Date(monthlyAttendanceYear, monthlyAttendanceMonth, 0).getDate();
                             const totalWorkDays = matchingSlip?.totalWorkingDays || daysInMonth;
-                            const presentDays = matchingSlip?.presentDays ?? realPresentDays;
+
+                            // Calculate Sundays and Holidays in this month
+                            let monthSundays = 0;
+                            for (let day = 1; day <= daysInMonth; day++) {
+                              if (new Date(monthlyAttendanceYear, monthlyAttendanceMonth - 1, day).getDay() === 0) {
+                                monthSundays++;
+                              }
+                            }
+
+                            const monthHolidays = (holidays || []).filter((h) => {
+                              const d = new Date(h.date);
+                              return (
+                                d.getMonth() + 1 === monthlyAttendanceMonth &&
+                                d.getFullYear() === monthlyAttendanceYear &&
+                                d.getDay() !== 0 // don't double count if holiday falls on Sunday
+                              );
+                            }).length;
+
+                            // Total present / paid days: Checked-in days + WFH + Sundays (weekend off) + Official Holidays
+                            const calculatedPresentDays = Math.min(
+                              daysInMonth,
+                              realPresentDays + realWfhDays + monthSundays + monthHolidays
+                            );
+                            const presentDays = matchingSlip?.presentDays && matchingSlip.presentDays > realPresentDays
+                              ? matchingSlip.presentDays
+                              : calculatedPresentDays;
+
                             const wfhDays = matchingSlip?.wfhDays ?? realWfhDays;
                             const halfDays = matchingSlip?.halfDays ?? realHalfDays;
                             const unpaidLeaves = matchingSlip?.unpaidLeaves ?? realUnpaidDays;
@@ -1963,7 +1989,7 @@ export function EmployeesClient({
                               return d.getMonth() + 1 === monthlyAttendanceMonth && d.getFullYear() === monthlyAttendanceYear;
                             }).reduce((acc, l) => acc + (Number(l.daysCount) || 1), 0);
 
-                            const effectivePresence = presentDays + wfhDays + halfDays * 0.5 + empMonthPaidLeaves;
+                            const effectivePresence = Math.min(totalWorkDays, presentDays + halfDays * 0.5 + empMonthPaidLeaves);
                             const presencePercentage = totalWorkDays > 0 ? Math.min(100, Math.round((effectivePresence / totalWorkDays) * 100)) : 0;
 
                             return (
@@ -5053,16 +5079,47 @@ export function EmployeesClient({
               const halfDays = empAttsInMonth.filter((a) => a.status === "HALF_DAY").length;
               const leaveDays = empAttsInMonth.filter((a) => a.status === "LEAVE" || a.status === "ON_LEAVE").length;
 
+              const daysInSelectedMonth = new Date(selectedAttendanceYear, selectedAttendanceMonth, 0).getDate();
+              let monthSundays = 0;
+              for (let day = 1; day <= daysInSelectedMonth; day++) {
+                if (new Date(selectedAttendanceYear, selectedAttendanceMonth - 1, day).getDay() === 0) {
+                  monthSundays++;
+                }
+              }
+
+              const monthHolidays = (holidays || []).filter((h) => {
+                const d = new Date(h.date);
+                return (
+                  d.getMonth() + 1 === selectedAttendanceMonth &&
+                  d.getFullYear() === selectedAttendanceYear &&
+                  d.getDay() !== 0
+                );
+              }).length;
+
+              const totalPaidDays = Math.min(
+                daysInSelectedMonth,
+                presentDays + wfhDays + monthSundays + monthHolidays
+              );
+
               return (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-4 gap-2.5 text-center text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
                     <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono block">Present Days</span>
-                      <span className="text-base font-black text-emerald-700 font-mono mt-0.5 block">{presentDays}</span>
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono block">Paid Presence</span>
+                      <span className="text-base font-black text-emerald-700 font-mono mt-0.5 block">{totalPaidDays} Days</span>
+                      <span className="text-[9px] text-emerald-600 font-mono block">({presentDays} Office)</span>
                     </div>
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
                       <span className="text-[10px] font-bold text-blue-800 uppercase font-mono block">WFH / Remote</span>
                       <span className="text-base font-black text-blue-700 font-mono mt-0.5 block">{wfhDays}</span>
+                    </div>
+                    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-indigo-800 uppercase font-mono block">Sundays (Off)</span>
+                      <span className="text-base font-black text-indigo-700 font-mono mt-0.5 block">{monthSundays}</span>
+                    </div>
+                    <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                      <span className="text-[10px] font-bold text-teal-800 uppercase font-mono block">Holidays</span>
+                      <span className="text-base font-black text-teal-700 font-mono mt-0.5 block">{monthHolidays}</span>
                     </div>
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                       <span className="text-[10px] font-bold text-amber-800 uppercase font-mono block">Half Days</span>
