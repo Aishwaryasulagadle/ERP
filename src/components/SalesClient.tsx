@@ -1,53 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   TrendingUp,
   Plus,
   Search,
-  FileText,
   DollarSign,
   Users,
   CreditCard,
   ShoppingBag,
-  Clock,
-  ArrowUpRight,
-  Download,
-  Calendar,
-  X,
-  Filter,
   PanelLeftClose,
   PanelLeft,
   Receipt,
-  Layers,
   CheckCircle2,
-  AlertCircle,
   Briefcase,
-  UserCheck,
-  Send,
-  ArrowDownRight,
-  ShieldAlert,
   Wallet,
+  Calendar,
+  Layers,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertCircle,
+  Clock,
+  Trash2,
+  RefreshCw,
+  FileSpreadsheet,
 } from "lucide-react";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import {
   createOrder,
   createCustomer,
-  markPaymentReceived,
+  recordOrderPayment,
   recordCustomReceivedPayment,
   recordCustomReceivable,
   recordCustomExpense,
+  deleteExpense,
   assignCollectionTask,
+  markPaymentReceived,
+  getSalesData,
 } from "@/actions/sales";
 import { StatusBadge, KpiCard } from "@/components/ui/Cards";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
 
 interface SalesClientProps {
   initialData: any;
@@ -56,46 +48,83 @@ interface SalesClientProps {
 }
 
 export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesClientProps) {
+  const router = useRouter();
   const isAdmin = userRole === "ADMIN";
   const isSalesManager = userRole === "MANAGER";
   const isSalesEmployee = userRole === "EMPLOYEE";
 
+  // Month & Year Filter State (Live dynamic switcher)
+  const [selectedMonth, setSelectedMonth] = useState<number>(initialData.selectedMonth || 10);
+  const [selectedYear, setSelectedYear] = useState<number>(initialData.selectedYear || 2026);
+
   // Active view default based on role
-  const defaultView = isSalesEmployee ? "COLLECTIONS" : "ORDERS";
+  const defaultView = isSalesEmployee ? "COLLECTIONS" : "MONTHLY_CLIENTS";
   const [activeView, setActiveView] = useState<
-    "ORDERS" | "RECEIVABLES" | "COLLECTIONS" | "CUSTOMERS" | "INVOICES" | "PAYMENTS" | "EXPENSES" | "PROFIT_LOSS"
+    "MONTHLY_CLIENTS" | "ONE_TIME_ORDERS" | "RECEIVABLES" | "PAYMENTS" | "EXPENSES" | "BALANCE_SHEET" | "COLLECTIONS" | "CUSTOMERS"
   >(defaultView as any);
 
   const [search, setSearch] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [orders, setOrders] = useState<any[]>(initialData.orders || []);
-  const [customers, setCustomers] = useState<any[]>(initialData.customers || []);
-  const [invoices, setInvoices] = useState<any[]>(initialData.invoices || []);
-  const [payments, setPayments] = useState<any[]>(initialData.payments || []);
-  const [expenses, setExpenses] = useState<any[]>(initialData.expenses || []);
-  const [salesStaff] = useState<any[]>(initialData.salesStaff || []);
-  const [collectionTasks, setCollectionTasks] = useState<any[]>(initialData.collectionTasks || []);
+  // Dynamic Data State
+  const [salesData, setSalesData] = useState<any>(initialData);
+
+  const orders = salesData.orders || [];
+  const monthlyRetainers = salesData.monthlyRetainers || [];
+  const oneTimeOrders = salesData.oneTimeOrders || [];
+  const customers = salesData.customers || [];
+  const payments = salesData.payments || [];
+  const monthPayments = salesData.monthPayments || [];
+  const expenses = salesData.expenses || [];
+  const allExpenses = salesData.allExpenses || [];
+  const salesStaff = salesData.salesStaff || [];
+  const collectionTasks = salesData.collectionTasks || [];
+  const stats = salesData.stats || {};
 
   // Modals
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [showCustomPaymentModal, setShowCustomPaymentModal] = useState(false);
-  const [showCustomReceivableModal, setShowCustomReceivableModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any | null>(null);
+
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
   const [selectedOrderForTask, setSelectedOrderForTask] = useState<any | null>(null);
 
+  const [showCustomPaymentModal, setShowCustomPaymentModal] = useState(false);
+  const [showCustomReceivableModal, setShowCustomReceivableModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
   // Form states
-  const [orderForm, setOrderForm] = useState({
-    customerId: customers[0]?.id || "",
-    itemTitle: "Enterprise ERP Cloud Suite (Annual)",
-    unitPrice: 180000,
-    quantity: 1,
-    discount: 0,
-    paymentStatus: "PENDING",
+  const [paymentForm, setPaymentForm] = useState({
+    amount: 0,
+    paymentMethod: "Bank Transfer",
+    paymentDate: new Date().toISOString().split("T")[0],
     notes: "",
+  });
+
+  const [expenseForm, setExpenseForm] = useState({
+    category: "OFFICE_RENT",
+    title: "",
+    amount: 10000,
+    paidTo: "",
+    paymentMode: "BANK_TRANSFER",
+    date: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
+
+  const [customPaymentForm, setCustomPaymentForm] = useState({
+    customerName: "",
+    amount: 25000,
+    paymentMethod: "Bank Transfer",
+    paymentDate: new Date().toISOString().split("T")[0],
+    notes: "Direct client settlement voucher",
+  });
+
+  const [customReceivableForm, setCustomReceivableForm] = useState({
+    customerName: "",
+    amount: 50000,
+    itemTitle: "Marketing Deliverable Milestone / Technical Scope",
+    notes: "Generated from delivery completion",
   });
 
   const [custForm, setCustForm] = useState({
@@ -106,29 +135,6 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     address: "",
   });
 
-  const [customPaymentForm, setCustomPaymentForm] = useState({
-    customerName: "",
-    amount: 25000,
-    paymentMethod: "Bank Transfer",
-    notes: "Direct client wire settlement",
-  });
-
-  const [customReceivableForm, setCustomReceivableForm] = useState({
-    customerName: "",
-    amount: 50000,
-    itemTitle: "Marketing Deliverable Milestone / Technical Scope",
-    notes: "Generated from delivery completion",
-  });
-
-  const [expenseForm, setExpenseForm] = useState({
-    category: "SERVER_INFRA",
-    title: "",
-    amount: 15000,
-    paidTo: "",
-    paymentMode: "BANK_TRANSFER",
-    notes: "",
-  });
-
   const [assignTaskForm, setAssignTaskForm] = useState({
     assignedToId: salesStaff[0]?.id || "",
     dueDate: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split("T")[0],
@@ -137,55 +143,102 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
   const [loading, setLoading] = useState(false);
 
-  // Derived financial computations
-  const totalRevenue = orders.filter((o) => o.paymentStatus === "PAID").reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const pendingPayments = orders.filter((o) => o.paymentStatus !== "PAID").reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const totalPayroll = initialData.stats?.totalPayroll || 0;
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const totalOutflow = totalPayroll + totalExpenses;
-  const netProfitLoss = totalRevenue - totalOutflow;
+  // Handle Month / Year switch
+  const handleMonthYearChange = async (newMonth: number, newYear: number) => {
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+    setIsRefreshing(true);
+    try {
+      const freshData = await getSalesData({ month: newMonth, year: newYear });
+      setSalesData(freshData);
+    } catch (err: any) {
+      alert("Error loading monthly data: " + err.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-  // Filtered views
-  const filteredOrders = orders.filter((o) => {
-    const matchesPayment = paymentFilter === "ALL" || o.paymentStatus === paymentFilter;
-    const matchesSearch =
-      o.orderCode?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customer?.company?.toLowerCase().includes(search.toLowerCase());
-    return matchesPayment && matchesSearch;
-  });
+  const refreshCurrentView = async () => {
+    setIsRefreshing(true);
+    try {
+      const freshData = await getSalesData({ month: selectedMonth, year: selectedYear });
+      setSalesData(freshData);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-  const pendingReceivables = orders.filter((o) => o.paymentStatus !== "PAID");
+  // Open Collect Payment modal for an order (pre-fills remaining balance)
+  const openCollectPaymentModal = (order: any) => {
+    setSelectedOrderForPayment(order);
+    const paidSoFar = (order.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+    const remaining = Math.max(0, order.totalAmount - paidSoFar);
+    setPaymentForm({
+      amount: remaining,
+      paymentMethod: "Bank Transfer",
+      paymentDate: new Date().toISOString().split("T")[0],
+      notes: remaining < order.totalAmount ? "Partial installment payment" : "Full payment settlement",
+    });
+    setShowPaymentModal(true);
+  };
 
-  // Handlers
-  const handleCreateOrder = async (e: React.FormEvent) => {
+  // Submit Collect Payment (Full or Partial)
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedOrderForPayment) return;
     setLoading(true);
     try {
-      const newOrder = await createOrder(orderForm);
-      setOrders([newOrder, ...orders]);
-      setShowOrderModal(false);
-      alert(`Sale order created successfully: ${newOrder.orderCode}`);
-    } catch (e: any) {
-      alert(e.message);
+      await recordOrderPayment({
+        orderId: selectedOrderForPayment.id,
+        amount: Number(paymentForm.amount),
+        paymentMethod: paymentForm.paymentMethod,
+        paymentDate: paymentForm.paymentDate,
+        notes: paymentForm.notes,
+      });
+      setShowPaymentModal(false);
+      alert(`✓ Payment of ${formatCurrency(Number(paymentForm.amount))} successfully recorded!`);
+      await refreshCurrentView();
+    } catch (err: any) {
+      alert("Payment failed: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
+  // Submit Operational Expense (Admin)
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const newCust = await createCustomer(custForm);
-      setCustomers([newCust, ...customers]);
-      setShowCustomerModal(false);
-      setCustForm({ name: "", email: "", phone: "", company: "", address: "" });
-      alert(`Customer ${newCust.name} added successfully!`);
-    } catch (e: any) {
-      alert(e.message);
+      await recordCustomExpense(expenseForm);
+      setShowExpenseModal(false);
+      setExpenseForm({
+        category: "OFFICE_RENT",
+        title: "",
+        amount: 10000,
+        paidTo: "",
+        paymentMode: "BANK_TRANSFER",
+        date: new Date().toISOString().split("T")[0],
+        notes: "",
+      });
+      alert(`✓ Company expense of ${formatCurrency(expenseForm.amount)} logged!`);
+      await refreshCurrentView();
+    } catch (err: any) {
+      alert(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteExpense = async (id: string, title: string) => {
+    if (!confirm(`Delete expense "${title}"?`)) return;
+    try {
+      await deleteExpense(id);
+      await refreshCurrentView();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -193,10 +246,10 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     e.preventDefault();
     setLoading(true);
     try {
-      const p = await recordCustomReceivedPayment(customPaymentForm);
-      setPayments([p, ...payments]);
+      await recordCustomReceivedPayment(customPaymentForm);
       setShowCustomPaymentModal(false);
-      alert(`Custom payment of ${formatCurrency(customPaymentForm.amount)} recorded!`);
+      alert(`✓ Direct payment voucher of ${formatCurrency(customPaymentForm.amount)} recorded!`);
+      await refreshCurrentView();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -208,10 +261,10 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     e.preventDefault();
     setLoading(true);
     try {
-      const rec = await recordCustomReceivable(customReceivableForm);
-      setOrders([rec, ...orders]);
+      await recordCustomReceivable(customReceivableForm);
       setShowCustomReceivableModal(false);
-      alert(`Custom receivable ${rec.orderCode} recorded in ledger!`);
+      alert(`✓ Custom receivable created!`);
+      await refreshCurrentView();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -219,14 +272,15 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     }
   };
 
-  const handleExpenseSubmit = async (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const exp = await recordCustomExpense(expenseForm);
-      setExpenses([exp, ...expenses]);
-      setShowExpenseModal(false);
-      alert(`Operational expense of ${formatCurrency(expenseForm.amount)} logged!`);
+      await createCustomer(custForm);
+      setShowCustomerModal(false);
+      setCustForm({ name: "", email: "", phone: "", company: "", address: "" });
+      alert(`✓ Customer added successfully!`);
+      await refreshCurrentView();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -239,15 +293,15 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     if (!selectedOrderForTask) return;
     setLoading(true);
     try {
-      const tsk = await assignCollectionTask({
+      await assignCollectionTask({
         orderId: selectedOrderForTask.id,
         assignedToId: assignTaskForm.assignedToId,
         dueDate: assignTaskForm.dueDate,
         notes: assignTaskForm.notes,
       });
-      setCollectionTasks([tsk, ...collectionTasks]);
       setShowAssignTaskModal(false);
-      alert(`Collection task assigned to sales representative!`);
+      alert(`✓ Collection task assigned to sales staff!`);
+      await refreshCurrentView();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -255,33 +309,59 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
     }
   };
 
-  // Build categories according to permissions
+  // Month names
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const currentMonthLabel = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+
+  // Role navigation categories
   const salesCategories = [
     ...(isAdmin
       ? [
-          { key: "ORDERS", label: "All Sales Orders", icon: ShoppingBag, count: orders.length, color: "text-blue-600" },
-          { key: "RECEIVABLES", label: "Pending Receivables", icon: CreditCard, count: pendingReceivables.length, color: "text-amber-600" },
+          { key: "MONTHLY_CLIENTS", label: "Monthly Retainer Clients", icon: RefreshCw, count: monthlyRetainers.length, color: "text-blue-600" },
+          { key: "ONE_TIME_ORDERS", label: "One-Time Projects", icon: ShoppingBag, count: oneTimeOrders.length, color: "text-purple-600" },
+          { key: "RECEIVABLES", label: "Pending Receivables", icon: CreditCard, count: orders.filter((o: any) => o.paymentStatus !== "PAID").length, color: "text-amber-600" },
           { key: "EXPENSES", label: "Company Expenses", icon: Wallet, count: expenses.length, color: "text-rose-600" },
-          { key: "PROFIT_LOSS", label: "P&L Solvency Buffer", icon: TrendingUp, color: "text-emerald-600" },
-          { key: "COLLECTIONS", label: "Collection Tasks", icon: Briefcase, count: collectionTasks.length, color: "text-purple-600" },
-          { key: "CUSTOMERS", label: "Client Accounts", icon: Users, count: customers.length, color: "text-indigo-600" },
-          { key: "INVOICES", label: "Invoices Ledger", icon: Receipt, count: invoices.length, color: "text-emerald-600" },
-          { key: "PAYMENTS", label: "Payments Received", icon: DollarSign, count: payments.length, color: "text-blue-600" },
+          { key: "BALANCE_SHEET", label: "Monthly Balance Sheet (P&L)", icon: FileSpreadsheet, color: "text-emerald-600" },
+          { key: "PAYMENTS", label: "Payments Ledger", icon: DollarSign, count: payments.length, color: "text-blue-600" },
+          { key: "COLLECTIONS", label: "Collection Tasks", icon: Briefcase, count: collectionTasks.length, color: "text-indigo-600" },
+          { key: "CUSTOMERS", label: "Clients Directory", icon: Users, count: customers.length, color: "text-slate-600" },
         ]
       : isSalesManager
       ? [
-          { key: "RECEIVABLES", label: "Receivables to Collect", icon: CreditCard, count: pendingReceivables.length, color: "text-amber-600" },
-          { key: "ORDERS", label: "Forwarded Client Orders", icon: ShoppingBag, count: orders.length, color: "text-blue-600" },
-          { key: "COLLECTIONS", label: "Allot Collection Tasks", icon: Briefcase, count: collectionTasks.length, color: "text-purple-600" },
-          { key: "CUSTOMERS", label: "Clients Roster", icon: Users, count: customers.length, color: "text-indigo-600" },
-          { key: "PAYMENTS", label: "Collected Payments", icon: DollarSign, count: payments.length, color: "text-emerald-600" },
+          { key: "MONTHLY_CLIENTS", label: "Monthly Retainer Clients", icon: RefreshCw, count: monthlyRetainers.length, color: "text-blue-600" },
+          { key: "ONE_TIME_ORDERS", label: "One-Time Projects", icon: ShoppingBag, count: oneTimeOrders.length, color: "text-purple-600" },
+          { key: "RECEIVABLES", label: "Pending Receivables", icon: CreditCard, count: orders.filter((o: any) => o.paymentStatus !== "PAID").length, color: "text-amber-600" },
+          { key: "COLLECTIONS", label: "Allot Staff Tasks", icon: Briefcase, count: collectionTasks.length, color: "text-indigo-600" },
+          { key: "PAYMENTS", label: "Collected Receipts", icon: DollarSign, count: payments.length, color: "text-emerald-600" },
+          { key: "CUSTOMERS", label: "Clients Directory", icon: Users, count: customers.length, color: "text-slate-600" },
         ]
       : [
           // Sales Employee
           { key: "COLLECTIONS", label: "My Collection Tasks", icon: Briefcase, count: collectionTasks.length, color: "text-purple-600" },
+          { key: "MONTHLY_CLIENTS", label: "Monthly Clients", icon: RefreshCw, count: monthlyRetainers.length, color: "text-blue-600" },
+          { key: "ONE_TIME_ORDERS", label: "One-Time Projects", icon: ShoppingBag, count: oneTimeOrders.length, color: "text-purple-600" },
           { key: "PAYMENTS", label: "Logged Collections", icon: DollarSign, count: payments.length, color: "text-emerald-600" },
         ]),
   ];
+
+  // Search filter helper
+  const matchesSearch = (item: any) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    const code = item.orderCode || item.expenseCode || item.paymentCode || item.clientCode || "";
+    const name = item.customer?.name || item.client?.name || item.title || item.name || "";
+    const company = item.customer?.company || item.client?.company || "";
+    const notes = item.notes || "";
+    return (
+      code.toLowerCase().includes(s) ||
+      name.toLowerCase().includes(s) ||
+      company.toLowerCase().includes(s) ||
+      notes.toLowerCase().includes(s)
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-4rem)] bg-slate-50">
@@ -314,10 +394,10 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
             </div>
           </div>
 
-          {/* Module Views */}
+          {/* Module Views Navigation */}
           <div className="space-y-1">
             <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-              Ledger Navigation
+              Sales Ledger Navigation
             </div>
             <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
               {salesCategories.map((cat) => {
@@ -358,10 +438,10 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
             <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 text-xs space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-blue-900">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                <span>Receivables Pipeline</span>
+                <span>Dynamic Revenue System</span>
               </div>
               <p className="text-[11px] text-blue-700 leading-relaxed">
-                When digital marketing & tech complete deliverables, receivables appear here for collection.
+                Active monthly clients automatically refresh every month. Cash collections count towards revenue in the month they are received.
               </p>
             </div>
           </div>
@@ -381,29 +461,65 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
       {/* Main Content Area */}
       <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 w-full min-w-0">
-        {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        {/* Top Header & Actions */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              {isAdmin ? "Company Sales & Financial Solvency" : isSalesManager ? "Sales Receivables & Collections" : "Assigned Receivables"}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                {isAdmin ? "Company Sales & Financial Solvency" : isSalesManager ? "Sales Receivables & Collections" : "Assigned Receivables"}
+              </h1>
+              {isRefreshing && (
+                <span className="flex items-center gap-1 text-[11px] text-blue-600 font-bold animate-pulse">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Updating...
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {isAdmin
-                ? "Full Tracking: Revenue vs Payroll & Expenses, Company P&L Solvency"
+                ? "Full Tracking: Realized Inflow vs Payroll & Operational Outflow, Company Balance Sheet"
                 : isSalesManager
-                ? "Collect client receivables, allot staff collection tasks, log received payments"
+                ? "Manage monthly client retainers, collect partial/full payments, and allot staff duties"
                 : "Your assigned payment follow-ups and collection updates"}
             </p>
           </div>
 
+          {/* Month & Year Selector + Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Dynamic Month-Year Picker */}
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-xs">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 mr-1.5" />
+              <select
+                value={selectedMonth}
+                onChange={(e) => handleMonthYearChange(Number(e.target.value), selectedYear)}
+                className="bg-transparent text-xs font-bold text-slate-800 pr-2 focus:outline-none cursor-pointer"
+              >
+                {monthNames.map((name, idx) => (
+                  <option key={idx} value={idx + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={(e) => handleMonthYearChange(selectedMonth, Number(e.target.value))}
+                className="bg-transparent text-xs font-bold text-slate-800 border-l border-slate-200 pl-2 focus:outline-none cursor-pointer"
+              >
+                {[2025, 2026, 2027].map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Direct Received Payment Button (All Sales & Admin) */}
             <button
               onClick={() => setShowCustomPaymentModal(true)}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <DollarSign className="w-3.5 h-3.5" />
-              <span>+ Record Received Amount</span>
+              <span>+ Record Payment</span>
             </button>
 
             {/* Custom Receivable Button (Admin or Sales Manager) */}
@@ -441,82 +557,82 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         </div>
 
         {/* ========================================================================= */}
-        {/* KPI CARDS: ROLE SPECIFIC                                                  */}
+        {/* KPI CARDS: 100% REAL LIVE DATA SYNCED FROM DB                             */}
         {/* ========================================================================= */}
         {isAdmin ? (
-          /* Admin Sees Full Financial Solvency (Income vs Expenses + Payroll) */
+          /* Admin Sees Full Financial Health for the Selected Month */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard
-              title="COLLECTED REVENUE"
-              value={formatCurrency(totalRevenue)}
-              trend="Realized Cash"
+              title={`${monthNames[selectedMonth - 1]?.toUpperCase()} REVENUE`}
+              value={formatCurrency(stats.monthRevenue || 0)}
+              trend="Actual Cash Received"
               isPositive={true}
               icon={TrendingUp}
               iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
             />
             <KpiCard
               title="PENDING RECEIVABLES"
-              value={formatCurrency(pendingPayments)}
-              trend={`${pendingReceivables.length} unpaid`}
+              value={formatCurrency(stats.pendingReceivablesTotal || 0)}
+              trend={`${orders.filter((o: any) => o.paymentStatus !== "PAID").length} deals uncollected`}
               isPositive={false}
               icon={CreditCard}
               iconColor="text-amber-600 bg-amber-50 border-amber-200"
             />
             <KpiCard
-              title="PAYROLL SALARIES"
-              value={formatCurrency(totalPayroll)}
-              trend="Monthly staff payroll"
+              title="MONTHLY PAYROLL"
+              value={formatCurrency(stats.totalPayroll || 0)}
+              trend={`${monthNames[selectedMonth - 1]} Staff Salaries`}
               isPositive={false}
               icon={Users}
               iconColor="text-blue-600 bg-blue-50 border-blue-200"
             />
             <KpiCard
               title="OPERATIONAL EXPENSES"
-              value={formatCurrency(totalExpenses)}
-              trend="Server, office, software"
+              value={formatCurrency(stats.totalExpenses || 0)}
+              trend="Rent, Utilities, Internet"
               isPositive={false}
               icon={Wallet}
               iconColor="text-rose-600 bg-rose-50 border-rose-200"
             />
             <KpiCard
-              title="COMPANY NET P/L"
-              value={formatCurrency(netProfitLoss)}
-              trend={netProfitLoss >= 0 ? "Solvent Buffer" : "Shortfall"}
-              isPositive={netProfitLoss >= 0}
+              title="NET SOLVENCY (P/L)"
+              value={formatCurrency(stats.netProfitLoss || 0)}
+              trend={(stats.netProfitLoss || 0) >= 0 ? "Solvent Buffer" : "Shortfall"}
+              isPositive={(stats.netProfitLoss || 0) >= 0}
               icon={DollarSign}
-              iconColor={netProfitLoss >= 0 ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-rose-600 bg-rose-50 border-rose-200"}
+              iconColor={(stats.netProfitLoss || 0) >= 0 ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-rose-600 bg-rose-50 border-rose-200"}
             />
           </div>
         ) : isSalesManager ? (
-          /* Sales Manager Sees Receivables & Collected Only (No Company Expenses/Payroll) */
+          /* Sales Manager Sees Sales Metrics Only */
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard
-              title="TOTAL COLLECTED REVENUE"
-              value={formatCurrency(totalRevenue)}
-              trend="Closed realization"
+              title={`${monthNames[selectedMonth - 1]?.toUpperCase()} COLLECTED REVENUE`}
+              value={formatCurrency(stats.monthRevenue || 0)}
+              trend="Received Inflow"
               isPositive={true}
               icon={TrendingUp}
               iconColor="text-emerald-600 bg-emerald-50 border-emerald-200"
             />
             <KpiCard
               title="PENDING RECEIVABLES"
-              value={formatCurrency(pendingPayments)}
-              trend={`${pendingReceivables.length} deals pending collection`}
+              value={formatCurrency(stats.pendingReceivablesTotal || 0)}
+              trend={`${orders.filter((o: any) => o.paymentStatus !== "PAID").length} deals pending collection`}
               isPositive={false}
               icon={CreditCard}
               iconColor="text-amber-600 bg-amber-50 border-amber-200"
             />
             <KpiCard
-              title="FORWARDED CLIENT CONTRACTS"
-              value={orders.length}
-              trend="Technical & Marketing clients"
+              title="MONTHLY RETAINER CLIENTS"
+              value={monthlyRetainers.length}
+              trend="Active recurring accounts"
               isPositive={true}
-              icon={ShoppingBag}
+              icon={RefreshCw}
               iconColor="text-blue-600 bg-blue-50 border-blue-200"
             />
           </div>
         ) : (
-          /* Sales Employee Sees Personal Collection Target */
+          /* Sales Employee Sees Personal Tasks & Collections */
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <KpiCard
               title="MY ASSIGNED COLLECTION TASKS"
@@ -537,7 +653,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
           </div>
         )}
 
-        {/* Search & Sub-Filter Bar */}
+        {/* View Switcher & Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
           <div className="flex items-center gap-1 overflow-x-auto">
             {salesCategories.map((cat) => (
@@ -558,7 +674,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             <input
               type="text"
-              placeholder="Search records, client, code..."
+              placeholder="Search client, order, code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
@@ -567,19 +683,20 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         </div>
 
         {/* ========================================================================= */}
-        {/* VIEW 1: PENDING RECEIVABLES                                               */}
+        {/* VIEW 1: MONTHLY RETAINER CLIENTS                                          */}
         {/* ========================================================================= */}
-        {(activeView === "RECEIVABLES" || activeView === "ORDERS") && (
+        {activeView === "MONTHLY_CLIENTS" && (
           <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {activeView === "RECEIVABLES" ? "Pending Receivables from Clients" : "Sales Orders & Deliverable Ledger"}
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>Monthly Retainer Clients — {currentMonthLabel}</span>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    Recurring Retainers
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {activeView === "RECEIVABLES"
-                    ? "Invoices awaiting payment. Sales manager can allocate to sales staff or mark as collected."
-                    : "Complete record of orders, retainers, and deliverable handoffs (descending)."}
+                  Every active monthly client is dynamically displayed here every month with their retainer invoice. When payment is received, mark it paid or record partial payments.
                 </p>
               </div>
             </div>
@@ -588,80 +705,95 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
                   <tr>
+                    <th className="py-3 px-4">Client Name & Details</th>
+                    <th className="py-3 px-4">Department Type</th>
                     <th className="py-3 px-4">Order / Invoice ID</th>
-                    <th className="py-3 px-4">Client / Customer</th>
-                    <th className="py-3 px-4">Department Handoff</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Date</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+                    <th className="py-3 px-4 text-right">Retainer Amount</th>
+                    <th className="py-3 px-4 text-right">Collected</th>
+                    <th className="py-3 px-4 text-right">Balance Due</th>
+                    <th className="py-3 px-4 text-center">Payment Status</th>
+                    <th className="py-3 px-4 text-center">Collection Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(activeView === "RECEIVABLES" ? pendingReceivables : filteredOrders).map((ord) => (
-                    <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-blue-600">
-                        {ord.orderCode}
-                        {ord.client && (
-                          <span className="block text-[10px] text-purple-600 font-mono font-normal">
-                            Client: {ord.client.name}
+                  {monthlyRetainers.filter(matchesSearch).map((ord: any) => {
+                    const paid = (ord.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                    const remaining = Math.max(0, ord.totalAmount - paid);
+                    const isFullyPaid = ord.paymentStatus === "PAID" || remaining <= 0;
+                    const isPartial = ord.paymentStatus === "PARTIAL" || (paid > 0 && remaining > 0);
+
+                    return (
+                      <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">{ord.client?.name || ord.customer?.name}</div>
+                          <div className="text-[11px] text-slate-500">{ord.client?.company || ord.customer?.company || "Monthly Retainer"}</div>
+                          <div className="text-[10px] text-blue-600 font-mono mt-0.5">Code: {ord.client?.clientCode || "CLT"}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            {ord.client?.departmentType || "MARKETING"}
                           </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900">{ord.customer?.name || ord.client?.name || "Client Account"}</div>
-                        <div className="text-[11px] text-slate-500">{ord.customer?.company || ord.client?.company || "-"}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                          {ord.client?.departmentType || "Sales"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-emerald-600 font-mono">
-                        {formatCurrency(ord.totalAmount)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <StatusBadge status={ord.paymentStatus} />
-                      </td>
-                      <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(ord.saleDate)}</td>
-                      <td className="py-3 px-4 text-center">
-                        {ord.paymentStatus !== "PAID" ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={async () => {
-                                if (confirm(`Mark ₹${ord.totalAmount} collected for ${ord.orderCode}?`)) {
-                                  await markPaymentReceived(ord.id);
-                                  setOrders(orders.map((o) => (o.id === ord.id ? { ...o, paymentStatus: "PAID" } : o)));
-                                  alert("✓ Amount updated to RECEIVED!");
-                                }
-                              }}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
-                            >
-                              Collect
-                            </button>
-                            {(isAdmin || isSalesManager) && (
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-blue-600">
+                          {ord.orderCode}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                          {formatCurrency(ord.totalAmount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">
+                          {formatCurrency(paid)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">
+                          {formatCurrency(remaining)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {isFullyPaid ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              PAID ✓
+                            </span>
+                          ) : isPartial ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              PARTIAL
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              PENDING
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {!isFullyPaid ? (
+                            <div className="flex items-center justify-center gap-1.5">
                               <button
-                                onClick={() => {
-                                  setSelectedOrderForTask(ord);
-                                  setShowAssignTaskModal(true);
-                                }}
-                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-lg border border-purple-200 transition-all cursor-pointer"
-                                title="Allot collection task to sales employee"
+                                onClick={() => openCollectPaymentModal(ord)}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
                               >
-                                Allot Staff
+                                Collect Payment
                               </button>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-slate-400">Settled ✓</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {(activeView === "RECEIVABLES" ? pendingReceivables : filteredOrders).length === 0 && (
+                              {(isAdmin || isSalesManager) && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrderForTask(ord);
+                                    setShowAssignTaskModal(true);
+                                  }}
+                                  className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-lg border border-purple-200 transition-all cursor-pointer"
+                                  title="Allot staff collection follow up"
+                                >
+                                  Allot
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-emerald-600">Settled ✓</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {monthlyRetainers.filter(matchesSearch).length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">
-                        No orders or receivables found.
+                      <td colSpan={8} className="text-center py-8 text-slate-400 text-xs">
+                        No monthly retainer clients found for {currentMonthLabel}.
                       </td>
                     </tr>
                   )}
@@ -672,7 +804,485 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         )}
 
         {/* ========================================================================= */}
-        {/* VIEW 2: COLLECTION TASKS                                                  */}
+        {/* VIEW 2: ONE-TIME PROJECTS & MILESTONE CONTRACTS                           */}
+        {/* ========================================================================= */}
+        {activeView === "ONE_TIME_ORDERS" && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>One-Time Projects & Contract Orders</span>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                    Milestone / Fixed Scope
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Total contract value, amount collected so far, remaining balance, and partial payment collection.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Client / Project</th>
+                    <th className="py-3 px-4">Order Code</th>
+                    <th className="py-3 px-4 text-right">Total Contract</th>
+                    <th className="py-3 px-4 text-right">Collected to Date</th>
+                    <th className="py-3 px-4 text-right">Pending Balance</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-right">Contract Date</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {oneTimeOrders.filter(matchesSearch).map((ord: any) => {
+                    const paid = (ord.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                    const remaining = Math.max(0, ord.totalAmount - paid);
+                    const isFullyPaid = ord.paymentStatus === "PAID" || remaining <= 0;
+                    const isPartial = ord.paymentStatus === "PARTIAL" || (paid > 0 && remaining > 0);
+
+                    return (
+                      <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900">{ord.client?.name || ord.customer?.name}</div>
+                          <div className="text-[11px] text-slate-500">{ord.notes || ord.customer?.company || "Custom Project Scope"}</div>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-purple-600">
+                          {ord.orderCode}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                          {formatCurrency(ord.totalAmount)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">
+                          {formatCurrency(paid)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">
+                          {formatCurrency(remaining)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {isFullyPaid ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              PAID ✓
+                            </span>
+                          ) : isPartial ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              PARTIAL
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              PENDING
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(ord.saleDate)}</td>
+                        <td className="py-3 px-4 text-center">
+                          {!isFullyPaid ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => openCollectPaymentModal(ord)}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
+                              >
+                                Collect Payment
+                              </button>
+                              {(isAdmin || isSalesManager) && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrderForTask(ord);
+                                    setShowAssignTaskModal(true);
+                                  }}
+                                  className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-lg border border-purple-200 transition-all cursor-pointer"
+                                  title="Allot staff collection follow up"
+                                >
+                                  Allot
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-emerald-600">Settled ✓</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {oneTimeOrders.filter(matchesSearch).length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-slate-400 text-xs">
+                        No one-time project orders found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 3: PENDING RECEIVABLES (ALL UNPAID OR PARTIAL)                        */}
+        {/* ========================================================================= */}
+        {activeView === "RECEIVABLES" && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Pending Receivables Ledger</h3>
+                <p className="text-xs text-slate-500">
+                  All active orders and client contracts that still have an unpaid balance. Collect full or partial payments.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Order Code</th>
+                    <th className="py-3 px-4">Client / Customer</th>
+                    <th className="py-3 px-4">Billing Type</th>
+                    <th className="py-3 px-4 text-right">Total Amount</th>
+                    <th className="py-3 px-4 text-right">Paid to Date</th>
+                    <th className="py-3 px-4 text-right">Balance Due</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {orders
+                    .filter((o: any) => o.paymentStatus !== "PAID")
+                    .filter(matchesSearch)
+                    .map((ord: any) => {
+                      const paid = (ord.payments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                      const remaining = Math.max(0, ord.totalAmount - paid);
+
+                      return (
+                        <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-blue-600">{ord.orderCode}</td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-slate-900">{ord.client?.name || ord.customer?.name}</div>
+                            <div className="text-[11px] text-slate-500">{ord.notes || ord.customer?.company || "-"}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                              {ord.client?.billingType || "ORDER"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                            {formatCurrency(ord.totalAmount)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">
+                            {formatCurrency(paid)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">
+                            {formatCurrency(remaining)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <StatusBadge status={ord.paymentStatus} />
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => openCollectPaymentModal(ord)}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-2xs transition-all cursor-pointer"
+                              >
+                                Collect
+                              </button>
+                              {(isAdmin || isSalesManager) && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrderForTask(ord);
+                                    setShowAssignTaskModal(true);
+                                  }}
+                                  className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-lg border border-purple-200 transition-all cursor-pointer"
+                                  title="Allot staff"
+                                >
+                                  Allot
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {orders.filter((o: any) => o.paymentStatus !== "PAID").filter(matchesSearch).length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-slate-400 text-xs">
+                        All client receivables have been collected and settled!
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 4: COMPANY EXPENSES (ADMIN ONLY)                                     */}
+        {/* ========================================================================= */}
+        {isAdmin && activeView === "EXPENSES" && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>Company Operational Expenses — {currentMonthLabel}</span>
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                    {formatCurrency(stats.totalExpenses || 0)} Total
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Office rent, electricity & light bills, internet & telecom, server infra, software subscriptions, and ads.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowExpenseModal(true)}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+              >
+                + Log Expense
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Code</th>
+                    <th className="py-3 px-4">Expense Title</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Paid To / Vendor</th>
+                    <th className="py-3 px-4">Payment Mode</th>
+                    <th className="py-3 px-4 text-right">Amount</th>
+                    <th className="py-3 px-4 text-right">Date</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {expenses.filter(matchesSearch).map((exp: any) => (
+                    <tr key={exp.id} className="hover:bg-slate-50">
+                      <td className="py-3 px-4 font-mono text-slate-600">{exp.expenseCode}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-900">{exp.title}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          {exp.category}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">{exp.paidTo || "Vendor"}</td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{exp.paymentMode}</td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">{formatCurrency(exp.amount)}</td>
+                      <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(exp.date)}</td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => handleDeleteExpense(exp.id, exp.title)}
+                          title="Delete expense"
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {expenses.filter(matchesSearch).length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-slate-400 text-xs">
+                        No expenses logged for {currentMonthLabel}. Click "+ Log Expense" above to add office rent, light bills, or utilities.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 5: MONTHLY BALANCE SHEET / P&L (ADMIN ONLY)                          */}
+        {/* ========================================================================= */}
+        {isAdmin && activeView === "BALANCE_SHEET" && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Company Balance Sheet & Financial Solvency — {currentMonthLabel}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Monthly cash inflow realized from client collections compared against total outflow (Employee Payroll + Operational Expenses).
+                </p>
+              </div>
+            </div>
+
+            {/* Three Pillar Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider font-mono">
+                  1. Realized Cash Inflow ({monthNames[selectedMonth - 1]})
+                </span>
+                <p className="text-2xl font-black text-emerald-700 font-mono">{formatCurrency(stats.monthRevenue || 0)}</p>
+                <p className="text-[11px] text-emerald-600">
+                  Collected payments from client retainers, project installments, and settlements in {monthNames[selectedMonth - 1]}.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 space-y-2">
+                <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-mono">
+                  2. Total Operational Outflow
+                </span>
+                <p className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(stats.totalOutflow || 0)}</p>
+                <p className="text-[11px] text-rose-600">
+                  Staff Salaries: {formatCurrency(stats.totalPayroll || 0)} • Operational Expenses: {formatCurrency(stats.totalExpenses || 0)}
+                </p>
+              </div>
+
+              <div
+                className={cn(
+                  "p-5 rounded-2xl border space-y-2",
+                  (stats.netProfitLoss || 0) >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
+                )}
+              >
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
+                  3. Net Solvency Buffer (P/L)
+                </span>
+                <p
+                  className={cn(
+                    "text-2xl font-black font-mono",
+                    (stats.netProfitLoss || 0) >= 0 ? "text-blue-700" : "text-amber-700"
+                  )}
+                >
+                  {formatCurrency(stats.netProfitLoss || 0)}
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  {(stats.netProfitLoss || 0) >= 0
+                    ? `✓ Company is fully solvent with a positive buffer of ${formatCurrency(stats.netProfitLoss)}.`
+                    : `⚠️ Deficit of ${formatCurrency(Math.abs(stats.netProfitLoss))} — collect pending receivables to balance.`}
+                </p>
+              </div>
+            </div>
+
+            {/* Inflow vs Outflow Breakdown Table */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+              {/* Cash Inflow Breakdown */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <h4 className="font-bold text-sm text-slate-900 flex items-center justify-between">
+                  <span>Cash Inflow Vouchers ({monthNames[selectedMonth - 1]})</span>
+                  <span className="font-mono text-emerald-600">{formatCurrency(stats.monthRevenue || 0)}</span>
+                </h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {monthPayments.map((p: any) => (
+                    <div key={p.id} className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-semibold text-slate-900">{p.order?.client?.name || p.order?.customer?.name || "Direct Receipt"}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{p.paymentCode} • {p.paymentMethod}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-emerald-600 font-mono">{formatCurrency(p.amount)}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{formatDate(p.paymentDate)}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {monthPayments.length === 0 && (
+                    <div className="text-center py-6 text-slate-400 text-xs">
+                      No payments received in {currentMonthLabel}.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cash Outflow Breakdown */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <h4 className="font-bold text-sm text-slate-900 flex items-center justify-between">
+                  <span>Outflow Items ({monthNames[selectedMonth - 1]})</span>
+                  <span className="font-mono text-rose-600">{formatCurrency(stats.totalOutflow || 0)}</span>
+                </h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {/* Payroll Row */}
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+                    <div>
+                      <div className="font-semibold text-slate-900">Active Employee Payroll Salaries</div>
+                      <div className="text-[11px] text-slate-500">Monthly company staff compensation</div>
+                    </div>
+                    <div className="font-bold text-rose-600 font-mono">{formatCurrency(stats.totalPayroll || 0)}</div>
+                  </div>
+
+                  {/* Expenses Rows */}
+                  {expenses.map((exp: any) => (
+                    <div key={exp.id} className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-semibold text-slate-900">{exp.title}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{exp.category} • {exp.paidTo || "Vendor"}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-rose-600 font-mono">{formatCurrency(exp.amount)}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{formatDate(exp.date)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 6: PAYMENTS LEDGER                                                   */}
+        {/* ========================================================================= */}
+        {activeView === "PAYMENTS" && (
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Received Payments Ledger</h3>
+                <p className="text-xs text-slate-500">
+                  All collection vouchers, transaction receipts, and payment dates recorded in the system.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCustomPaymentModal(true)}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+              >
+                + Record Received Amount
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Receipt #</th>
+                    <th className="py-3 px-4">Client / Account</th>
+                    <th className="py-3 px-4">Order Code</th>
+                    <th className="py-3 px-4">Payment Method</th>
+                    <th className="py-3 px-4 text-right">Amount Received</th>
+                    <th className="py-3 px-4 text-right">Received Date</th>
+                    <th className="py-3 px-4">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.filter(matchesSearch).map((p: any) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{p.paymentCode}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-900">
+                        {p.order?.client?.name || p.order?.customer?.name || "Direct Payment"}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-purple-600">{p.order?.orderCode || "-"}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">{p.paymentMethod}</td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">{formatCurrency(p.amount)}</td>
+                      <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(p.paymentDate)}</td>
+                      <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{p.notes || "-"}</td>
+                    </tr>
+                  ))}
+                  {payments.filter(matchesSearch).length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8 text-slate-400 text-xs">
+                        No payment vouchers recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* VIEW 7: COLLECTION TASKS                                                  */}
         {/* ========================================================================= */}
         {activeView === "COLLECTIONS" && (
           <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
@@ -681,14 +1291,14 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                 <h3 className="text-base font-bold text-slate-900">Receivable Collection Tasks</h3>
                 <p className="text-xs text-slate-500">
                   {isSalesEmployee
-                    ? "Your assigned receivable recovery duties. Follow up with client accounts and mark received."
-                    : "Tasks allotted to sales staff to follow up and collect client payments."}
+                    ? "Your assigned receivable recovery duties. Contact client accounts and collect payment."
+                    : "Tasks allotted to sales staff to follow up on pending client receivables."}
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              {collectionTasks.map((tsk) => (
+              {collectionTasks.filter(matchesSearch).map((tsk: any) => (
                 <div key={tsk.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -705,9 +1315,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                   <div className="flex items-center gap-2">
                     {tsk.status !== "COMPLETED" ? (
                       <button
-                        onClick={() => {
-                          setShowCustomPaymentModal(true);
-                        }}
+                        onClick={() => setShowCustomPaymentModal(true)}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer"
                       >
                         Record Collection
@@ -718,9 +1326,9 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                   </div>
                 </div>
               ))}
-              {collectionTasks.length === 0 && (
+              {collectionTasks.filter(matchesSearch).length === 0 && (
                 <div className="text-center py-10 text-slate-400 text-xs">
-                  No receivable collection tasks assigned currently.
+                  No receivable collection tasks found.
                 </div>
               )}
             </div>
@@ -728,22 +1336,20 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         )}
 
         {/* ========================================================================= */}
-        {/* VIEW 3: COMPANY EXPENSES (ADMIN ONLY)                                     */}
+        {/* VIEW 8: CLIENTS DIRECTORY                                                 */}
         {/* ========================================================================= */}
-        {isAdmin && activeView === "EXPENSES" && (
+        {activeView === "CUSTOMERS" && (
           <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Operational Expenses Log</h3>
-                <p className="text-xs text-slate-500">
-                  Infra hosting, software licenses, office rent, utilities, and vendor payouts.
-                </p>
+                <h3 className="text-base font-bold text-slate-900">Clients & Accounts Directory</h3>
+                <p className="text-xs text-slate-500">List of registered clients and billing configurations.</p>
               </div>
               <button
-                onClick={() => setShowExpenseModal(true)}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                onClick={() => setShowCustomerModal(true)}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer"
               >
-                + Log Expense
+                + Add Customer
               </button>
             </div>
 
@@ -751,136 +1357,23 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
                   <tr>
-                    <th className="py-3 px-4">Code</th>
-                    <th className="py-3 px-4">Title</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Paid To</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4 text-right">Date</th>
+                    <th className="py-3 px-4">Name</th>
+                    <th className="py-3 px-4">Company</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Phone</th>
+                    <th className="py-3 px-4">Total Orders</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {expenses.map((exp) => (
-                    <tr key={exp.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-mono text-slate-600">{exp.expenseCode}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-900">{exp.title}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                          {exp.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">{exp.paidTo || "Vendor"}</td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-rose-600">{formatCurrency(exp.amount)}</td>
-                      <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(exp.date)}</td>
+                  {customers.filter(matchesSearch).map((c: any) => (
+                    <tr key={c.id} className="hover:bg-slate-50">
+                      <td className="py-3 px-4 font-bold text-slate-900">{c.name}</td>
+                      <td className="py-3 px-4 text-slate-600">{c.company || "-"}</td>
+                      <td className="py-3 px-4 text-slate-600">{c.email || "-"}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">{c.phone || "-"}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{c.orders?.length || 0}</td>
                     </tr>
                   ))}
-                  {expenses.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-slate-400 text-xs">
-                        No expenses logged.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* VIEW 4: P&L SOLVENCY BUFFER (ADMIN ONLY)                                  */}
-        {/* ========================================================================= */}
-        {isAdmin && activeView === "PROFIT_LOSS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-6">
-            <div className="pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Company Financial Solvency Equation</h3>
-              <p className="text-xs text-slate-500">
-                Compare monthly income with payroll salaries and operational expenses to verify sales required for solvency.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
-                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider font-mono">Total Inflow (Realized Revenue)</span>
-                <p className="text-2xl font-black text-emerald-700 font-mono">{formatCurrency(totalRevenue)}</p>
-                <p className="text-[11px] text-emerald-600">Collected from sales & client retainers</p>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 space-y-2">
-                <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-mono">Total Outflow (Payroll + Expenses)</span>
-                <p className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(totalOutflow)}</p>
-                <p className="text-[11px] text-rose-600">
-                  Payroll: {formatCurrency(totalPayroll)} • Expenses: {formatCurrency(totalExpenses)}
-                </p>
-              </div>
-
-              <div className={cn(
-                "p-5 rounded-2xl border space-y-2",
-                netProfitLoss >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
-              )}>
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Net Solvency Buffer (P/L)</span>
-                <p className={cn("text-2xl font-black font-mono", netProfitLoss >= 0 ? "text-blue-700" : "text-amber-700")}>
-                  {formatCurrency(netProfitLoss)}
-                </p>
-                <p className="text-[11px] text-slate-600">
-                  {netProfitLoss >= 0
-                    ? "✓ Company is solvent and meeting staff payroll commitments."
-                    : `⚠️ Shortfall of ${formatCurrency(Math.abs(netProfitLoss))} — additional client sales required.`}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* VIEW 5: PAYMENTS RECEIVED                                                 */}
-        {/* ========================================================================= */}
-        {activeView === "PAYMENTS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Received Payments Ledger</h3>
-                <p className="text-xs text-slate-500">All collected receipts and verified payments (descending).</p>
-              </div>
-              <button
-                onClick={() => setShowCustomPaymentModal(true)}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer"
-              >
-                + Record Received Amount
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
-                  <tr>
-                    <th className="py-3 px-4">Receipt #</th>
-                    <th className="py-3 px-4">Order / Deal</th>
-                    <th className="py-3 px-4">Payment Method</th>
-                    <th className="py-3 px-4 text-right">Amount Received</th>
-                    <th className="py-3 px-4 text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {payments.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{p.paymentCode}</td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900">{p.order?.orderCode || "Direct Payment"}</div>
-                        <div className="text-[11px] text-slate-500">{p.notes || "-"}</div>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-600">{p.paymentMethod}</td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">{formatCurrency(p.amount)}</td>
-                      <td className="py-3 px-4 text-right text-slate-500 font-mono">{formatDate(p.paymentDate)}</td>
-                    </tr>
-                  ))}
-                  {payments.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400 text-xs">
-                        No payment vouchers recorded yet.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -889,14 +1382,250 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       </div>
 
       {/* ========================================================================= */}
-      {/* MODAL 1: RECORD CUSTOM RECEIVED PAYMENT                                    */}
+      {/* MODAL: COLLECT PAYMENT (FULL OR PARTIAL WITH DYNAMIC REVENUE ATTRIBUTION) */}
+      {/* ========================================================================= */}
+      {showPaymentModal && selectedOrderForPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Collect Payment</h3>
+                <p className="text-[11px] text-slate-500">Order: {selectedOrderForPayment.orderCode}</p>
+              </div>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Order Balance Overview Box */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5 font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Client / Customer:</span>
+                <span className="font-bold text-slate-900">
+                  {selectedOrderForPayment.client?.name || selectedOrderForPayment.customer?.name}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Contract Value:</span>
+                <span className="font-bold text-slate-900">{formatCurrency(selectedOrderForPayment.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Already Received:</span>
+                <span className="font-bold text-emerald-600">
+                  {formatCurrency(
+                    (selectedOrderForPayment.payments || []).reduce((s: number, p: any) => s + (p.amount || 0), 0)
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-slate-200">
+                <span className="text-slate-700 font-bold">Remaining Balance:</span>
+                <span className="font-bold text-rose-600">
+                  {formatCurrency(
+                    Math.max(
+                      0,
+                      selectedOrderForPayment.totalAmount -
+                        (selectedOrderForPayment.payments || []).reduce((s: number, p: any) => s + (p.amount || 0), 0)
+                    )
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handlePaymentSubmit} className="space-y-3 text-xs">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-700 font-semibold">Amount to Collect (₹) *</label>
+                  <span className="text-[11px] text-blue-600 font-medium">Full or partial amount</span>
+                </div>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Payment Method</label>
+                  <select
+                    value={paymentForm.paymentMethod}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+                    <option value="UPI">UPI / QR Code</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Credit Card">Credit Card</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Payment Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentForm.paymentDate}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Settlement Notes</label>
+                <input
+                  type="text"
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  placeholder="e.g. Cleared monthly invoice, 1st installment"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 leading-relaxed">
+                💡 <strong>Revenue Attribution:</strong> This ₹{Number(paymentForm.amount).toLocaleString()} will be automatically added to the revenue of the selected month ({new Date(paymentForm.paymentDate).toLocaleString("default", { month: "short", year: "numeric" })}).
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-xs"
+                >
+                  {loading ? "Recording..." : "Record & Update Status"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: LOG OPERATIONAL EXPENSE (ADMIN ONLY)                                */}
+      {/* ========================================================================= */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Log Company Expense</h3>
+              <button onClick={() => setShowExpenseModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleExpenseSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Expense Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={expenseForm.title}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
+                  placeholder="e.g. Office Rent, Electricity / Light Bill, Fiber Internet"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Category</label>
+                  <select
+                    value={expenseForm.category}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  >
+                    <option value="OFFICE_RENT">Office Rent / Lease</option>
+                    <option value="UTILITIES">Electricity, Water & Light Bill</option>
+                    <option value="SERVER_INFRA">Server & Cloud Infra</option>
+                    <option value="SOFTWARE_LICENSES">Software Licenses</option>
+                    <option value="MARKETING_ADS">Marketing & Paid Ads</option>
+                    <option value="OTHER">Other Operational Cost</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={expenseForm.amount}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, amount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Paid To / Vendor</label>
+                  <input
+                    type="text"
+                    value={expenseForm.paidTo}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, paidTo: e.target.value })}
+                    placeholder="e.g. Landlord, Electricity Board"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Expense Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={expenseForm.date}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Notes / Invoice Ref</label>
+                <input
+                  type="text"
+                  value={expenseForm.notes}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
+                  placeholder="e.g. Transaction UTR # or Bill Receipt"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700 cursor-pointer shadow-xs"
+                >
+                  {loading ? "Logging..." : "Log Expense"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: DIRECT CUSTOM PAYMENT VOUCHER                                      */}
       {/* ========================================================================= */}
       {showCustomPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Record Received Payment</h3>
-              <button onClick={() => setShowCustomPaymentModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
+              <button onClick={() => setShowCustomPaymentModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
                 ✕
               </button>
             </div>
@@ -920,7 +1649,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                     required
                     value={customPaymentForm.amount}
                     onChange={(e) => setCustomPaymentForm({ ...customPaymentForm, amount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold"
                   />
                 </div>
                 <div>
@@ -930,12 +1659,22 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                     onChange={(e) => setCustomPaymentForm({ ...customPaymentForm, paymentMethod: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                   >
-                    <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
                     <option value="UPI">UPI / QR</option>
                     <option value="Cheque">Cheque</option>
-                    <option value="Credit Card">Credit Card</option>
+                    <option value="Cash">Cash</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Payment Date</label>
+                <input
+                  type="date"
+                  required
+                  value={customPaymentForm.paymentDate}
+                  onChange={(e) => setCustomPaymentForm({ ...customPaymentForm, paymentDate: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                />
               </div>
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">Settlement Notes</label>
@@ -943,7 +1682,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                   type="text"
                   value={customPaymentForm.notes}
                   onChange={(e) => setCustomPaymentForm({ ...customPaymentForm, notes: e.target.value })}
-                  placeholder="e.g. Cleared monthly marketing invoice"
+                  placeholder="e.g. Direct wire settlement"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
@@ -951,14 +1690,14 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                 <button
                   type="button"
                   onClick={() => setShowCustomPaymentModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-xs"
                 >
                   {loading ? "Recording..." : "Save Received Payment"}
                 </button>
@@ -969,14 +1708,14 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: ADD CUSTOM RECEIVABLE                                             */}
+      {/* MODAL: ADD CUSTOM RECEIVABLE                                              */}
       {/* ========================================================================= */}
       {showCustomReceivableModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Add Custom Receivable</h3>
-              <button onClick={() => setShowCustomReceivableModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
+              <button onClick={() => setShowCustomReceivableModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
                 ✕
               </button>
             </div>
@@ -1015,14 +1754,14 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                 <button
                   type="button"
                   onClick={() => setShowCustomReceivableModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 cursor-pointer shadow-xs"
                 >
                   {loading ? "Adding..." : "Add to Receivables"}
                 </button>
@@ -1033,96 +1772,14 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: LOG OPERATIONAL EXPENSE (ADMIN ONLY)                              */}
-      {/* ========================================================================= */}
-      {showExpenseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Log Company Expense</h3>
-              <button onClick={() => setShowExpenseModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleExpenseSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Expense Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={expenseForm.title}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
-                  placeholder="e.g. AWS Cloud Infrastructure, Office Lease"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Category</label>
-                  <select
-                    value={expenseForm.category}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="SERVER_INFRA">Server & Cloud Infra</option>
-                    <option value="SOFTWARE_LICENSES">Software Licenses</option>
-                    <option value="OFFICE_RENT">Office Rent</option>
-                    <option value="UTILITIES">Utilities & Internet</option>
-                    <option value="MARKETING_ADS">Marketing & Paid Ads</option>
-                    <option value="OTHER">Other Operational Cost</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Amount (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={expenseForm.amount}
-                    onChange={(e) => setExpenseForm({ ...expenseForm, amount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Paid To / Vendor</label>
-                <input
-                  type="text"
-                  value={expenseForm.paidTo}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, paidTo: e.target.value })}
-                  placeholder="e.g. Amazon Web Services Inc"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700"
-                >
-                  {loading ? "Logging..." : "Log Expense"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 4: ALLOT COLLECTION TASK TO SALES STAFF                             */}
+      {/* MODAL: ALLOT COLLECTION TASK TO SALES STAFF                               */}
       {/* ========================================================================= */}
       {showAssignTaskModal && selectedOrderForTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Allot Collection Task to Staff</h3>
-              <button onClick={() => setShowAssignTaskModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
+              <button onClick={() => setShowAssignTaskModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
                 ✕
               </button>
             </div>
@@ -1144,7 +1801,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                   onChange={(e) => setAssignTaskForm({ ...assignTaskForm, assignedToId: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                 >
-                  {salesStaff.map((emp) => (
+                  {salesStaff.map((emp: any) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.user?.name || emp.employeeCode} ({emp.designation?.name || "Sales Rep"})
                     </option>
@@ -1174,16 +1831,90 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                 <button
                   type="button"
                   onClick={() => setShowAssignTaskModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
+                  className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 cursor-pointer shadow-xs"
                 >
                   {loading ? "Assigning..." : "Assign Task to Staff"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ADD CUSTOMER                                                       */}
+      {/* ========================================================================= */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Add Customer Account</h3>
+              <button onClick={() => setShowCustomerModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreateCustomer} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Customer / Contact Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={custForm.name}
+                  onChange={(e) => setCustForm({ ...custForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Company / Organization</label>
+                <input
+                  type="text"
+                  value={custForm.company}
+                  onChange={(e) => setCustForm({ ...custForm, company: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={custForm.email}
+                    onChange={(e) => setCustForm({ ...custForm, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Phone</label>
+                  <input
+                    type="text"
+                    value={custForm.phone}
+                    onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 cursor-pointer shadow-xs"
+                >
+                  {loading ? "Saving..." : "Create Customer"}
                 </button>
               </div>
             </form>
