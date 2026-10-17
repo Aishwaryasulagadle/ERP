@@ -232,11 +232,11 @@ export function OnboardClientModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white border border-slate-200/90 rounded-xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-bold shrink-0 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-bold shrink-0 shadow-xs">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
@@ -459,7 +459,7 @@ export function OnboardClientModal({
               {formData.services.map((srv, idx) => (
                 <div
                   key={srv.id}
-                  className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2"
+                  className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2"
                 >
                   <div className="flex flex-col sm:flex-row gap-2.5 items-start sm:items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0 flex-1 w-full sm:w-auto">

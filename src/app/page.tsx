@@ -149,9 +149,9 @@ export default async function HomePage() {
 
           {/* Main Headline */}
           <div className="space-y-4 max-w-4xl mx-auto">
-            <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.12]">
+            <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight leading-[1.15]">
               One Unified Operating System For Your{" "}
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 bg-clip-text text-transparent">
+              <span className="text-blue-600">
                 Enterprise Growth
               </span>
             </h1>
@@ -189,7 +189,7 @@ export default async function HomePage() {
                     <TrendingUp className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-3 tracking-tight">₹12.4M+</div>
+                <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 mt-3 tracking-tight">₹12.4M+</div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-bold mt-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Real-time ledger audit</span>
@@ -203,7 +203,7 @@ export default async function HomePage() {
                     <Target className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-3 tracking-tight">99.8%</div>
+                <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 mt-3 tracking-tight">99.8%</div>
                 <div className="flex items-center gap-1.5 text-xs text-blue-600 font-bold mt-1.5">
                   <Zap className="w-3.5 h-3.5" />
                   <span>Lead conversion speed</span>
@@ -217,7 +217,7 @@ export default async function HomePage() {
                     <Clock className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-3 tracking-tight">100%</div>
+                <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 mt-3 tracking-tight">100%</div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-bold mt-1.5">
                   <CalendarCheck className="w-3.5 h-3.5" />
                   <span>Automated time & breaks</span>
@@ -231,7 +231,7 @@ export default async function HomePage() {
                     <UserCheck className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-3 tracking-tight">9 Portals</div>
+                <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 mt-3 tracking-tight">9 Portals</div>
                 <div className="flex items-center gap-1.5 text-xs text-purple-600 font-bold mt-1.5">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Zero HR bottlenecks</span>
@@ -240,8 +240,8 @@ export default async function HomePage() {
             </div>
 
             {/* Platform Mockup Live Frame */}
-            <div className="p-2.5 sm:p-3.5 bg-slate-900/10 border border-slate-300 rounded-3xl shadow-2xl erp-glow-blue text-left">
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+            <div className="p-2.5 sm:p-3.5 bg-slate-900/5 border border-slate-200/90 rounded-2xl shadow-xl text-left">
+              <div className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
                 {/* Browser Tab Header */}
                 <div className="bg-slate-950 text-slate-300 px-4 py-3 flex items-center justify-between border-b border-slate-800">
                   <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export default async function HomePage() {
                         <span>Sales Lifecycle</span>
                         <TrendingUp className="w-4 h-4 text-blue-600" />
                       </div>
-                      <div className="text-sm font-black text-slate-900 font-mono">
+                      <div className="text-sm font-bold text-slate-900 font-mono">
                         QT-102 → SO-102 → INV-102
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -308,7 +308,7 @@ export default async function HomePage() {
                         <span>Target Achievement</span>
                         <Target className="w-4 h-4 text-emerald-600" />
                       </div>
-                      <div className="text-sm font-black text-slate-900 font-mono">
+                      <div className="text-sm font-bold text-slate-900 font-mono">
                         ₹7,50,000 / ₹10,00,000
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -326,7 +326,7 @@ export default async function HomePage() {
                         <span>Staff Attendance</span>
                         <Users className="w-4 h-4 text-purple-600" />
                       </div>
-                      <div className="text-sm font-black text-slate-900 font-mono">
+                      <div className="text-sm font-bold text-slate-900 font-mono">
                         29 Present • 3 On Leave
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -352,7 +352,7 @@ export default async function HomePage() {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full erp-badge-blue text-xs font-bold font-mono">
               CORE ENTERPRISE MODULES
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
               Engineered for Complete Corporate Alignment
             </h2>
             <p className="text-sm text-slate-600 font-medium">
@@ -582,7 +582,7 @@ export default async function HomePage() {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-500/40 text-blue-400 text-xs font-bold font-mono">
               RELATIONAL INTEGRITY
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
               Built on Modern Enterprise Data Architecture
             </h2>
             <p className="text-sm text-slate-400 font-medium">
@@ -591,28 +591,28 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
+            <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
               <Database className="w-8 h-8 text-blue-400" />
               <h3 className="font-bold text-white text-base">Prisma ORM & PostgreSQL</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-medium">
                 Relational schema modeling with cascade safety, foreign key validations, and query optimizations.
               </p>
             </div>
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
+            <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
               <Lock className="w-8 h-8 text-emerald-400" />
               <h3 className="font-bold text-white text-base">NextAuth Role Guardians</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-medium">
                 Cryptographically signed JWT sessions enforcing route-level and API-level role constraints.
               </p>
             </div>
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
+            <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
               <Workflow className="w-8 h-8 text-indigo-400" />
               <h3 className="font-bold text-white text-base">Atomic Server Actions</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-medium">
                 Server-side business mutations with instant state revalidation, eliminating cache inconsistencies.
               </p>
             </div>
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
+            <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
               <Zap className="w-8 h-8 text-amber-400" />
               <h3 className="font-bold text-white text-base">Turbopack Acceleration</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-medium">
@@ -630,7 +630,7 @@ export default async function HomePage() {
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full erp-badge-amber text-xs font-bold font-mono">
               ROLE-BASED SECURITY
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
               Tailored Workspaces For Every Stakeholder
             </h2>
             <p className="text-sm text-slate-600 font-medium">
@@ -726,12 +726,13 @@ export default async function HomePage() {
       {/* 7. Quick Access Demo Credentials Callout */}
       <section className="py-12 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="p-7 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-blue-50/90 border border-blue-200 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
-            <div className="space-y-1.5 text-center md:text-left">
+          <div className="p-7 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+            <div className="w-1.5 h-full bg-blue-600 absolute left-0 top-0" />
+            <div className="space-y-1.5 text-center md:text-left pl-2">
               <div className="flex items-center justify-center md:justify-start gap-2 text-blue-700 font-extrabold text-xs uppercase tracking-wider font-mono">
                 <KeyRound className="w-4 h-4" /> Ready for Live Evaluation
               </div>
-              <h4 className="text-lg font-black text-slate-900">Experience All Enterprise Roles in Demo Mode</h4>
+              <h4 className="text-lg font-bold text-slate-900">Experience All Enterprise Roles in Demo Mode</h4>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
                 Log in with predefined credentials (<code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">admin@erp.com</code>, <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">manager@erp.com</code>, or <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">employee@erp.com</code> / password: <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">password123</code>).
               </p>
@@ -752,7 +753,7 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-3.5 md:col-span-2">
-              <div className="flex items-center gap-3 text-white font-black text-lg">
+              <div className="flex items-center gap-3 text-white font-bold text-lg">
                 <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-600/30">
                   <Building2 className="w-4 h-4" />
                 </div>

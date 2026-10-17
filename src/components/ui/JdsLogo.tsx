@@ -81,7 +81,7 @@ export function JdsLogo({
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5">
             <span
-              className={`${textSizes} font-black tracking-tight text-slate-900 leading-tight flex items-center`}
+              className={`${textSizes} font-bold tracking-tight text-slate-900 leading-tight flex items-center`}
             >
               <span className="text-[#1674B9]">JDS</span>
               <span className="ml-1 text-slate-800">ERP</span>

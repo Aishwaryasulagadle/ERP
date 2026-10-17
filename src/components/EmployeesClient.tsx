@@ -1457,7 +1457,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Employee Directory
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -1519,7 +1519,7 @@ export function EmployeesClient({
             </div>
 
             {/* Search and Table */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200/90 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="flex items-center gap-1 overflow-x-auto">
                 {userRole === "ADMIN" ? (
                   <>
@@ -1571,10 +1571,10 @@ export function EmployeesClient({
               </div>
             </div>
 
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                     <tr>
                       <th className="py-3 px-4">Employee</th>
                       <th className="py-3 px-4">Designation</th>
@@ -1639,7 +1639,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Attendance & Shift Logs
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -1650,21 +1650,22 @@ export function EmployeesClient({
 
             {/* PUNCH IN / PUNCH OUT TERMINAL CARD (Only for Employee Mode) */}
             {isEmployeeMode && (
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3 relative overflow-hidden">
+                <div className={cn("w-1.5 h-full absolute left-0 top-0", isCheckedIn ? (isCheckedOut ? "bg-slate-400" : "bg-emerald-500") : "bg-blue-600")} />
+                <div className="pl-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/30 text-white">
-                        Daily Biometric Terminal
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                        Attendance Terminal
                       </span>
-                      <span className="text-xs text-white/80 font-mono" suppressHydrationWarning>
+                      <span className="text-xs text-slate-500 font-mono" suppressHydrationWarning>
                         {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
                       </span>
                     </div>
-                    <h3 className="text-xl font-black tracking-tight">
+                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">
                       {isCheckedIn ? (isCheckedOut ? "Shift Completed for Today" : "Currently Punched In & Working") : "Ready to Start Shift"}
                     </h3>
-                    <p className="text-xs text-white/80">
+                    <p className="text-xs text-slate-500">
                       {isCheckedIn
                         ? isCheckedOut
                           ? `Shift Logged • Punched in at ${formatTime(todayAttendance?.checkIn)} • Punched out at ${formatTime(todayAttendance?.checkOut)}`
@@ -1673,15 +1674,15 @@ export function EmployeesClient({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {!isCheckedIn ? (
                       <button
                         type="button"
                         onClick={handleClockIn}
                         disabled={loading}
-                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer transform hover:scale-105"
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-xs flex items-center gap-2 transition-all cursor-pointer"
                       >
-                        <Play className="w-4 h-4 fill-white" />
+                        <Play className="w-3.5 h-3.5 fill-white" />
                         <span>Punch In</span>
                       </button>
                     ) : !isCheckedOut ? (
@@ -1689,14 +1690,14 @@ export function EmployeesClient({
                         type="button"
                         onClick={handleClockOut}
                         disabled={loading}
-                        className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transform hover:scale-105"
+                        className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
                       >
-                        <Square className="w-4 h-4 fill-white" />
-                        <span>Punch Out (Submit Report)</span>
+                        <Square className="w-3.5 h-3.5 fill-white" />
+                        <span>Punch Out & Report</span>
                       </button>
                     ) : (
-                      <div className="px-4 py-2 rounded-xl bg-white/20 border border-white/30 text-xs font-bold text-white flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                      <div className="px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         <span>Shift Finished</span>
                       </div>
                     )}
@@ -1790,7 +1791,7 @@ export function EmployeesClient({
             )}
 
             {/* Attendance View Switcher Buttons & Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200/90 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -1873,7 +1874,7 @@ export function EmployeesClient({
             {attendanceViewMode === "MONTHLY" ? (
               <div className="space-y-4 animate-in fade-in duration-150">
                 {/* Comprehensive Full Month Employee Presence Table */}
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+                <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-slate-900">
@@ -2099,7 +2100,7 @@ export function EmployeesClient({
               </div>
             ) : (
               /* MODE 2: TODAY'S LIVE TIMESHEET & PUNCH RECORDS */
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 animate-in fade-in duration-150">
+              <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-slate-900">
@@ -2201,7 +2202,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Leave & WFH Management
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2231,19 +2232,20 @@ export function EmployeesClient({
 
             {/* Remaining Paid Leaves Banner for Employee Mode */}
             {isEmployeeMode && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between shadow-xs">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100 font-mono">
+              <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex items-center justify-between relative overflow-hidden">
+                <div className="w-1.5 h-full bg-emerald-500 absolute left-0 top-0" />
+                <div className="pl-1 space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
                     Annual Paid Leave Balance (Yearly Allowance: 12 Days)
                   </span>
-                  <div className="text-2xl font-black font-mono">{remainingPaidLeaves} Days Remaining</div>
-                  <p className="text-xs text-white/80">
+                  <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">{remainingPaidLeaves} Days Remaining</div>
+                  <p className="text-xs text-slate-500">
                     Paid leaves & approved WFH are fully compensated. Half-days are 50% paid.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowApplyLeaveModal(true)}
-                  className="px-4 py-2 bg-white text-emerald-800 font-bold text-xs rounded-xl shadow-xs hover:bg-emerald-50 cursor-pointer"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-xs cursor-pointer"
                 >
                   Apply Leave
                 </button>
@@ -2287,7 +2289,7 @@ export function EmployeesClient({
             </div>
 
             {/* Leave Requests Table */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-slate-900">Applications & Leave History</h3>
                 <div className="flex items-center gap-2">
@@ -2395,7 +2397,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Salary Slips & Payroll
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2445,7 +2447,7 @@ export function EmployeesClient({
             </div>
 
             {/* Slips Table */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-slate-900">
                   {isEmployeeMode ? "My Salary Slips" : "Automated Employee Salary Slips"}
@@ -2455,7 +2457,7 @@ export function EmployeesClient({
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                     <tr>
                       <th className="py-3 px-4">Slip Code</th>
                       <th className="py-3 px-4">Employee</th>
@@ -2525,7 +2527,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Holiday Calendar & Sunday Configuration
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2545,21 +2547,22 @@ export function EmployeesClient({
             </div>
 
             {/* Sundays Card Banner */}
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0">
-                  <Sun className="w-6 h-6" />
+            <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
+              <div className="w-1.5 h-full bg-amber-500 absolute left-0 top-0" />
+              <div className="pl-1 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+                  <Sun className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold">Sunday Mandatory Off Policy</h3>
-                  <p className="text-xs text-amber-100 mt-0.5">
+                  <h3 className="text-sm font-bold text-slate-900">Sunday Mandatory Off Policy</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Every Sunday is designated as a paid rest day across all departments. {sundaysThisMonth.length} Sundays this month.
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-xs px-3 py-1.5 rounded-xl text-xs font-mono">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono">
                 <span>Sundays this month:</span>
-                <span className="font-bold">{sundaysThisMonth.map((s) => s.getDate()).join(", ")}</span>
+                <span className="font-bold text-slate-900">{sundaysThisMonth.map((s) => s.getDate()).join(", ")}</span>
               </div>
             </div>
 
@@ -2568,7 +2571,7 @@ export function EmployeesClient({
               {filteredHolidays.map((hol) => (
                 <div
                   key={hol.id}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 shadow-xs transition-all flex flex-col justify-between"
+                  className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-blue-400 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -2605,7 +2608,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   HR & Employee Helpdesk Queries
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2659,14 +2662,14 @@ export function EmployeesClient({
             </div>
 
             {/* Queries Table */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-slate-900">Query Tickets Log</h3>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                  <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                     <tr>
                       <th className="py-3 px-4">Ticket Code</th>
                       <th className="py-3 px-4">Employee</th>
@@ -2759,7 +2762,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Daily Tasks & Sprint Deliverables
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -2822,10 +2825,10 @@ export function EmployeesClient({
                         handleTaskDrop(col);
                       }}
                       className={cn(
-                        "p-4 rounded-2xl bg-white border transition-all space-y-3 min-h-[350px]",
+                        "p-3.5 rounded-xl bg-slate-50/70 border transition-all space-y-3 min-h-[350px] shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
                         dragOverColumn === col
                           ? "border-blue-500 bg-blue-50/40 ring-2 ring-blue-400/30 shadow-md"
-                          : "border-slate-200 shadow-xs"
+                          : "border-slate-200/90"
                       )}
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -2938,7 +2941,7 @@ export function EmployeesClient({
                 })}
               </div>
             ) : (
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div className="rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
                     <tr>
@@ -3008,7 +3011,7 @@ export function EmployeesClient({
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   <BarChart3 className="w-6 h-6 text-violet-600" />
                   Employee Work & Activity Reports
                 </h1>
@@ -3067,7 +3070,7 @@ export function EmployeesClient({
             </div>
 
             {/* Search & Filter Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <input
                   type="text"
@@ -3123,7 +3126,7 @@ export function EmployeesClient({
                 .map((rep) => (
                   <div
                     key={rep.id}
-                    className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-violet-300 transition-all space-y-3"
+                    className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-violet-300 transition-all space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
                       <div className="flex items-center gap-2.5">
@@ -3171,7 +3174,7 @@ export function EmployeesClient({
                 ))}
 
               {reportsList.length === 0 && (
-                <div className="p-12 rounded-2xl bg-white border border-slate-200 text-center space-y-3">
+                <div className="p-12 rounded-xl bg-white border border-slate-200/90 text-center space-y-3">
                   <FileText className="w-10 h-10 text-slate-300 mx-auto" />
                   <p className="text-sm font-bold text-slate-700">No work reports submitted by employees yet</p>
                   <p className="text-xs text-slate-400">
@@ -3191,7 +3194,7 @@ export function EmployeesClient({
       {/* 0. ADMIN ASSIGN LEAVE / WFH / HALF DAY MODAL */}
       {showAssignLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -3353,7 +3356,7 @@ export function EmployeesClient({
       {/* 1. APPLY LEAVE / WFH / HALF DAY MODAL */}
       {showApplyLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Apply for Leave / WFH / Half Day</h3>
@@ -3478,7 +3481,7 @@ export function EmployeesClient({
       {/* 2. MARK HOLIDAY MODAL */}
       {showAddHolidayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900">Mark Official Holiday</h3>
               <button
@@ -3577,7 +3580,7 @@ export function EmployeesClient({
       {/* 3. RAISE EMPLOYEE QUERY MODAL */}
       {showRaiseQueryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900">Raise Helpdesk Query / Issue</h3>
               <button
@@ -3680,7 +3683,7 @@ export function EmployeesClient({
       {/* 4. RESOLVE QUERY MODAL (FOR ADMIN / MANAGER) */}
       {selectedQueryForResolve && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Resolve Query {selectedQueryForResolve.queryCode}</h3>
@@ -3736,7 +3739,7 @@ export function EmployeesClient({
       {/* 5. GENERATE SALARY SLIP MODAL */}
       {showGenerateSlipModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-xl w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Generate Employee Salary Slip</h3>
@@ -3924,16 +3927,16 @@ export function EmployeesClient({
       {/* 6. SALARY SLIP VIEW & PRINT MODAL */}
       {selectedSlipForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto print:p-0 print:border-none print:shadow-none">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-2xl w-full shadow-xl space-y-6 max-h-[90vh] overflow-y-auto print:p-0 print:border-none print:shadow-none">
             {/* Payslip Header */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-200">
               <div>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
                     <Building className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900 tracking-tight">MY ERP ENTERPRISE</h2>
+                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">MY ERP ENTERPRISE</h2>
                     <p className="text-[10px] text-slate-500 font-mono">CONFIDENTIAL SALARY STATEMENT</p>
                   </div>
                 </div>
@@ -4027,10 +4030,11 @@ export function EmployeesClient({
             </div>
 
             {/* Net Pay Banner */}
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-emerald-800 uppercase font-mono font-bold">NET PAYABLE (A - B)</span>
-                <p className="text-2xl font-black font-mono text-emerald-900">
+            <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex items-center justify-between relative overflow-hidden">
+              <div className="w-1.5 h-full bg-emerald-500 absolute left-0 top-0" />
+              <div className="pl-1">
+                <span className="text-[10px] text-slate-500 uppercase font-mono font-bold">NET PAYABLE (A - B)</span>
+                <p className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
                   {formatCurrency(selectedSlipForView.netSalary)}
                 </p>
               </div>
@@ -4154,7 +4158,7 @@ export function EmployeesClient({
       {/* 8. ADD EMPLOYEE MODAL */}
       {showAddEmployeeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900">Add New Employee</h3>
               <button
@@ -4347,7 +4351,7 @@ export function EmployeesClient({
       {/* 9. CREATE TASK MODAL */}
       {showCreateTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -4455,7 +4459,7 @@ export function EmployeesClient({
       {/* 9.1 LOG HOURLY PROGRESS & REPORT MODAL */}
       {selectedTaskForProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -4577,7 +4581,7 @@ export function EmployeesClient({
       {/* 9. SUBMIT WORK REPORT MODAL */}
       {showSubmitReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -4698,7 +4702,7 @@ export function EmployeesClient({
       {/* 10. COMPULSORY DAILY WORK REPORT & PUNCH-OUT MODAL */}
       {showClockOutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
@@ -4828,7 +4832,7 @@ export function EmployeesClient({
       {/* 11. TODAY'S ATTENDANCE ROSTER MODAL */}
       {showTodayAttendanceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-xl w-full shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
@@ -4933,7 +4937,7 @@ export function EmployeesClient({
       {/* 12. CREATE PERSONAL SPRINT TASK MODAL */}
       {showAddPersonalTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -5026,7 +5030,7 @@ export function EmployeesClient({
       {/* 13. EMPLOYEE DETAILED ATTENDANCE HISTORY MODAL */}
       {selectedEmployeeForAttendance && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-2xl w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-base font-bold shadow-xs">
@@ -5120,30 +5124,30 @@ export function EmployeesClient({
               return (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-emerald-800 uppercase font-mono block">Paid Presence</span>
-                      <span className="text-base font-black text-emerald-700 font-mono mt-0.5 block">{totalPaidDays} Days</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Paid Presence</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{totalPaidDays} Days</span>
                       <span className="text-[9px] text-emerald-600 font-mono block">({presentDays} Office)</span>
                     </div>
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-blue-800 uppercase font-mono block">WFH / Remote</span>
-                      <span className="text-base font-black text-blue-700 font-mono mt-0.5 block">{wfhDays}</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">WFH / Remote</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{wfhDays}</span>
                     </div>
-                    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-indigo-800 uppercase font-mono block">Sundays (Off)</span>
-                      <span className="text-base font-black text-indigo-700 font-mono mt-0.5 block">{monthSundays}</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Sundays (Off)</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{monthSundays}</span>
                     </div>
-                    <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-teal-800 uppercase font-mono block">Holidays</span>
-                      <span className="text-base font-black text-teal-700 font-mono mt-0.5 block">{monthHolidays}</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Holidays</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{monthHolidays}</span>
                     </div>
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-amber-800 uppercase font-mono block">Half Days</span>
-                      <span className="text-base font-black text-amber-700 font-mono mt-0.5 block">{halfDays}</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Half Days</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{halfDays}</span>
                     </div>
-                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
-                      <span className="text-[10px] font-bold text-purple-800 uppercase font-mono block">Leaves Taken</span>
-                      <span className="text-base font-black text-purple-700 font-mono mt-0.5 block">{leaveDays}</span>
+                    <div className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase font-mono block">Leaves Taken</span>
+                      <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">{leaveDays}</span>
                     </div>
                   </div>
 

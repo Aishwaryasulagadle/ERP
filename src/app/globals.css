@@ -3,113 +3,55 @@
 @layer base {
   :root {
     /* ==========================================
-       JDS PRIMARY BLUE
+       ENTERPRISE CORPORATE PALETTE
        ========================================== */
-    --jds-blue: #167FB7;
-    --jds-blue-hover: #126D9F;
-    --jds-blue-dark: #0F5F91;
+    --jds-blue: #0284C7;
+    --jds-blue-hover: #0369A1;
+    --jds-blue-dark: #0F172A;
     --jds-blue-deep: #0B4266;
-    --jds-blue-light: #EAF5FA;
-    --jds-blue-soft: #F3F9FC;
+    --jds-blue-light: #F0F9FF;
+    --jds-blue-soft: #F8FAFC;
+
+    --jds-green: #059669;
+    --jds-green-bright: #10B981;
+    --jds-green-hover: #047857;
+    --jds-green-light: #ECFDF5;
+
+    --jds-orange: #D97706;
+    --jds-orange-bright: #F59E0B;
+    --jds-orange-hover: #B45309;
+    --jds-orange-light: #FFFBEB;
 
     /* ==========================================
-       JDS BRAND GREEN
+       ENTERPRISE SURFACES & CANVAS
        ========================================== */
-    --jds-green: #0F593E;
-    --jds-green-bright: #08764D;
-    --jds-green-hover: #075F40;
-    --jds-green-light: #E8F5EF;
-    --jds-green-soft: #F2F9F5;
-
-    /* ==========================================
-       JDS BRAND ORANGE
-       ========================================== */
-    --jds-orange: #E16A0F;
-    --jds-orange-bright: #F28C16;
-    --jds-orange-hover: #C95D0C;
-    --jds-orange-light: #FFF2E5;
-    --jds-orange-soft: #FFF8F0;
-
-    /* ==========================================
-       ENTERPRISE SURFACES
-       ========================================== */
-    --jds-bg: #F6F8FA;
-    --jds-bg-secondary: #F1F5F7;
+    --jds-bg: #F8FAFC;
+    --jds-bg-secondary: #F1F5F9;
     --jds-card: #FFFFFF;
-    --jds-card-hover: #FCFDFD;
+    --jds-card-hover: #FAFAFA;
 
     /* ==========================================
        TYPOGRAPHY
        ========================================== */
-    --jds-text: #17212B;
-    --jds-text-secondary: #647482;
-    --jds-text-muted: #8A98A5;
+    --jds-text: #0F172A;
+    --jds-text-secondary: #475569;
+    --jds-text-muted: #64748B;
     --jds-text-white: #FFFFFF;
 
     /* ==========================================
-       BORDERS
+       BORDERS & ELEVATION
        ========================================== */
-    --jds-border: #DCE5E9;
-    --jds-border-light: #E8EEF1;
-    --jds-border-strong: #C7D5DC;
+    --jds-border: #E2E8F0;
+    --jds-border-light: #F1F5F9;
+    --jds-border-strong: #CBD5E1;
 
-    /* ==========================================
-       FUNCTIONAL STATES
-       ========================================== */
-    --jds-success: #08764D;
-    --jds-success-bg: #E8F5EF;
+    --jds-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+    --jds-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --jds-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 
-    --jds-warning: #E16A0F;
-    --jds-warning-bg: #FFF2E5;
-
-    --jds-info: #167FB7;
-    --jds-info-bg: #EAF5FA;
-
-    --jds-danger: #C43D3D;
-    --jds-danger-bg: #FDECEC;
-
-    /* ==========================================
-       SHADOWS
-       ========================================== */
-    --jds-shadow-sm: 0 1px 2px rgba(15, 35, 45, 0.04);
-    --jds-shadow-md: 0 4px 12px rgba(15, 35, 45, 0.07);
-    --jds-shadow-lg: 0 10px 30px rgba(15, 35, 45, 0.09);
-
-    /* ==========================================
-       RADIUS
-       ========================================== */
-    --jds-radius-sm: 8px;
-    --jds-radius-md: 12px;
-    --jds-radius-lg: 16px;
-
-    /* ==========================================
-       BRAND GRADIENTS
-       ========================================== */
-    --jds-gradient-blue: linear-gradient(135deg, #167FB7, #0F5F91);
-    --jds-gradient-green: linear-gradient(135deg, #08764D, #0F593E);
-    --jds-gradient-brand: linear-gradient(110deg, #167FB7 0%, #08764D 58%, #E16A0F 100%);
-
-    /* Standard Component Mappings */
-    --background: var(--jds-bg);
-    --foreground: var(--jds-text);
-    --card: var(--jds-card);
-    --card-foreground: var(--jds-text);
-    --popover: var(--jds-card);
-    --popover-foreground: var(--jds-text);
-    --primary: var(--jds-blue);
-    --primary-foreground: #FFFFFF;
-    --secondary: var(--jds-bg-secondary);
-    --secondary-foreground: var(--jds-text);
-    --muted: var(--jds-bg-secondary);
-    --muted-foreground: var(--jds-text-secondary);
-    --accent: var(--jds-blue-light);
-    --accent-foreground: var(--jds-blue-dark);
-    --destructive: var(--jds-danger);
-    --destructive-foreground: #FFFFFF;
-    --border: var(--jds-border);
-    --input: #FFFFFF;
-    --ring: var(--jds-blue);
-    --radius: var(--jds-radius-md);
+    --jds-radius-sm: 6px;
+    --jds-radius-md: 10px;
+    --jds-radius-lg: 14px;
   }
 }
 
@@ -119,15 +61,11 @@
 
 html,
 body {
-  background: var(--jds-bg) !important;
-  color: var(--jds-text) !important;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Inter,
-    sans-serif;
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" !important;
+  letter-spacing: -0.011em !important;
   min-height: 100vh;
   margin: 0;
   padding: 0;

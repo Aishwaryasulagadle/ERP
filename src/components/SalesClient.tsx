@@ -465,7 +465,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                 {isAdmin ? "Company Sales & Financial Solvency" : isSalesManager ? "Sales Receivables & Collections" : "Assigned Receivables"}
               </h1>
               {isRefreshing && (
@@ -654,15 +654,15 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         )}
 
         {/* View Switcher & Search Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-2xl shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-white border border-slate-200/90 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-1 overflow-x-auto">
             {salesCategories.map((cat) => (
               <button
                 key={cat.key}
                 onClick={() => setActiveView(cat.key as any)}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
-                  activeView === cat.key ? "bg-blue-600 text-white font-bold" : "text-slate-600 hover:bg-slate-100"
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
+                  activeView === cat.key ? "bg-blue-600 text-white font-bold shadow-xs" : "text-slate-600 hover:bg-slate-100"
                 )}
               >
                 {cat.label} {cat.count !== undefined ? `(${cat.count})` : ""}
@@ -677,7 +677,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               placeholder="Search client, order, code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white"
             />
           </div>
         </div>
@@ -686,7 +686,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 1: MONTHLY RETAINER CLIENTS                                          */}
         {/* ========================================================================= */}
         {activeView === "MONTHLY_CLIENTS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -703,7 +703,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Client Name & Details</th>
                     <th className="py-3 px-4">Department Type</th>
@@ -807,7 +807,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 2: ONE-TIME PROJECTS & MILESTONE CONTRACTS                           */}
         {/* ========================================================================= */}
         {activeView === "ONE_TIME_ORDERS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -824,7 +824,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Client / Project</th>
                     <th className="py-3 px-4">Order Code</th>
@@ -923,7 +923,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 3: PENDING RECEIVABLES (ALL UNPAID OR PARTIAL)                        */}
         {/* ========================================================================= */}
         {activeView === "RECEIVABLES" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Pending Receivables Ledger</h3>
@@ -935,7 +935,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Order Code</th>
                     <th className="py-3 px-4">Client / Customer</th>
@@ -1021,7 +1021,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 4: COMPANY EXPENSES (ADMIN ONLY)                                     */}
         {/* ========================================================================= */}
         {isAdmin && activeView === "EXPENSES" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1036,7 +1036,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               </div>
               <button
                 onClick={() => setShowExpenseModal(true)}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs"
               >
                 + Log Expense
               </button>
@@ -1044,7 +1044,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Code</th>
                     <th className="py-3 px-4">Expense Title</th>
@@ -1098,7 +1098,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 5: MONTHLY BALANCE SHEET / P&L (ADMIN ONLY)                          */}
         {/* ========================================================================= */}
         {isAdmin && activeView === "BALANCE_SHEET" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-6">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -1112,48 +1112,68 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             {/* Three Pillar Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
-                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider font-mono">
-                  1. Realized Cash Inflow ({monthNames[selectedMonth - 1]})
-                </span>
-                <p className="text-2xl font-black text-emerald-700 font-mono">{formatCurrency(stats.monthRevenue || 0)}</p>
-                <p className="text-[11px] text-emerald-600">
-                  Collected payments from client retainers, project installments, and settlements in {monthNames[selectedMonth - 1]}.
-                </p>
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2 relative overflow-hidden">
+                <div className="w-1.5 h-full bg-emerald-500 absolute left-0 top-0" />
+                <div className="pl-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
+                      1. Realized Cash Inflow
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                      {monthNames[selectedMonth - 1]}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900 font-mono tracking-tight">{formatCurrency(stats.monthRevenue || 0)}</p>
+                  <p className="text-[11px] text-slate-500">
+                    Collected payments from client retainers, project installments, and settlements in {monthNames[selectedMonth - 1]}.
+                  </p>
+                </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-rose-50 border border-rose-200 space-y-2">
-                <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-mono">
-                  2. Total Operational Outflow
-                </span>
-                <p className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(stats.totalOutflow || 0)}</p>
-                <p className="text-[11px] text-rose-600">
-                  Staff Salaries: {formatCurrency(stats.totalPayroll || 0)} • Operational Expenses: {formatCurrency(stats.totalExpenses || 0)}
-                </p>
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2 relative overflow-hidden">
+                <div className="w-1.5 h-full bg-rose-500 absolute left-0 top-0" />
+                <div className="pl-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
+                      2. Operational Outflow
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+                      Total Costs
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900 font-mono tracking-tight">{formatCurrency(stats.totalOutflow || 0)}</p>
+                  <p className="text-[11px] text-slate-500">
+                    Staff Salaries: {formatCurrency(stats.totalPayroll || 0)} • Operational Expenses: {formatCurrency(stats.totalExpenses || 0)}
+                  </p>
+                </div>
               </div>
 
-              <div
-                className={cn(
-                  "p-5 rounded-2xl border space-y-2",
-                  (stats.netProfitLoss || 0) >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
-                )}
-              >
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
-                  3. Net Solvency Buffer (P/L)
-                </span>
-                <p
-                  className={cn(
-                    "text-2xl font-black font-mono",
-                    (stats.netProfitLoss || 0) >= 0 ? "text-blue-700" : "text-amber-700"
-                  )}
-                >
-                  {formatCurrency(stats.netProfitLoss || 0)}
-                </p>
-                <p className="text-[11px] text-slate-600">
-                  {(stats.netProfitLoss || 0) >= 0
-                    ? `✓ Company is fully solvent with a positive buffer of ${formatCurrency(stats.netProfitLoss)}.`
-                    : `⚠️ Deficit of ${formatCurrency(Math.abs(stats.netProfitLoss))} — collect pending receivables to balance.`}
-                </p>
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2 relative overflow-hidden">
+                <div className={cn("w-1.5 h-full absolute left-0 top-0", (stats.netProfitLoss || 0) >= 0 ? "bg-blue-600" : "bg-amber-500")} />
+                <div className="pl-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider font-mono">
+                      3. Net Solvency Buffer (P/L)
+                    </span>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border",
+                      (stats.netProfitLoss || 0) >= 0 ? "bg-blue-50 text-blue-700 border-blue-200/80" : "bg-amber-50 text-amber-700 border-amber-200/80"
+                    )}>
+                      {(stats.netProfitLoss || 0) >= 0 ? "Solvent Buffer" : "Deficit"}
+                    </span>
+                  </div>
+                  <p className={cn(
+                    "text-2xl font-bold font-mono tracking-tight",
+                    (stats.netProfitLoss || 0) >= 0 ? "text-slate-900" : "text-amber-700"
+                  )}>
+                    {formatCurrency(stats.netProfitLoss || 0)}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {(stats.netProfitLoss || 0) >= 0
+                      ? `✓ Company is fully solvent with a positive buffer of ${formatCurrency(stats.netProfitLoss)}.`
+                      : `⚠️ Deficit of ${formatCurrency(Math.abs(stats.netProfitLoss))} — collect pending receivables to balance.`}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1225,7 +1245,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 6: PAYMENTS LEDGER                                                   */}
         {/* ========================================================================= */}
         {activeView === "PAYMENTS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Received Payments Ledger</h3>
@@ -1235,7 +1255,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               </div>
               <button
                 onClick={() => setShowCustomPaymentModal(true)}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs"
               >
                 + Record Received Amount
               </button>
@@ -1243,7 +1263,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Receipt #</th>
                     <th className="py-3 px-4">Client / Account</th>
@@ -1285,7 +1305,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 7: COLLECTION TASKS                                                  */}
         {/* ========================================================================= */}
         {activeView === "COLLECTIONS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Receivable Collection Tasks</h3>
@@ -1299,7 +1319,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="space-y-3">
               {collectionTasks.filter(matchesSearch).map((tsk: any) => (
-                <div key={tsk.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-4">
+                <div key={tsk.id} className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/60 flex items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-slate-900">{tsk.title}</span>
@@ -1316,7 +1336,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
                     {tsk.status !== "COMPLETED" ? (
                       <button
                         onClick={() => setShowCustomPaymentModal(true)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs"
                       >
                         Record Collection
                       </button>
@@ -1339,7 +1359,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
         {/* VIEW 8: CLIENTS DIRECTORY                                                 */}
         {/* ========================================================================= */}
         {activeView === "CUSTOMERS" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Clients & Accounts Directory</h3>
@@ -1347,7 +1367,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
               </div>
               <button
                 onClick={() => setShowCustomerModal(true)}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs"
               >
                 + Add Customer
               </button>
@@ -1355,7 +1375,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                   <tr>
                     <th className="py-3 px-4">Name</th>
                     <th className="py-3 px-4">Company</th>
@@ -1386,7 +1406,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showPaymentModal && selectedOrderForPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Collect Payment</h3>
@@ -1518,7 +1538,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showExpenseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Log Company Expense</h3>
               <button onClick={() => setShowExpenseModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
@@ -1622,7 +1642,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showCustomPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Record Received Payment</h3>
               <button onClick={() => setShowCustomPaymentModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
@@ -1712,7 +1732,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showCustomReceivableModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Add Custom Receivable</h3>
               <button onClick={() => setShowCustomReceivableModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
@@ -1776,7 +1796,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showAssignTaskModal && selectedOrderForTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Allot Collection Task to Staff</h3>
               <button onClick={() => setShowAssignTaskModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">
@@ -1853,7 +1873,7 @@ export function SalesClient({ initialData, userRole = "EMPLOYEE", user }: SalesC
       {/* ========================================================================= */}
       {showCustomerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Add Customer Account</h3>
               <button onClick={() => setShowCustomerModal(false)} className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer">

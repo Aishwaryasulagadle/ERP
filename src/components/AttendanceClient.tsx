@@ -196,7 +196,7 @@ export function AttendanceClient({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               Attendance & Shifts
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -246,7 +246,7 @@ export function AttendanceClient({
       </div>
 
       {/* Employee Attendance Logs Table */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+      <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 tracking-tight">Today&apos;s Attendance Logs</h3>
@@ -259,7 +259,7 @@ export function AttendanceClient({
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+            <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
               <tr>
                 <th className="py-3 px-4">Employee</th>
                 <th className="py-3 px-4">Check-in</th>

@@ -287,7 +287,7 @@ export function EmployeeReportsClient({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               {activeTab === "DAILY" && "Daily Work Reports"}
               {activeTab === "WEEKLY" && "Weekly Progress Reports"}
               {activeTab === "CLIENT" && "Client & Project Milestone Reports"}
@@ -352,7 +352,7 @@ export function EmployeeReportsClient({
         {/* ================= REPORTS LIST VIEW (DAILY, WEEKLY, CLIENT, ALL) ================= */}
         {["DAILY", "WEEKLY", "CLIENT", "ALL_REPORTS"].includes(activeTab) && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <input
                 type="text"
                 placeholder="Search report titles, deliverables or summaries..."
@@ -369,7 +369,7 @@ export function EmployeeReportsClient({
               {filteredReports.map((rep) => (
                 <div
                   key={rep.id}
-                  className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-blue-300 transition-all space-y-3"
+                  className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all space-y-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
@@ -415,7 +415,7 @@ export function EmployeeReportsClient({
               ))}
 
               {filteredReports.length === 0 && (
-                <div className="p-12 rounded-2xl bg-white border border-slate-200 text-center space-y-2">
+                <div className="p-12 rounded-xl bg-white border border-slate-200/90 text-center space-y-2">
                   <FileText className="w-8 h-8 text-slate-300 mx-auto" />
                   <p className="text-xs font-semibold text-slate-700">No {activeTab.toLowerCase()} reports found</p>
                   <p className="text-[11px] text-slate-400">Click &quot;Submit Report&quot; to file your standup or progress update.</p>
@@ -428,7 +428,7 @@ export function EmployeeReportsClient({
         {/* ================= MY KPI TAB ================= */}
         {activeTab === "MY_KPI" && (
           <div className="space-y-6">
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
               <h3 className="text-base font-bold text-slate-900">Weekly Task & Productivity Trend</h3>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -452,9 +452,9 @@ export function EmployeeReportsClient({
 
         {/* ================= ATTENDANCE TAB ================= */}
         {activeTab === "ATTENDANCE" && (
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+              <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                 <tr>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Shift Type</th>
@@ -484,7 +484,7 @@ export function EmployeeReportsClient({
       {/* ================= MODAL: SUBMIT REPORT ================= */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
                 <h3 className="text-base font-bold text-slate-900">

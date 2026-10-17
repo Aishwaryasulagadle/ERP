@@ -13,9 +13,10 @@ export interface StatusBadgeProps {
 export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps) {
   const norm = status?.toUpperCase() || "";
 
-  let bg = "bg-slate-100 text-slate-700 border-slate-200";
+  let badgeStyle = "bg-slate-50 text-slate-700 border-slate-200/90";
+  let dotColor = "bg-slate-400";
 
-  // Success / JDS Emerald Green (#08764D)
+  // Success / Emerald
   if (
     [
       "PAID",
@@ -27,11 +28,13 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
       "APPROVED",
       "RESOLVED",
       "SUCCESS",
+      "WON",
     ].includes(norm)
   ) {
-    bg = "bg-[#08764D]/10 text-[#08764D] border-[#08764D]/25 font-semibold";
+    badgeStyle = "bg-emerald-50/90 text-emerald-800 border-emerald-200";
+    dotColor = "bg-emerald-600";
   }
-  // Pending / JDS Orange Accent (#F28C16)
+  // Pending / Amber Warning
   else if (
     [
       "PENDING",
@@ -45,11 +48,14 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
       "OPTIONAL",
       "WARNING",
       "HIGH",
+      "NEGOTIATION",
+      "PROPOSAL",
     ].includes(norm)
   ) {
-    bg = "bg-[#F28C16]/10 text-[#C2410C] border-[#F28C16]/30 font-semibold";
+    badgeStyle = "bg-amber-50/90 text-amber-800 border-amber-200";
+    dotColor = "bg-amber-500";
   }
-  // Danger / High Alert / Red
+  // Danger / Rose Alert
   else if (
     [
       "LOST",
@@ -62,14 +68,16 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
       "CLOSED",
     ].includes(norm)
   ) {
-    bg = "bg-rose-50 text-rose-700 border-rose-200 font-semibold";
+    badgeStyle = "bg-rose-50/90 text-rose-800 border-rose-200";
+    dotColor = "bg-rose-500";
   }
-  // Primary / JDS Deep Blue (#1674B9)
+  // Primary / Corporate Blue
   else if (
     [
       "NEW",
       "LEAVE",
       "ADMIN",
+      "CLIENT",
       "OPEN",
       "PRO",
       "ENTERPRISE",
@@ -80,12 +88,14 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
       "FESTIVAL",
     ].includes(norm)
   ) {
-    bg = "bg-[#1674B9]/10 text-[#14558A] border-[#1674B9]/25 font-bold";
+    badgeStyle = "bg-blue-50/90 text-blue-800 border-blue-200";
+    dotColor = "bg-blue-600";
   }
   // Neutral / Slate
   else if (
     [
       "MANAGER",
+      "EMPLOYEE",
       "SHIFTS",
       "TASK",
       "LEAD",
@@ -95,19 +105,20 @@ export function StatusBadge({ status, className, size = "sm" }: StatusBadgeProps
       "HOLD",
     ].includes(norm)
   ) {
-    bg = "bg-slate-100 text-slate-700 border-slate-200 font-medium";
+    badgeStyle = "bg-slate-50 text-slate-700 border-slate-200";
+    dotColor = "bg-slate-500";
   }
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border tracking-wide font-mono",
-        size === "sm" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs",
-        bg,
+        "inline-flex items-center gap-1.5 rounded-md border font-medium transition-colors select-none",
+        size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+        badgeStyle,
         className
       )}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-90 shrink-0" />
+      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
       <span>{status?.replace(/_/g, " ")}</span>
     </span>
   );
@@ -132,7 +143,7 @@ export function KpiCard({
   comparisonText,
   isPositive = true,
   icon: Icon,
-  iconColor = "text-[#1674B9] bg-[#1674B9]/10 border-[#1674B9]/20",
+  iconColor = "text-[#1674B9] bg-blue-50 border-blue-200/80",
   className,
   onClick,
 }: KpiCardProps) {
@@ -140,33 +151,48 @@ export function KpiCard({
     <div
       onClick={onClick}
       className={cn(
-        "p-5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all group flex flex-col justify-between relative overflow-hidden",
+        "p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between relative group",
         onClick && "cursor-pointer active:scale-[0.99]",
         className
       )}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">{title}</span>
-        <div className={cn("w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105", iconColor)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+          {title}
+        </span>
+        <div
+          className={cn(
+            "w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+            iconColor
+          )}
+        >
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="mt-3.5">
-        <div className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight font-sans">{value}</div>
+      <div className="mt-3">
+        <div className="text-2xl font-bold text-slate-900 tracking-tight font-sans">
+          {value}
+        </div>
         {(trend || comparisonText) && (
-          <div className="flex items-center gap-2 mt-2 text-xs">
+          <div className="flex items-center gap-2 mt-1.5 text-xs">
             {trend && (
               <span
                 className={cn(
-                  "font-bold font-mono px-1.5 py-0.5 rounded text-[11px] flex items-center gap-1",
-                  isPositive ? "bg-[#08764D]/10 text-[#08764D] border border-[#08764D]/25" : "bg-rose-50 text-rose-700 border border-rose-200"
+                  "font-semibold px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1 border",
+                  isPositive
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+                    : "bg-rose-50 text-rose-700 border-rose-200/80"
                 )}
               >
                 {trend}
               </span>
             )}
-            {comparisonText && <span className="text-slate-500 text-[11px] truncate font-medium">{comparisonText}</span>}
+            {comparisonText && (
+              <span className="text-slate-500 text-[11px] truncate font-normal">
+                {comparisonText}
+              </span>
+            )}
           </div>
         )}
       </div>

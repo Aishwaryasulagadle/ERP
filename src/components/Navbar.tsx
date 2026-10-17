@@ -289,7 +289,7 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
       {/* Global Command / Search Modal (Ctrl + K) */}
       {showCommandModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-2xl bg-white border border-slate-200/90 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
               <Search className="w-4 h-4 text-blue-600 shrink-0" />
               <input

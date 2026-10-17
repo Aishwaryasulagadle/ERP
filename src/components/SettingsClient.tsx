@@ -109,7 +109,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               Enterprise Settings & Audit
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -120,7 +120,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
 
       {/* System Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2">
           <div className="flex items-center gap-2 text-blue-600 font-bold text-xs font-mono">
             <Database className="w-4 h-4" />
             <span>DATABASE TOPOLOGY</span>
@@ -129,7 +129,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
           <p className="text-xs text-slate-500">Prisma ORM 6.4 Client schema sync</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2">
           <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs font-mono">
             <Key className="w-4 h-4" />
             <span>RBAC ACCESS CONTROL</span>
@@ -138,7 +138,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
           <p className="text-xs text-slate-500">Admin, Manager, Employee permissions active</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2">
           <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs font-mono">
             <Server className="w-4 h-4" />
             <span>ERP SYSTEM RUNTIME</span>
@@ -150,7 +150,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
 
       {/* Audit Log Table */}
       {activeTab === "AUDIT" && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-slate-900">System Audit Trail</h3>
             <span className="text-xs font-mono text-slate-500">Total events: {logs.length}</span>
@@ -158,7 +158,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+              <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                 <tr>
                   <th className="py-3 px-4">Timestamp</th>
                   <th className="py-3 px-4">User</th>
@@ -191,7 +191,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
 
       {/* RBAC Security Policies */}
       {activeTab === "SECURITY" && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
           <h3 className="text-base font-bold text-slate-900">Role-Based Access Control Rules</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
@@ -218,7 +218,7 @@ export function SettingsClient({ logs }: SettingsClientProps) {
 
       {/* Database Topology */}
       {activeTab === "DATABASE" && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3">
           <h3 className="text-base font-bold text-slate-900">Database Engine & Topology</h3>
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
             <div className="flex justify-between border-b border-slate-200 pb-2">

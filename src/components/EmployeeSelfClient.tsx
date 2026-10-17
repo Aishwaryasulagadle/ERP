@@ -504,7 +504,7 @@ export function EmployeeSelfClient({
         {/* Employee Profile Header Card */}
         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-sm">
               {user?.name ? user.name.slice(0, 2).toUpperCase() : "EM"}
             </div>
             <div className="min-w-0 flex-1">
@@ -568,7 +568,7 @@ export function EmployeeSelfClient({
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   Welcome, {user?.name || "Employee"} 👋
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -622,7 +622,7 @@ export function EmployeeSelfClient({
             {/* Dashboard Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Today's Attendance Card */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Today's Attendance
@@ -656,7 +656,7 @@ export function EmployeeSelfClient({
               </div>
 
               {/* Today's Assigned Tasks Card */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     My Tasks
@@ -681,7 +681,7 @@ export function EmployeeSelfClient({
               </div>
 
               {/* Leave Balance Card */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Leave Balance
@@ -713,7 +713,7 @@ export function EmployeeSelfClient({
               </div>
 
               {/* Upcoming Holidays Card */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Upcoming Holidays
@@ -736,7 +736,7 @@ export function EmployeeSelfClient({
             {/* Dashboard 2-Column: Recent Tasks & Work Logs */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Assigned Tasks Summary */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-slate-900">Current Assigned Tasks</h3>
                   <button
@@ -763,7 +763,7 @@ export function EmployeeSelfClient({
               </div>
 
               {/* Recent Work Logs Summary */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
+              <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-slate-900">Recent Work Logs</h3>
                   <button
@@ -977,7 +977,7 @@ export function EmployeeSelfClient({
                 .map((task) => (
                   <div
                     key={task.id}
-                    className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-300 transition-all shadow-sm space-y-4 flex flex-col justify-between"
+                    className="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-blue-300 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4 flex flex-col justify-between"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
@@ -1359,7 +1359,7 @@ export function EmployeeSelfClient({
               {queries.map((q) => (
                 <div
                   key={q.id}
-                  className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3"
+                  className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1417,7 +1417,7 @@ export function EmployeeSelfClient({
               {holidays.map((h, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2 flex flex-col justify-between"
+                  className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between">
@@ -1449,7 +1449,7 @@ export function EmployeeSelfClient({
             </div>
 
             {/* Read-only Official Credentials */}
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200/90 space-y-3">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-blue-600" />
                 <span>Official Employment Details (Read Only)</span>
@@ -1493,7 +1493,7 @@ export function EmployeeSelfClient({
             </div>
 
             {/* Editable Profile Information Form */}
-            <form onSubmit={handleUpdateProfile} className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 text-xs">
+            <form onSubmit={handleUpdateProfile} className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4 text-xs">
               <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">
                 Editable Personal Information
               </h4>
@@ -1564,7 +1564,7 @@ export function EmployeeSelfClient({
       {/* 1. Correction Modal */}
       {showCorrectionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Attendance Correction Request</h3>
               <button onClick={() => setShowCorrectionModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
@@ -1641,7 +1641,7 @@ export function EmployeeSelfClient({
       {/* 2. Leave Modal */}
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">
                 {selectedLeaveForEdit ? "Edit Leave Request" : "Apply for Leave"}
@@ -1727,7 +1727,7 @@ export function EmployeeSelfClient({
       {/* 3. Work Log Modal */}
       {showWorkLogModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Create Daily Work Log</h3>
               <button onClick={() => setShowWorkLogModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
@@ -1818,7 +1818,7 @@ export function EmployeeSelfClient({
       {/* 4. Overtime Modal */}
       {showOvertimeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Request Overtime Hours</h3>
               <button onClick={() => setShowOvertimeModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
@@ -1909,7 +1909,7 @@ export function EmployeeSelfClient({
       {/* 5. Query / Helpdesk Modal */}
       {showQueryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Raise Workplace Query</h3>
               <button onClick={() => setShowQueryModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
@@ -1982,7 +1982,7 @@ export function EmployeeSelfClient({
       {/* 6. Task Progress Modal */}
       {selectedTaskForProgress && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Log Task Progress</h3>
               <button

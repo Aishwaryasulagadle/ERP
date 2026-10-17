@@ -460,7 +460,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                 Leads & CRM Pipeline
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -515,74 +515,104 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div
               onClick={() => setActiveStageFilter("ALL")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "ALL"
-                  ? "bg-blue-50 border-blue-400 text-blue-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-blue-300"
-              }`}
+                  ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">Active Pipeline</span>
-              <p className="text-xl font-bold font-mono text-slate-900 mt-1">{totalLeads - lostCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "ALL" ? "text-slate-300" : "text-slate-500")}>
+                Active Pipeline
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "ALL" ? "text-white" : "text-slate-900")}>
+                {totalLeads - lostCount}
+              </p>
             </div>
 
             <div
               onClick={() => setActiveStageFilter("NEW")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "NEW"
-                  ? "bg-blue-50 border-blue-400 text-blue-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-blue-300"
-              }`}
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">New Leads</span>
-              <p className="text-xl font-bold font-mono text-blue-600 mt-1">{newCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "NEW" ? "text-blue-100" : "text-slate-500")}>
+                New Leads
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "NEW" ? "text-white" : "text-slate-900")}>
+                {newCount}
+              </p>
             </div>
 
             <div
               onClick={() => setActiveStageFilter("FOLLOW_UP")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "FOLLOW_UP"
-                  ? "bg-amber-50 border-amber-400 text-amber-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-amber-300"
-              }`}
+                  ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">Follow-ups</span>
-              <p className="text-xl font-bold font-mono text-amber-600 mt-1">{followUpCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "FOLLOW_UP" ? "text-amber-100" : "text-slate-500")}>
+                Follow-ups
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "FOLLOW_UP" ? "text-white" : "text-slate-900")}>
+                {followUpCount}
+              </p>
             </div>
 
             <div
               onClick={() => setActiveStageFilter("QUALIFIED")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "QUALIFIED"
-                  ? "bg-cyan-50 border-cyan-400 text-cyan-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-cyan-300"
-              }`}
+                  ? "bg-teal-700 text-white border-teal-700 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">Qualified</span>
-              <p className="text-xl font-bold font-mono text-cyan-600 mt-1">{qualifiedCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "QUALIFIED" ? "text-teal-100" : "text-slate-500")}>
+                Qualified
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "QUALIFIED" ? "text-white" : "text-slate-900")}>
+                {qualifiedCount}
+              </p>
             </div>
 
             <div
               onClick={() => setActiveStageFilter("PENDING_APPROVAL")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "PENDING_APPROVAL"
-                  ? "bg-orange-50 border-orange-400 text-orange-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-orange-300"
-              }`}
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">Pending Approval</span>
-              <p className="text-xl font-bold font-mono text-orange-600 mt-1">{pendingApprovalCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "PENDING_APPROVAL" ? "text-indigo-100" : "text-slate-500")}>
+                Pending Approval
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "PENDING_APPROVAL" ? "text-white" : "text-slate-900")}>
+                {pendingApprovalCount}
+              </p>
             </div>
 
             <div
               onClick={() => setActiveStageFilter("LOST")}
-              className={`p-3 rounded-xl border cursor-pointer transition-all shadow-xs ${
+              className={cn(
+                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
                 activeStageFilter === "LOST"
-                  ? "bg-rose-50 border-rose-400 text-rose-700"
-                  : "bg-white border-slate-200 text-slate-500 hover:border-rose-300"
-              }`}
+                  ? "bg-rose-700 text-white border-rose-700 shadow-sm"
+                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+              )}
             >
-              <span className="text-[10px] font-bold uppercase font-mono">Lost / Closed</span>
-              <p className="text-xl font-bold font-mono text-rose-600 mt-1">{lostCount}</p>
+              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "LOST" ? "text-rose-100" : "text-slate-500")}>
+                Lost / Closed
+              </span>
+              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "LOST" ? "text-white" : "text-slate-900")}>
+                {lostCount}
+              </p>
             </div>
           </div>
 
@@ -610,7 +640,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
 
           {/* View Selection: If LOST is selected from sidebar, show clean table/list. Otherwise, show Kanban Pipeline */}
           {activeStageFilter === "LOST" ? (
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -626,7 +656,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono">
+                    <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
                       <tr>
                         <th className="py-3 px-4">Lead</th>
                         <th className="py-3 px-4">Contact</th>
@@ -689,17 +719,17 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                     key={stage}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, stage)}
-                    className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between"
+                    className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between"
                   >
                     {/* Column Header */}
-                    <div className="pb-2 border-b border-slate-100 flex items-center justify-between">
+                    <div className="pb-2 border-b border-slate-200/80 flex items-center justify-between">
                       <div>
                         <span className="text-xs font-bold text-slate-800 font-mono">
                           {stage === "PENDING_APPROVAL" ? "APPROVAL" : stage}
                         </span>
                         <p className="text-[10px] text-slate-500 font-mono mt-0.5">{formatCurrency(stageTotal)}</p>
                       </div>
-                      <span className="w-5 h-5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-mono font-bold flex items-center justify-center text-slate-700">
+                      <span className="w-5 h-5 rounded-md bg-white border border-slate-200 text-[10px] font-mono font-bold flex items-center justify-center text-slate-700 shadow-xs">
                         {stageLeads.length}
                       </span>
                     </div>
@@ -713,10 +743,10 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                           onDragStart={(e) => handleDragStart(e, lead.id)}
                           onClick={() => handleOpenLead(lead)}
                           className={cn(
-                            "p-3 rounded-xl border transition-all cursor-pointer shadow-xs space-y-2",
+                            "p-3 rounded-lg border transition-all cursor-pointer shadow-xs space-y-2",
                             stage === "PENDING_APPROVAL"
-                              ? "bg-amber-50/70 border-amber-300 hover:border-amber-400"
-                              : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
+                              ? "bg-amber-50/60 border-amber-200/90 hover:border-amber-400"
+                              : "bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-xs"
                           )}
                         >
                           <div className="flex items-start justify-between gap-1">
@@ -1123,7 +1153,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
           {/* Create Lead Modal */}
           {showCreateModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <h3 className="text-base font-bold text-slate-900">Create New Lead</h3>
                   <button

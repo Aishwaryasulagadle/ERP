@@ -1066,7 +1066,7 @@ export function ReportsClient({
         {/* Header Top Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               {activeTab === "CLIENTS" && "Active Client Accounts & Overview"}
               {activeTab === "CUSTOM_SHEET" && "Client-Wise Custom Progress Reports"}
             </h1>
@@ -1126,7 +1126,7 @@ export function ReportsClient({
             {!isDetailView ? (
               <div className="space-y-4">
                 {/* Department & Status Filters */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-slate-200/90 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase font-mono text-slate-500">Department:</span>
                     <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
@@ -1174,8 +1174,8 @@ export function ReportsClient({
                           setIsDetailView(true);
                         }}
                         className={cn(
-                          "bg-white border rounded-2xl p-5 hover:shadow-lg hover:border-blue-500 transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative",
-                          isCompleted ? "border-slate-200 bg-slate-50/40" : "border-slate-200"
+                          "bg-white border rounded-xl p-5 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                          isCompleted ? "border-slate-200/90 bg-slate-50/40" : "border-slate-200/90"
                         )}
                       >
                         <div className="space-y-3">
@@ -1207,7 +1207,7 @@ export function ReportsClient({
                               <span className="text-slate-500">
                                 {isMonthly ? "Monthly Retainer" : "Contract Value"}
                               </span>
-                              <span className="font-mono font-black text-slate-900 text-sm">
+                              <span className="font-mono font-bold text-slate-900 text-sm">
                                 {formatCurrency(client.amount)}
                               </span>
                             </div>
@@ -1263,8 +1263,8 @@ export function ReportsClient({
                 </div>
 
                 {filteredClients.length === 0 && (
-                  <div className="bg-white border border-slate-200 rounded-3xl p-16 text-center space-y-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <div className="bg-white border border-slate-200/90 rounded-xl p-16 text-center space-y-3 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                       <Building2 className="w-6 h-6" />
                     </div>
                     <h3 className="font-bold text-slate-900 text-base">No Clients Found</h3>
@@ -1278,12 +1278,12 @@ export function ReportsClient({
               /* VIEW MODE B: FULL-PAGE DEDICATED CLIENT DETAIL VIEW */
               <div className="space-y-6 animate-in fade-in duration-150">
                 {/* Top Return Banner */}
-                <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+                <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setIsDetailView(false)}
-                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       <span>Back to Clients Roster</span>
@@ -1291,7 +1291,7 @@ export function ReportsClient({
                     <div className="h-6 w-px bg-slate-200 hidden sm:block" />
                     <div>
                       <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-black text-slate-900">{selectedClient.name}</h2>
+                        <h2 className="text-lg font-bold text-slate-900 tracking-tight">{selectedClient.name}</h2>
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                           {selectedClient.clientCode}
                         </span>
@@ -1396,11 +1396,11 @@ export function ReportsClient({
 
                 {/* Section 1: Financial & Commercial Snapshot */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-1">
+                  <div className="bg-white border border-slate-200/90 rounded-xl p-4 space-y-1 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                     <span className="text-[10px] font-mono text-slate-500 uppercase block font-bold">
                       {selectedClient.billingType === "MONTHLY" ? "Monthly Retainer Amount" : "Total Contract Value"}
                     </span>
-                    <span className="text-xl font-black text-slate-900 font-mono block">
+                    <span className="text-xl font-bold text-slate-900 font-mono block tracking-tight">
                       {formatCurrency(selectedClient.amount)}
                     </span>
                     <span className="text-[11px] text-slate-400 block">
@@ -1408,11 +1408,11 @@ export function ReportsClient({
                     </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-1">
+                  <div className="bg-white border border-slate-200/90 rounded-xl p-4 space-y-1 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                     <span className="text-[10px] font-mono text-slate-500 uppercase block font-bold">
                       {selectedClient.billingType === "MONTHLY" ? "Billing Cycle" : "Milestones Invoiced"}
                     </span>
-                    <span className="text-xl font-black text-emerald-600 font-mono block">
+                    <span className="text-xl font-bold text-emerald-600 font-mono block tracking-tight">
                       {selectedClient.billingType === "MONTHLY"
                         ? "Month-to-Month"
                         : formatCurrency(
@@ -1424,11 +1424,11 @@ export function ReportsClient({
                     </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-1">
+                  <div className="bg-white border border-slate-200/90 rounded-xl p-4 space-y-1 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                     <span className="text-[10px] font-mono text-slate-500 uppercase block font-bold">
                       {selectedClient.billingType === "MONTHLY" ? "Progress Reports" : "Remaining Receivable"}
                     </span>
-                    <span className="text-xl font-black text-indigo-600 font-mono block">
+                    <span className="text-xl font-bold text-indigo-600 font-mono block tracking-tight">
                       {selectedClient.billingType === "MONTHLY"
                         ? `${selectedClient.reports?.length || 0} Cycles Logged`
                         : formatCurrency(
@@ -1444,11 +1444,11 @@ export function ReportsClient({
                     </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-1">
+                  <div className="bg-white border border-slate-200/90 rounded-xl p-4 space-y-1 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                     <span className="text-[10px] font-mono text-slate-500 uppercase block font-bold">
                       Allocated Team
                     </span>
-                    <span className="text-xl font-black text-slate-900 font-mono block">
+                    <span className="text-xl font-bold text-slate-900 font-mono block tracking-tight">
                       {selectedClient.assignments?.length || 0} Staff
                     </span>
                     <span className="text-[11px] text-slate-400 block">
@@ -1459,8 +1459,8 @@ export function ReportsClient({
 
                 {/* Client Operational Instructions / Onboarding Notes */}
                 {selectedClient.notes && (
-                  <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-slate-50 border border-blue-200/80 rounded-2xl p-4.5 space-y-1.5 shadow-2xs">
-                    <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wider font-mono">
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4.5 space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider font-mono">
                       <FileText className="w-3.5 h-3.5 text-blue-600" />
                       <span>Client Instructions & Onboarding Notes</span>
                     </div>
@@ -1471,7 +1471,7 @@ export function ReportsClient({
                 )}
 
                 {/* Section 2: Agreed Deliverable Services & Onboarding Targets */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="font-bold text-sm text-slate-900 uppercase font-mono tracking-wider">
@@ -1534,7 +1534,7 @@ export function ReportsClient({
                         return (
                           <div
                             key={srv.id}
-                            className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 flex flex-col justify-between group hover:border-slate-300 transition-all"
+                            className="p-4 bg-slate-50/80 border border-slate-200/90 rounded-xl space-y-2 flex flex-col justify-between group hover:border-slate-300 transition-all shadow-xs"
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2">
@@ -1577,7 +1577,7 @@ export function ReportsClient({
                         );
                       })
                     ) : (
-                      <div className="col-span-full py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <div className="col-span-full py-8 text-center text-xs text-slate-400 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
                         No service deliverables configured for this client.
                       </div>
                     )}
@@ -1585,7 +1585,7 @@ export function ReportsClient({
                 </div>
 
                 {/* Section 3: Allocated Staff Members */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="font-bold text-sm text-slate-900 uppercase font-mono tracking-wider">
@@ -1648,7 +1648,7 @@ export function ReportsClient({
                 </div>
 
                 {/* Section 4: Monthly Progress Reports & Invoicing History */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="font-bold text-sm text-slate-900 uppercase font-mono tracking-wider">
@@ -1822,7 +1822,7 @@ export function ReportsClient({
                 </div>
 
                 {/* Section 5: Client Sprint Tasks (Estimated hours removed) */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="font-bold text-sm text-slate-900 uppercase font-mono tracking-wider">
@@ -1884,7 +1884,7 @@ export function ReportsClient({
                 </div>
 
                 {/* Section 6: Client Complaints & Support Tickets */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
                     <div>
                       <div className="flex items-center gap-2">
@@ -1991,7 +1991,7 @@ export function ReportsClient({
         {/* TAB 2: CLIENT CUSTOM PROGRESS REPORT */}
         {activeTab === "CUSTOM_SHEET" && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-6 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -2136,7 +2136,7 @@ export function ReportsClient({
 
               {/* ONE-TIME CLIENT: Project Progress Percentage & Manager Push to Sales */}
               {selectedClient?.billingType === "ONE_TIME" && (
-                <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <span className="text-xs font-bold text-amber-900 font-mono uppercase tracking-wider block">
                       One-Time Project Work Progress Status
@@ -2317,7 +2317,7 @@ export function ReportsClient({
         {/* Staff Performance Badges (temporarily disabled/commented out):
         {activeTab === "TEAM_AUDIT" && isManagerOrAdmin && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-slate-200/90 rounded-xl p-5 space-y-4 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
                   <h3 className="font-bold text-base text-slate-900">Employee Performance Rating (Green / Yellow / Red)</h3>
@@ -2390,7 +2390,7 @@ export function ReportsClient({
       {/* MODAL 3: ASSIGN TEAM */}
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">Allocate Staff to {selectedClient?.name}</h3>
               <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">
@@ -2491,7 +2491,7 @@ export function ReportsClient({
       {/* MODAL 5: FORWARD DELIVERABLES TO SALES */}
       {showForwardModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
@@ -2581,7 +2581,7 @@ export function ReportsClient({
       {/* MODAL 6: ALLOT CLIENT TASK */}
       {showClientTaskModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -2691,7 +2691,7 @@ export function ReportsClient({
       {/* MODAL 7: TRIGGER ONE-TIME MILESTONE RECEIVABLE */}
       {showMilestoneModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
@@ -2868,7 +2868,7 @@ export function ReportsClient({
       {/* MODAL: ADD CLIENT DELIVERABLE SERVICE */}
       {showAddServiceModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -2954,7 +2954,7 @@ export function ReportsClient({
       {/* MODAL: EDIT SERVICE DELIVERABLE & TARGET */}
       {editingService && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -3040,7 +3040,7 @@ export function ReportsClient({
       {/* MODAL 1: GIVE / RESET CLIENT LOGIN */}
       {showClientLoginModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200/90 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -3132,7 +3132,7 @@ export function ReportsClient({
       {/* MODAL 2: RAISE COMPLAINT / SUPPORT TICKET */}
       {showRaiseComplaintModal && selectedClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200/90 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
@@ -3236,7 +3236,7 @@ export function ReportsClient({
       {/* MODAL 3: RESOLVE COMPLAINT (FOR STAFF / ADMIN) */}
       {selectedComplaintForResolve && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200/90 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
