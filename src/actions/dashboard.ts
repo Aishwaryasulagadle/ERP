@@ -144,7 +144,10 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     }),
     prisma.employeeQuery.findMany({
       orderBy: { createdAt: "desc" },
-      include: { employee: { include: { user: true } } },
+      include: {
+        employee: { include: { user: true } },
+        client: true,
+      },
     }),
     prisma.department.findMany({
       include: {

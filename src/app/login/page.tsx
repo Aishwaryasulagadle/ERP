@@ -266,6 +266,40 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Client Portal Logins */}
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block mb-1.5">
+                  Client Portal (Client Access & Complaints)
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("client.jayant@erp.com", "client123")}
+                    className="p-2 rounded-xl bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Jayant (Client)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">client.jayant@erp.com</div>
+                    <div className="text-[10px] text-slate-400">client123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDemoCredentials("client.globalmartretail@erp.com", "client123")}
+                    className="p-2 rounded-xl bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-200 text-left transition-all cursor-pointer"
+                  >
+                    <div className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Global Mart (Client)</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">client.globalmartretail@erp.com</div>
+                    <div className="text-[10px] text-slate-400">client123</div>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

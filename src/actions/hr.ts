@@ -507,10 +507,25 @@ export async function getEmployeeQueries(filters?: { status?: string; category?:
   const currentDeptId = (session.user as any).departmentId;
 
   const where: any = {};
-  if (currentUserRole === "EMPLOYEE" && currentEmpId) {
-    where.employeeId = currentEmpId;
+  if (currentUserRole === "CLIENT") {
+    const currentClientId = (session.user as any).clientId;
+    if (!currentClientId) return [];
+    where.clientId = currentClientId;
+  } else if (currentUserRole === "EMPLOYEE" && currentEmpId) {
+    // Employee sees queries they raised OR complaints from clients assigned to them
+    where.OR = [
+      { employeeId: currentEmpId },
+      { client: { assignments: { some: { employeeId: currentEmpId } } } },
+    ];
   } else if (currentUserRole === "MANAGER" && currentDeptId) {
-    where.employee = { departmentId: currentDeptId };
+    // Manager sees staff queries in their department OR client complaints in their department type
+    const dept = await prisma.department.findUnique({ where: { id: currentDeptId } });
+    const isMarketing = (dept?.name || "").toLowerCase().includes("marketing");
+    const deptType = isMarketing ? "DIGITAL_MARKETING" : "TECHNICAL";
+    where.OR = [
+      { employee: { departmentId: currentDeptId } },
+      { client: { departmentType: deptType } },
+    ];
   } else if (filters?.employeeId && filters.employeeId !== "ALL") {
     where.employeeId = filters.employeeId;
   }
@@ -526,6 +541,7 @@ export async function getEmployeeQueries(filters?: { status?: string; category?:
   return await prisma.employeeQuery.findMany({
     where,
     include: {
+      client: true,
       employee: {
         include: {
           user: true,

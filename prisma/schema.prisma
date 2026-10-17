@@ -12,12 +12,13 @@ model User {
   name          String
   email         String         @unique
   password      String
-  role          String         @default("EMPLOYEE") // ADMIN, MANAGER, EMPLOYEE
+  role          String         @default("EMPLOYEE") // ADMIN, MANAGER, EMPLOYEE, CLIENT
   image         String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   employee      Employee?
+  client        Client?
   notifications Notification[]
   auditLogs     AuditLog[]
 }
@@ -355,9 +356,11 @@ model Holiday {
 model EmployeeQuery {
   id          String    @id @default(cuid())
   queryCode   String    @unique
-  employeeId  String
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  category    String    // SALARY_PAYROLL, LEAVE_ATTENDANCE, IT_SUPPORT, WORKPLACE, HR_POLICY, GENERAL
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category    String    // SALARY_PAYROLL, LEAVE_ATTENDANCE, IT_SUPPORT, WORKPLACE, HR_POLICY, GENERAL, CLIENT_DELIVERABLE, CLIENT_SUPPORT
   subject     String
   description String
   priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
@@ -426,10 +429,14 @@ model Client {
   createdById      String?
   createdBy        Employee?          @relation("CreatedClients", fields: [createdById], references: [id])
 
+  userId           String?            @unique
+  user             User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   assignments      ClientAssignment[]
   services         ClientService[]
   reports          ClientReport[]
   orders           Order[]
+  queries          EmployeeQuery[]
 
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt

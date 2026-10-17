@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
 // -------------------------------------------------------------
 // CLIENTS & PROJECTS MANAGEMENT
@@ -26,6 +27,13 @@ export async function getClients(filters?: { departmentType?: string; status?: s
   }
 
   // Role Scoping:
+  // 0. Client: ONLY sees their own client record!
+  if (userRole === "CLIENT") {
+    const currentClientId = (session.user as any).clientId;
+    if (!currentClientId) return [];
+    where.id = currentClientId;
+  }
+
   // 1. Manager: Only sees clients in their dedicated department
   if (userRole === "MANAGER") {
     if (currentDeptName.toLowerCase().includes("marketing")) {
@@ -50,7 +58,13 @@ export async function getClients(filters?: { departmentType?: string; status?: s
     include: {
       lead: true,
       customer: true,
+      user: {
+        select: { id: true, name: true, email: true, role: true },
+      },
       createdBy: { include: { user: true } },
+      queries: {
+        orderBy: { createdAt: "desc" },
+      },
       assignments: {
         include: {
           employee: {
@@ -1229,5 +1243,200 @@ export async function triggerMilestoneReceivable(data: {
   revalidatePath("/dashboard");
   return order;
 }
+
+// -------------------------------------------------------------
+// CLIENT LOGIN PORTAL & CLIENT COMPLAINT RAISING ACTIONS
+// -------------------------------------------------------------
+
+export async function createOrResetClientLogin(data: {
+  clientId: string;
+  email: string;
+  password?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+  const userRole = (session.user as any)?.role;
+  if (userRole !== "ADMIN" && userRole !== "MANAGER") {
+    throw new Error("Only Admin or Manager can issue client login credentials");
+  }
+
+  const client = await prisma.client.findUnique({
+    where: { id: data.clientId },
+    include: { user: true },
+  });
+  if (!client) throw new Error("Client account not found");
+
+  const normalizedEmail = data.email.toLowerCase().trim();
+  const passwordToUse = data.password && data.password.trim() ? data.password.trim() : "client123";
+  const hashedPassword = await bcrypt.hash(passwordToUse, 10);
+
+  // Check if a user with this email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  let userId: string;
+  if (existingUser) {
+    if (existingUser.role !== "CLIENT" && existingUser.id !== client.userId) {
+      throw new Error(`Email ${normalizedEmail} is already used by an employee/admin.`);
+    }
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        name: client.name,
+        password: hashedPassword,
+        role: "CLIENT",
+      },
+    });
+    userId = existingUser.id;
+  } else {
+    const newUser = await prisma.user.create({
+      data: {
+        name: client.name,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: "CLIENT",
+      },
+    });
+    userId = newUser.id;
+  }
+
+  // Link user to client
+  const updatedClient = await prisma.client.update({
+    where: { id: client.id },
+    data: {
+      userId,
+      email: normalizedEmail,
+    },
+    include: {
+      user: { select: { id: true, email: true, name: true, role: true } },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: session.user.name || "Admin",
+      action: "CLIENT_LOGIN_PROVISIONED",
+      module: "CLIENTS",
+      recordId: client.clientCode,
+      details: `Provisioned client login for ${client.name} with email ${normalizedEmail}`,
+    },
+  });
+
+  revalidatePath("/reports");
+  return {
+    success: true,
+    client: updatedClient,
+    email: normalizedEmail,
+    password: passwordToUse,
+  };
+}
+
+export async function raiseClientComplaint(data: {
+  subject: string;
+  description: string;
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  category?: string;
+  clientId?: string;
+}) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+  const user = session.user as any;
+
+  // Determine client ID
+  let targetClientId = data.clientId;
+  if (user.role === "CLIENT") {
+    targetClientId = user.clientId;
+  }
+
+  if (!targetClientId) {
+    throw new Error("Client account not found for this complaint ticket");
+  }
+
+  const client = await prisma.client.findUnique({
+    where: { id: targetClientId },
+    include: { assignments: { include: { employee: true } } },
+  });
+  if (!client) throw new Error("Client not found");
+
+  const totalQueries = await prisma.employeeQuery.count();
+  const queryCode = `CMP-${new Date().getFullYear()}-${String(totalQueries + 1).padStart(4, "0")}`;
+
+  const firstAssignedEmployeeId = client.assignments?.[0]?.employeeId || null;
+
+  const complaint = await prisma.employeeQuery.create({
+    data: {
+      queryCode,
+      clientId: client.id,
+      employeeId: firstAssignedEmployeeId, // Links to department employee assigned to client
+      category: data.category || (client.departmentType === "DIGITAL_MARKETING" ? "CLIENT_MARKETING_DELIVERABLE" : "CLIENT_TECH_SUPPORT"),
+      subject: `[${client.name}] ${data.subject}`,
+      description: data.description,
+      priority: data.priority || "HIGH",
+      status: "OPEN",
+    },
+    include: {
+      client: true,
+      employee: { include: { user: true, department: true } },
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      userName: session.user.name || client.name,
+      action: "CLIENT_COMPLAINT_RAISED",
+      module: "CLIENTS",
+      recordId: queryCode,
+      details: `Client complaint raised by ${client.name}: "${data.subject}"`,
+    },
+  });
+
+  revalidatePath("/reports");
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  return complaint;
+}
+
+export async function resolveClientComplaint(complaintId: string, responseText: string, newStatus: string = "RESOLVED") {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+  const userRole = (session.user as any)?.role;
+
+  if (userRole !== "ADMIN" && userRole !== "MANAGER" && userRole !== "EMPLOYEE") {
+    throw new Error("Unauthorized to resolve complaint");
+  }
+
+  const existing = await prisma.employeeQuery.findUnique({
+    where: { id: complaintId },
+    include: { client: true },
+  });
+  if (!existing) throw new Error("Complaint ticket not found");
+
+  const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const responseTag = `[${session.user.name || "Staff"} - ${timestamp}]: ${responseText}`;
+  const combined = existing.response ? `${existing.response}\n\n${responseTag}` : responseTag;
+
+  const updated = await prisma.employeeQuery.update({
+    where: { id: complaintId },
+    data: {
+      status: newStatus,
+      response: combined,
+      resolvedBy: session.user.name || "Support Team",
+      resolvedAt: newStatus === "RESOLVED" ? new Date() : existing.resolvedAt,
+    },
+    include: {
+      client: true,
+      employee: { include: { user: true } },
+    },
+  });
+
+  revalidatePath("/reports");
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  return updated;
+}
+
 
 

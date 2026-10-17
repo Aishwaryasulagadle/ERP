@@ -671,8 +671,8 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                 <thead className="text-[10px] text-slate-400 font-mono uppercase border-b border-slate-100">
                   <tr>
                     <th className="pb-1.5">ID</th>
-                    <th className="pb-1.5">Employee</th>
-                    <th className="pb-1.5">Issue</th>
+                    <th className="pb-1.5">Raised By</th>
+                    <th className="pb-1.5">Issue / Complaint</th>
                     <th className="pb-1.5">Priority</th>
                     <th className="pb-1.5">Status</th>
                   </tr>
@@ -680,9 +680,20 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                 <tbody className="divide-y divide-slate-100 text-[11px]">
                   {openComplaints.map((c: any) => (
                     <tr key={c.id}>
-                      <td className="py-2 font-mono text-blue-600">{c.queryCode}</td>
-                      <td className="py-2 font-semibold text-slate-800">{c.employee?.user?.name || "Support"}</td>
-                      <td className="py-2 text-slate-600 truncate max-w-[120px]">{c.subject}</td>
+                      <td className="py-2 font-mono text-blue-600 font-bold">{c.queryCode}</td>
+                      <td className="py-2 font-semibold text-slate-800">
+                        {c.client ? (
+                          <span className="flex items-center gap-1 text-purple-700">
+                            <span className="px-1 py-0.2 bg-purple-100 rounded text-[9px] font-bold">CLIENT</span>
+                            <span className="truncate max-w-[80px]">{c.client.name}</span>
+                          </span>
+                        ) : (
+                          c.employee?.user?.name || "Support Staff"
+                        )}
+                      </td>
+                      <td className="py-2 text-slate-600 truncate max-w-[130px] font-medium" title={c.subject}>
+                        {c.subject}
+                      </td>
                       <td className="py-2 font-bold text-rose-600">{c.priority}</td>
                       <td className="py-2">
                         <StatusBadge status={c.status} size="sm" />

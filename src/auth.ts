@@ -26,6 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 designation: true,
               },
             },
+            client: true,
           },
         });
 
@@ -50,8 +51,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           employeeId: user.employee?.id,
           employeeCode: user.employee?.employeeCode,
           departmentId: user.employee?.departmentId,
-          department: user.employee?.department?.name,
-          designation: user.employee?.designation?.name,
+          department: user.employee?.department?.name || (user.client ? (user.client.departmentType === "DIGITAL_MARKETING" ? "Digital Marketing" : "Technical") : undefined),
+          designation: user.employee?.designation?.name || (user.client ? "Client Account" : undefined),
+          clientId: user.client?.id,
+          clientCode: user.client?.clientCode,
           image: user.image || user.employee?.profilePhoto,
         };
       },
@@ -67,16 +70,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.departmentId = (user as any).departmentId;
         token.department = (user as any).department;
         token.designation = (user as any).designation;
+        token.clientId = (user as any).clientId;
+        token.clientCode = (user as any).clientCode;
       }
 
-      // If token is missing departmentId or employee info, query DB to keep session synced
-      if (token.id && (!token.departmentId || !token.employeeId || !token.role)) {
+      // If token is missing departmentId or employee/client info, query DB to keep session synced
+      if (token.id && (!token.role || (!token.employeeId && !token.clientId))) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
           include: {
             employee: {
               include: { department: true, designation: true },
             },
+            client: true,
           },
         });
         if (dbUser) {
@@ -84,8 +90,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.employeeId = dbUser.employee?.id;
           token.employeeCode = dbUser.employee?.employeeCode;
           token.departmentId = dbUser.employee?.departmentId;
-          token.department = dbUser.employee?.department?.name;
-          token.designation = dbUser.employee?.designation?.name;
+          token.department = dbUser.employee?.department?.name || (dbUser.client ? (dbUser.client.departmentType === "DIGITAL_MARKETING" ? "Digital Marketing" : "Technical") : undefined);
+          token.designation = dbUser.employee?.designation?.name || (dbUser.client ? "Client Account" : undefined);
+          token.clientId = dbUser.client?.id;
+          token.clientCode = dbUser.client?.clientCode;
         }
       }
 
@@ -100,6 +108,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).departmentId = token.departmentId;
         (session.user as any).department = token.department;
         (session.user as any).designation = token.designation;
+        (session.user as any).clientId = token.clientId;
+        (session.user as any).clientCode = token.clientCode;
       }
       return session;
     },

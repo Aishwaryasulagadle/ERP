@@ -64,26 +64,33 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const isClientRole = userRole === "CLIENT";
+
   const isSalesOrAdmin =
-    userRole === "ADMIN" ||
-    (user?.department && user.department.toLowerCase().includes("sales")) ||
-    (user?.email && user.email.toLowerCase().includes("sales"));
+    !isClientRole &&
+    (userRole === "ADMIN" ||
+      (user?.department && user.department.toLowerCase().includes("sales")) ||
+      (user?.email && user.email.toLowerCase().includes("sales")));
 
   const isSalesStaff =
     userRole === "EMPLOYEE" &&
     ((user?.department && user.department.toLowerCase().includes("sales")) ||
       (user?.email && user.email.toLowerCase().includes("sales")));
 
-  const isClientsVisible = !isSalesStaff;
+  const isClientsVisible = isClientRole || !isSalesStaff;
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, visible: true },
-    { name: "CRM / Leads", href: "/crm", icon: Target, visible: isSalesOrAdmin },
-    { name: "Sales", href: "/sales", icon: TrendingUp, visible: isSalesOrAdmin },
-    { name: "Employees", href: "/employees", icon: Users, visible: true },
-    { name: "Clients", href: "/reports", icon: Layers, visible: isClientsVisible },
-    { name: "Settings", href: "/settings", icon: Settings, visible: userRole === "ADMIN" },
-  ];
+  const navigation = isClientRole
+    ? [
+        { name: "My Deliverables & Reports", href: "/reports", icon: Layers, visible: true },
+      ]
+    : [
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, visible: true },
+        { name: "CRM / Leads", href: "/crm", icon: Target, visible: isSalesOrAdmin },
+        { name: "Sales", href: "/sales", icon: TrendingUp, visible: isSalesOrAdmin },
+        { name: "Employees", href: "/employees", icon: Users, visible: true },
+        { name: "Clients", href: "/reports", icon: Layers, visible: isClientsVisible },
+        { name: "Settings", href: "/settings", icon: Settings, visible: userRole === "ADMIN" },
+      ];
 
   const filteredNav = navigation.filter((item) => item.visible);
 
@@ -109,8 +116,8 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
       <header className="h-15 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 select-none shadow-[0_1px_2px_0_rgba(0,0,0,0.02)]">
         {/* Left Brand & Module Navigation Links */}
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2 group">
-            <JdsLogo size="sm" showText={true} subtitle="Enterprise" />
+          <Link href={isClientRole ? "/reports" : "/dashboard"} className="flex items-center gap-2 group">
+            <JdsLogo size="sm" showText={true} subtitle={isClientRole ? "Client Portal" : "Enterprise"} />
           </Link>
 
           {/* Top Desktop Navigation Links */}
@@ -139,19 +146,21 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
 
         {/* Center & Right Controls */}
         <div className="flex items-center gap-3">
-          {/* Global Search Button with Ctrl + K */}
-          <button
-            onClick={() => setShowCommandModal(true)}
-            className="flex items-center justify-between w-40 sm:w-60 lg:w-72 px-3 py-1.5 bg-[#F5F7FA] border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:text-slate-900 hover:bg-white hover:border-slate-300 transition-all cursor-pointer shadow-xs"
-          >
-            <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-[#64748B]" />
-              <span className="truncate">Search records...</span>
-            </div>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[#14558A] bg-white border border-[#E2E8F0] rounded shadow-xs">
-              Ctrl K
-            </kbd>
-          </button>
+          {/* Global Search Button with Ctrl + K (Hidden for CLIENT users) */}
+          {!isClientRole && (
+            <button
+              onClick={() => setShowCommandModal(true)}
+              className="flex items-center justify-between w-40 sm:w-60 lg:w-72 px-3 py-1.5 bg-[#F5F7FA] border border-[#E2E8F0] rounded-lg text-xs text-[#64748B] hover:text-slate-900 hover:bg-white hover:border-slate-300 transition-all cursor-pointer shadow-xs"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-[#64748B]" />
+                <span className="truncate">Search records...</span>
+              </div>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[#14558A] bg-white border border-[#E2E8F0] rounded shadow-xs">
+                Ctrl K
+              </kbd>
+            </button>
+          )}
 
           {/* Mobile Menu Toggle Button */}
           <button
@@ -226,14 +235,16 @@ export function Navbar({ user, notifications = [] }: NavbarProps) {
                     <StatusBadge status={userRole} />
                   </div>
                 </div>
-                <Link
-                  href="/settings"
-                  onClick={() => setShowUserMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <Settings className="w-4 h-4 text-[#1674B9]" />
-                  <span>Enterprise Settings</span>
-                </Link>
+                {userRole !== "CLIENT" && (
+                  <Link
+                    href="/settings"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                  >
+                    <Settings className="w-4 h-4 text-[#1674B9]" />
+                    <span>Enterprise Settings</span>
+                  </Link>
+                )}
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer mt-1"
