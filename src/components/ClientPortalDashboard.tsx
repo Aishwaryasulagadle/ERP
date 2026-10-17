@@ -90,7 +90,7 @@ export function ClientPortalDashboard({ client, user }: ClientPortalDashboardPro
     return monthsList;
   };
 
-  // Sync sheet rows when client or month changes
+  // Sync sheet rows when client or month changes (100% synced with ReportsClient logic and DB)
   useEffect(() => {
     if (!clientData) return;
 
@@ -104,57 +104,112 @@ export function ClientPortalDashboard({ client, user }: ClientPortalDashboardPro
       if (match) setOneTimeProgressPct(Number(match[1]));
     }
 
+    // 1. If saved report exists for this month, load exact saved columns and rows
     if (targetReport?.columnsJson) {
       try {
         const parsed = JSON.parse(targetReport.columnsJson);
-        if (Array.isArray(parsed.columns) && parsed.columns.length > 0) {
+        if (parsed.columns && Array.isArray(parsed.columns)) {
           setCustomColumns(parsed.columns);
         }
-        if (Array.isArray(parsed.rows)) {
+        if (parsed.rows && Array.isArray(parsed.rows)) {
           setSheetRows(parsed.rows);
-          return;
         }
+        return;
       } catch (e) {
-        console.error("Error parsing progress sheet columnsJson", e);
+        console.error("Error parsing saved progress sheet", e);
       }
     }
 
-    // Default template fallback populated from onboarding agreed services
-    const defaultCols = [
-      "Item / Deliverable",
-      "Monthly Target",
-      "Completed Count",
-      "Remaining",
-      "Status",
-      "Notes & Links",
-    ];
-    setCustomColumns(defaultCols);
+    // 2. If report does not exist for this month yet, inherit from prior month
+    const priorReport = clientData.reports?.find((r: any) => {
+      if (isOneTime) return false;
+      return r.year < sheetYear || (r.year === sheetYear && r.month < sheetMonth);
+    });
 
+    if (priorReport?.columnsJson) {
+      try {
+        const parsedPrior = JSON.parse(priorReport.columnsJson);
+        if (parsedPrior.columns && Array.isArray(parsedPrior.columns)) {
+          setCustomColumns(parsedPrior.columns);
+        }
+        if (parsedPrior.rows && Array.isArray(parsedPrior.rows)) {
+          const carryOverRows = parsedPrior.rows.map((row: any, rIdx: number) => {
+            const rowCopy = { ...row, id: String(Date.now() + rIdx) };
+            if (rowCopy["Completed Count"] !== undefined) rowCopy["Completed Count"] = "0";
+            if (rowCopy["Remaining"] !== undefined && rowCopy["Monthly Target"] !== undefined) {
+              rowCopy["Remaining"] = rowCopy["Monthly Target"];
+            }
+            if (rowCopy["Status"] !== undefined) rowCopy["Status"] = "IN_PROGRESS";
+            return rowCopy;
+          });
+          setSheetRows(carryOverRows);
+          return;
+        }
+      } catch (e) {
+        console.error("Error parsing prior progress report", e);
+      }
+    }
+
+    // 3. Fallback: Build from client's onboarded services exactly like ReportsClient
     if (clientData.services && clientData.services.length > 0) {
-      const initial = clientData.services.map((s: any, idx: number) => {
-        const targetVal = s.target || (s.targetCount ? `${s.targetCount} units` : "Configured");
+      const dynamicRows = clientData.services.map((srv: any, idx: number) => {
+        let targetDisplay = "1";
+        if (srv.target) targetDisplay = String(srv.target);
+        else if (srv.notes && srv.notes.includes("[Target:")) {
+          const match = srv.notes.match(/\[Target:\s*([^\]]+)\]/);
+          if (match) targetDisplay = match[1].trim();
+        } else if (srv.targetCount > 0) {
+          targetDisplay = String(srv.targetCount);
+        } else {
+          const n = (srv.serviceName || "").toLowerCase();
+          if (n.includes("reel")) targetDisplay = "15";
+          else if (n.includes("graphic") || n.includes("carousel")) targetDisplay = "25";
+          else if (n.includes("seo")) targetDisplay = "8";
+          else if (n.includes("ad")) targetDisplay = "2";
+        }
+
+        const targetNum = parseInt(targetDisplay, 10) || srv.targetCount || 0;
+        const completedNum = isOneTime ? srv.completedCount || 0 : 0;
+        const rem = Math.max(0, targetNum - completedNum);
+
         return {
           id: String(idx + 1),
-          "Item / Deliverable": s.serviceName,
-          "Monthly Target": targetVal,
-          "Completed Count": "0",
-          "Remaining": targetVal,
-          "Status": "Pending / In Progress",
-          "Notes & Links": s.notes || "-",
+          "Item / Deliverable": srv.serviceName,
+          [isOneTime ? "Target Scope" : "Monthly Target"]: targetDisplay,
+          "Completed Count": String(completedNum),
+          Remaining: String(rem),
+          Status: srv.status || "IN_PROGRESS",
+          "Notes & Links": srv.notes ? srv.notes.replace(/\[Target:\s*[^\]]+\]\s*/g, "").trim() : "Active deliverable",
         };
       });
-      setSheetRows(initial);
+      setSheetRows(dynamicRows);
+      setCustomColumns([
+        "Item / Deliverable",
+        isOneTime ? "Target Scope" : "Monthly Target",
+        "Completed Count",
+        "Remaining",
+        "Status",
+        "Notes & Links",
+      ]);
     } else {
       setSheetRows([
         {
           id: "1",
-          "Item / Deliverable": "Deliverables & Campaign Strategy",
-          "Monthly Target": "Active",
-          "Completed Count": "In Progress",
-          "Remaining": "-",
-          "Status": "In Progress",
-          "Notes & Links": "Live work tracking",
+          "Item / Deliverable": isOneTime ? "Project Milestone 1" : "Instagram Reels",
+          [isOneTime ? "Target Scope" : "Monthly Target"]: isOneTime ? "Full Launch" : "15",
+          "Completed Count": "0",
+          Remaining: isOneTime ? "1" : "15",
+          Status: "IN_PROGRESS",
+          "Notes & Links": "Delivery scope active",
         },
+      ]);
+      setCustomColumns([
+        "Item / Deliverable",
+        isOneTime ? "Target Scope" : "Monthly Target",
+        "Completed Count",
+        "Remaining",
+        "Status",
+        "Notes & Links",
       ]);
     }
   }, [clientData, sheetMonth, sheetYear]);

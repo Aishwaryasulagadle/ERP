@@ -1384,24 +1384,6 @@ export function ReportsClient({
                       </button>
                     )}
 
-                    {/* Raise Complaint Button (For Client user, or staff logging on their behalf) */}
-                    <button
-                      onClick={() => {
-                        setComplaintForm({
-                          subject: "",
-                          description: "",
-                          priority: "HIGH",
-                          category: "DELIVERABLE_DELAY",
-                        });
-                        setShowRaiseComplaintModal(true);
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      title="Register an issue or complaint for this client"
-                    >
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Raise Complaint</span>
-                    </button>
-
                     <button
                       onClick={() => setActiveTab("CUSTOM_SHEET")}
                       className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -1916,24 +1898,6 @@ export function ReportsClient({
                       <p className="text-xs text-slate-500">
                         Official issues and support requests raised by {selectedClient.name}
                       </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setComplaintForm({
-                            subject: "",
-                            description: "",
-                            priority: "HIGH",
-                            category: "DELIVERABLE_DELAY",
-                          });
-                          setShowRaiseComplaintModal(true);
-                        }}
-                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Raise Complaint</span>
-                      </button>
                     </div>
                   </div>
 
