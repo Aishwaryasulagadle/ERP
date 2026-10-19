@@ -356,46 +356,6 @@ export async function getHolidays(year?: number) {
     orderBy: { date: "asc" },
   });
 
-  // Seed default company holidays & calendar if none exist for this year
-  if (holidays.length === 0) {
-    const defaultHolidays = [
-      { title: "New Year's Day", date: new Date(targetYear, 0, 1), type: "NATIONAL", description: "Global New Year celebration" },
-      { title: "Republic Day", date: new Date(targetYear, 0, 26), type: "NATIONAL", description: "National Holiday" },
-      { title: "Holi Festival", date: new Date(targetYear, 2, 17), type: "FESTIVAL", description: "Festival of Colors" },
-      { title: "Eid al-Fitr", date: new Date(targetYear, 2, 31), type: "FESTIVAL", description: "Religious festival celebration" },
-      { title: "May Day / Labour Day", date: new Date(targetYear, 4, 1), type: "NATIONAL", description: "International Workers' Day" },
-      { title: "Independence Day", date: new Date(targetYear, 7, 15), type: "NATIONAL", description: "National Independence Day" },
-      { title: "Gandhi Jayanti", date: new Date(targetYear, 9, 2), type: "NATIONAL", description: "Mahatma Gandhi Birthday" },
-      { title: "Dussehra", date: new Date(targetYear, 9, 20), type: "FESTIVAL", description: "Vijayadashami festival" },
-      { title: "Diwali (Deepavali)", date: new Date(targetYear, 10, 8), type: "FESTIVAL", description: "Festival of Lights" },
-      { title: "Christmas", date: new Date(targetYear, 11, 25), type: "FESTIVAL", description: "Christmas Day celebration" },
-    ];
-
-    for (const h of defaultHolidays) {
-      await prisma.holiday.upsert({
-        where: { date: h.date },
-        update: {},
-        create: {
-          title: h.title,
-          date: h.date,
-          type: h.type,
-          description: h.description,
-          isRecurring: true,
-        },
-      });
-    }
-
-    holidays = await prisma.holiday.findMany({
-      where: {
-        date: {
-          gte: startOfYear,
-          lte: endOfYear,
-        },
-      },
-      orderBy: { date: "asc" },
-    });
-  }
-
   return holidays;
 }
 
@@ -637,9 +597,12 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
   const currentMonth = filters?.month ? Number(filters.month) : new Date().getMonth() + 1;
   const currentYear = filters?.year ? Number(filters.year) : new Date().getFullYear();
 
-  // Auto-generate current month salary slips for all active employees if they do not exist
+  // Auto-generate current month salary slips for all active employees if they do not exist (excluding ADMINs)
   const allEmployees = await prisma.employee.findMany({
-    where: { employmentStatus: "ACTIVE" },
+    where: { 
+      employmentStatus: "ACTIVE",
+      user: { role: { not: "ADMIN" } },
+    },
     include: { user: true, department: true, designation: true },
   });
 
@@ -753,12 +716,14 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
     }
   }
 
-  const where: any = {};
+  const where: any = {
+    employee: { user: { role: { not: "ADMIN" } } },
+  };
   const currentDeptId = (session.user as any).departmentId;
   if (currentUserRole === "EMPLOYEE" && currentEmpId) {
     where.employeeId = currentEmpId;
   } else if (currentUserRole === "MANAGER" && currentDeptId) {
-    where.employee = { departmentId: currentDeptId };
+    where.employee = { departmentId: currentDeptId, user: { role: { not: "ADMIN" } } };
   } else if (filters?.employeeId && filters.employeeId !== "ALL") {
     where.employeeId = filters.employeeId;
   }

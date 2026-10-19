@@ -23,14 +23,15 @@ export async function getEmployees(filters?: { departmentId?: string; search?: s
     }
   }
 
-  const where: any = {};
+  const where: any = {
+    user: { role: { not: "ADMIN" } },
+  };
 
-  // Manager only sees their own department, and never sees ADMIN users
+  // Manager only sees their own department
   if (currentUserRole === "MANAGER") {
     if (currentDeptId) {
       where.departmentId = currentDeptId;
     }
-    where.user = { role: { not: "ADMIN" } };
   } else if (filters?.departmentId && filters.departmentId !== "ALL") {
     where.departmentId = filters.departmentId;
   }

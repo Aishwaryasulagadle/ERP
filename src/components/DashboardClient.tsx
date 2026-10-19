@@ -82,7 +82,6 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
   const departmentTaskLoads = metrics.departmentTaskLoads || [];
   const todayImportantTasks = metrics.todayImportantTasks || [];
   const openComplaints = metrics.openComplaints || [];
-  const marketingChannels = metrics.marketingChannels || {};
   const financeMonthlyChart = metrics.financeMonthlyChart || [];
   const employeeRows = metrics.employeeRows || [];
 
@@ -118,12 +117,14 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
 
     // Invoice collection donut data (Live from DB collected vs outstanding)
     const totalOrderBilling = (kpis.monthlyRevenue || 0) + (kpis.outstandingAmount || 0);
-    const paidPct = totalOrderBilling > 0 ? Math.min(100, Math.round(((kpis.monthlyRevenue || 0) / totalOrderBilling) * 100)) : 100;
-    const pendingPct = Math.max(0, 100 - paidPct);
-    const invoicePieData = [
-      { name: "Paid", value: paidPct > 0 ? paidPct : 1, color: "#10b981" },
-      { name: "Pending", value: pendingPct, color: "#e2e8f0" },
-    ].filter(item => item.value > 0);
+    const paidPct = totalOrderBilling > 0 ? Math.min(100, Math.round(((kpis.monthlyRevenue || 0) / totalOrderBilling) * 100)) : 0;
+    const pendingPct = totalOrderBilling > 0 ? Math.max(0, 100 - paidPct) : 0;
+    const invoicePieData = totalOrderBilling > 0 ? [
+      { name: "Paid", value: paidPct, color: "#10b981" },
+      { name: "Pending", value: pendingPct, color: "#f59e0b" },
+    ].filter(item => item.value > 0) : [
+      { name: "No Invoices", value: 1, color: "#e2e8f0" }
+    ];
 
     // HR Attendance donut data (Live from DB today check-ins)
     const attPct = Math.min(100, Math.max(0, kpis.attendancePct || 0));
@@ -482,8 +483,12 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-sm font-bold text-slate-900 font-mono">{paidPct}%</span>
-                  <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Paid</span>
+                  <span className="text-sm font-bold text-slate-900 font-mono">
+                    {totalOrderBilling > 0 ? `${paidPct}%` : "0%"}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+                    {totalOrderBilling > 0 ? "Paid" : "Invoices"}
+                  </span>
                 </div>
               </div>
 
@@ -598,74 +603,87 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           </div>
         </div>
 
-        {/* Row 2: 3 Operational Modules (Marketing Performance, Complaints/Support, Finance Overview) */}
+        {/* Row 2: 3 Operational Modules (Sprint Task Execution, Complaints/Support, Finance Overview) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Card 1: Marketing Performance */}
+          {/* Card 1: Operations & Sprint Tasks Execution (100% Real from Database) */}
           <div className="lg:col-span-4 p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-semibold text-xs text-slate-900 tracking-tight uppercase">Marketing Acquisition</h3>
-              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/80">
-                Live Channels
-              </span>
+              <h3 className="font-semibold text-xs text-slate-900 tracking-tight uppercase">Operations & Sprint Tasks</h3>
+              <Link href="/employees?tab=TASKS" className="text-[11px] font-semibold text-blue-600 hover:text-blue-700">
+                View All
+              </Link>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-              {/* Meta Ads */}
+              {/* Total Tasks */}
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/50 text-center space-y-1">
                 <div className="w-6 h-6 mx-auto rounded bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                  f
+                  <CheckSquare className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-800 block">Meta Ads</span>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Leads <strong className="text-slate-900 font-semibold">{marketingChannels.metaAds?.leads || 0}</strong>
+                <span className="text-[11px] font-semibold text-slate-800 block">Total Tasks</span>
+                <div className="text-[14px] text-slate-900 font-bold font-mono">
+                  {metrics.taskStats?.totalTasks || 0}
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  CPL <strong className="text-slate-900 font-semibold">₹{marketingChannels.metaAds?.cpl || 0}</strong>
-                </div>
+                <div className="text-[9px] text-slate-500 font-medium">All Sprints</div>
               </div>
 
-              {/* Google Ads */}
+              {/* In Progress */}
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/50 text-center space-y-1">
                 <div className="w-6 h-6 mx-auto rounded bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
-                  G
+                  <Clock className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-800 block">Google Ads</span>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Leads <strong className="text-slate-900 font-semibold">{marketingChannels.googleAds?.leads || 0}</strong>
+                <span className="text-[11px] font-semibold text-slate-800 block">In Progress</span>
+                <div className="text-[14px] text-amber-600 font-bold font-mono">
+                  {metrics.taskStats?.inProgressTasks || 0}
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  CPL <strong className="text-slate-900 font-semibold">₹{marketingChannels.googleAds?.cpl || 0}</strong>
-                </div>
+                <div className="text-[9px] text-slate-500 font-medium">Underway</div>
               </div>
 
-              {/* SEO */}
+              {/* Completed */}
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/50 text-center space-y-1">
-                <div className="w-6 h-6 mx-auto rounded bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs">
-                  🔍
+                <div className="w-6 h-6 mx-auto rounded bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-800 block">SEO & Web</span>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Leads <strong className="text-slate-900 font-semibold">{marketingChannels.seo?.leads || 0}</strong>
+                <span className="text-[11px] font-semibold text-slate-800 block">Completed</span>
+                <div className="text-[14px] text-emerald-600 font-bold font-mono">
+                  {metrics.taskStats?.completedTasks || 0}
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Traffic <strong className="text-slate-900 font-semibold">{marketingChannels.seo?.traffic || "0"}</strong>
-                </div>
+                <div className="text-[9px] text-slate-500 font-medium">Resolved</div>
               </div>
 
-              {/* Social Media */}
+              {/* Completion Rate */}
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/50 text-center space-y-1">
-                <div className="w-6 h-6 mx-auto rounded bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs">
-                  ▶
+                <div className="w-6 h-6 mx-auto rounded bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
+                  <Activity className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-[11px] font-semibold text-slate-800 block">Social Media</span>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Leads <strong className="text-slate-900 font-semibold">{marketingChannels.socialMedia?.leads || 0}</strong>
+                <span className="text-[11px] font-semibold text-slate-800 block">Velocity</span>
+                <div className="text-[14px] text-purple-600 font-bold font-mono">
+                  {metrics.taskStats?.completionRate || 0}%
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Reach <strong className="text-slate-900 font-semibold">{marketingChannels.socialMedia?.reach || "0"}</strong>
-                </div>
+                <div className="text-[9px] text-slate-500 font-medium">Completion</div>
               </div>
             </div>
+
+            {/* Overdue Alert Bar if any */}
+            {(metrics.taskStats?.overdueTasks || 0) > 0 ? (
+              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-rose-700 font-semibold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{metrics.taskStats.overdueTasks} Overdue Task(s) require attention</span>
+                </div>
+                <Link href="/employees?tab=TASKS" className="text-[11px] text-rose-800 underline font-semibold">
+                  Review
+                </Link>
+              </div>
+            ) : (
+              <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-200/60 flex items-center justify-between text-[11px] text-emerald-700">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  All operational tasks on schedule
+                </span>
+                <span className="font-mono font-semibold">{metrics.taskStats?.pendingTasks || 0} Queued</span>
+              </div>
+            )}
           </div>
 
           {/* Card 2: Complaints / Support */}
@@ -1250,9 +1268,9 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
           <span className="text-[10px] text-emerald-600 font-semibold">On Schedule</span>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-1">
-          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Ad Campaigns Active</span>
-          <p className="text-xl font-bold text-blue-600 font-mono tracking-tight">{marketingChannels.metaAds?.leads + marketingChannels.googleAds?.leads || 0}</p>
-          <span className="text-[10px] text-blue-600 font-semibold">Meta & Google Ads</span>
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Active Pipeline</span>
+          <p className="text-xl font-bold text-blue-600 font-mono tracking-tight">{kpis.totalLeads || 0}</p>
+          <span className="text-[10px] text-blue-600 font-semibold">CRM Inquiries</span>
         </div>
         <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-1">
           <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wide">Team Attendance</span>

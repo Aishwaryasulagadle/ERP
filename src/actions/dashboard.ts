@@ -28,13 +28,14 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
   // Department / Role filters:
   const leadWhere: any = {};
   const orderWhere: any = {};
-  const empWhere: any = { employmentStatus: "ACTIVE" };
+  const empWhere: any = { employmentStatus: "ACTIVE", user: { role: { not: "ADMIN" } } };
   const taskWhere: any = {};
   const attWhere: any = {
     date: {
       gte: todayStart,
       lte: todayEnd,
     },
+    employee: { user: { role: { not: "ADMIN" } } },
   };
 
   if (userRole === "MANAGER" && deptId) {
@@ -106,7 +107,9 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       orderBy: { createdAt: "desc" },
     }),
     prisma.employee.findMany({
-      where: userRole === "ADMIN" ? { employmentStatus: "ACTIVE" } : empWhere,
+      where: userRole === "ADMIN" 
+        ? { employmentStatus: "ACTIVE", user: { role: { not: "ADMIN" } } } 
+        : empWhere,
       include: {
         user: true,
         department: true,
@@ -119,7 +122,9 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       orderBy: { employeeCode: "asc" },
     }),
     prisma.attendance.findMany({
-      where: userRole === "ADMIN" ? { date: { gte: todayStart, lte: todayEnd } } : attWhere,
+      where: userRole === "ADMIN" 
+        ? { date: { gte: todayStart, lte: todayEnd }, employee: { user: { role: { not: "ADMIN" } } } } 
+        : attWhere,
       include: {
         employee: { include: { user: true, department: true } },
       },
@@ -350,19 +355,6 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     status: t.status,
   }));
 
-  // Marketing Channels aggregation from lead sources in DB
-  const metaAdsLeads = allLeads.filter((l) => l.source === "META_ADS").length;
-  const googleAdsLeads = allLeads.filter((l) => l.source === "GOOGLE_ADS").length;
-  const seoLeads = allLeads.filter((l) => l.source === "WEBSITE" || l.source === "SEO").length;
-  const socialMediaLeads = allLeads.filter((l) => l.source === "INSTAGRAM" || l.source === "SOCIAL_MEDIA").length;
-
-  const marketingChannels = {
-    metaAds: { leads: metaAdsLeads, cpl: metaAdsLeads > 0 ? 125 : 0 },
-    googleAds: { leads: googleAdsLeads, cpl: googleAdsLeads > 0 ? 140 : 0 },
-    seo: { leads: seoLeads, traffic: seoLeads > 0 ? `${(seoLeads * 1.1).toFixed(1)}K` : "0" },
-    socialMedia: { leads: socialMediaLeads, reach: socialMediaLeads > 0 ? `${seoLeads * 15}K` : "0" },
-  };
-
   // Month-by-month financial bar data computed 100% from actual DB payment & expense records
   const allMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   // Show past 6 months ending in currentMonth
@@ -457,7 +449,6 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
     departmentTaskLoads,
     todayImportantTasks,
     openComplaints: openComplaints.slice(0, 5),
-    marketingChannels,
     financeMonthlyChart,
     employeeRows: dynamicEmployeeRows,
     recentOrders: allOrders.slice(0, 5),
