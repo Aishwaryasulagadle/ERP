@@ -106,12 +106,15 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
     // Project status pie data (Live from DB counts)
     const onTrackCount = Math.max(0, (kpis.activeProjects || 0) - (kpis.delayedProjects || 0));
     const delayedCount = Math.max(0, kpis.delayedProjects || 0);
-    const completedCount = 1; // Delivered client contracts
+    const completedCount = kpis.completedProjects || 0; // Live count from DB
     const projectPieData = [
-      { name: "On Track", value: onTrackCount > 0 ? onTrackCount : 1, color: "#0284c7" }, // Sky/Ocean Blue
-      { name: "Delayed", value: delayedCount, color: "#f43f5e" }, // Rose Red
-      { name: "Completed", value: completedCount, color: "#10b981" }, // Emerald Green
+      { name: "On Track", value: onTrackCount > 0 ? onTrackCount : 0, color: "#0284c7" },
+      { name: "Delayed", value: delayedCount, color: "#f43f5e" },
+      { name: "Completed", value: completedCount, color: "#10b981" },
     ].filter(item => item.value > 0);
+    if (projectPieData.length === 0) {
+      projectPieData.push({ name: "No Active Projects", value: 1, color: "#e2e8f0" });
+    }
 
     // Invoice collection donut data (Live from DB collected vs outstanding)
     const totalOrderBilling = (kpis.monthlyRevenue || 0) + (kpis.outstandingAmount || 0);
@@ -435,7 +438,7 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     Completed
                   </span>
-                  <span className="font-semibold font-mono text-slate-800">1</span>
+                  <span className="font-semibold font-mono text-slate-800">{completedCount}</span>
                 </div>
               </div>
             </div>
@@ -856,6 +859,9 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                   </div>
                 </div>
               ))}
+              {topClients.length === 0 && (
+                <div className="text-center py-4 text-slate-400 text-xs">No client accounts yet.</div>
+              )}
             </div>
           </div>
 
@@ -883,6 +889,9 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                   </div>
                 </div>
               ))}
+              {departmentTaskLoads.length === 0 && (
+                <div className="text-center py-4 text-slate-400 text-xs">No department workload yet.</div>
+              )}
             </div>
           </div>
 
@@ -908,6 +917,9 @@ export function DashboardClient({ metrics, user, role }: DashboardClientProps) {
                   </div>
                 </div>
               ))}
+              {upcomingRenewals.length === 0 && (
+                <div className="text-center py-4 text-slate-400 text-xs">No upcoming renewals yet.</div>
+              )}
             </div>
           </div>
         </div>

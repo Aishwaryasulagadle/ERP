@@ -97,7 +97,6 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       orderBy: { paymentDate: "desc" },
     }),
     prisma.client.findMany({
-      where: { status: "ACTIVE" },
       include: {
         customer: true,
         services: true,
@@ -203,7 +202,8 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
 
   // Projects & Deliverables breakdown
   const activeClients = allClients.filter((c) => c.status === "ACTIVE");
-  const delayedProjectsCount = allClients.filter(
+  const completedClients = allClients.filter((c) => c.status === "COMPLETED");
+  const delayedProjectsCount = activeClients.filter(
     (c) =>
       c.services.some((s) => s.status === "IN_PROGRESS" && s.completedCount < (s.targetCount || 1)) &&
       new Date(c.onboardingDate).getTime() < Date.now() - 3 * 24 * 3600 * 1000
@@ -295,15 +295,25 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
 
   // Upcoming Renewals (Monthly clients from DB)
   const upcomingRenewals = allClients
-    .filter((c) => c.billingType === "MONTHLY")
-    .map((c, idx) => ({
-      id: c.id,
-      name: c.name,
-      company: c.company || c.name,
-      package: c.departmentType === "DIGITAL_MARKETING" ? "Social Media + Ads" : "Web & Maintenance",
-      renewalDate: `${20 + idx * 4} Oct ${currentYear}`,
-      amount: c.amount,
-    }))
+    .filter((c) => c.billingType === "MONTHLY" && c.status === "ACTIVE")
+    .map((c) => {
+      const onbDate = new Date(c.onboardingDate || c.createdAt);
+      const renewDay = onbDate.getDate();
+      const renewDate = new Date(currentYear, currentMonth - 1, renewDay);
+      if (renewDate < now) {
+        renewDate.setMonth(renewDate.getMonth() + 1);
+      }
+      const dayFormatted = renewDate.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+
+      return {
+        id: c.id,
+        name: c.name,
+        company: c.company || c.name,
+        package: c.departmentType === "DIGITAL_MARKETING" ? "Digital Marketing Retainer" : "Technical Retainer",
+        renewalDate: dayFormatted,
+        amount: c.amount,
+      };
+    })
     .slice(0, 5);
 
   // Dynamic Employee Performance Table Calculation
@@ -349,18 +359,40 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
   const marketingChannels = {
     metaAds: { leads: metaAdsLeads, cpl: metaAdsLeads > 0 ? 125 : 0 },
     googleAds: { leads: googleAdsLeads, cpl: googleAdsLeads > 0 ? 140 : 0 },
-    seo: { leads: seoLeads, traffic: `${seoLeads * 1.1}K` },
-    socialMedia: { leads: socialMediaLeads, reach: `${socialMediaLeads * 15}K` },
+    seo: { leads: seoLeads, traffic: seoLeads > 0 ? `${(seoLeads * 1.1).toFixed(1)}K` : "0" },
+    socialMedia: { leads: socialMediaLeads, reach: socialMediaLeads > 0 ? `${seoLeads * 15}K` : "0" },
   };
 
-  // Month-by-month financial bar data computed from DB
-  const monthNames = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
-  const financeMonthlyChart = monthNames.map((mName, idx) => {
-    const isCurrent = idx === monthNames.length - 1;
+  // Month-by-month financial bar data computed 100% from actual DB payment & expense records
+  const allMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Show past 6 months ending in currentMonth
+  const past6Months = [];
+  for (let i = 5; i >= 0; i--) {
+    let m = currentMonth - i;
+    let y = currentYear;
+    if (m <= 0) {
+      m += 12;
+      y -= 1;
+    }
+    past6Months.push({ monthIndex: m, year: y, label: allMonths[m - 1] });
+  }
+
+  const financeMonthlyChart = past6Months.map(({ monthIndex, year, label }) => {
+    const rev = allPayments
+      .filter((p) => {
+        const d = new Date(p.paymentDate);
+        return d.getMonth() + 1 === monthIndex && d.getFullYear() === year;
+      })
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const exp = allExpenses
+      .filter((e) => e.month === monthIndex && e.year === year)
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
+
     return {
-      month: mName,
-      revenue: isCurrent ? monthlyRevenue : Math.round(monthlyRevenue * (0.65 + idx * 0.05)),
-      expense: isCurrent ? totalExpenses : Math.round(totalExpenses * (0.7 + idx * 0.05)),
+      month: label,
+      revenue: rev,
+      expense: exp,
     };
   });
 
@@ -382,6 +414,7 @@ export async function getDashboardMetrics(timeRange = "THIS_MONTH") {
       totalLeads: allLeads.length,
       pipelineValue,
       activeProjects: activeClients.length,
+      completedProjects: completedClients.length,
       delayedProjects: delayedProjectsCount,
       openComplaintsCount: openComplaints.length,
       slaRiskCount,

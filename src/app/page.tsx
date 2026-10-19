@@ -730,18 +730,18 @@ export default async function HomePage() {
             <div className="w-1.5 h-full bg-blue-600 absolute left-0 top-0" />
             <div className="space-y-1.5 text-center md:text-left pl-2">
               <div className="flex items-center justify-center md:justify-start gap-2 text-blue-700 font-extrabold text-xs uppercase tracking-wider font-mono">
-                <KeyRound className="w-4 h-4" /> Ready for Live Evaluation
+                <KeyRound className="w-4 h-4" /> Ready for Live Deployment
               </div>
-              <h4 className="text-lg font-bold text-slate-900">Experience All Enterprise Roles in Demo Mode</h4>
+              <h4 className="text-lg font-bold text-slate-900">Administrator Credentials</h4>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Log in with predefined credentials (<code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">admin@erp.com</code>, <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">manager@erp.com</code>, or <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">employee@erp.com</code> / password: <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">password123</code>).
+                Log in to the management workspace with your corporate administrator account: (<code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">info@jisnudigital.com</code> / password: <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">Jisnu123</code>).
               </p>
             </div>
             <Link
               href="/login"
               className="btn-primary shrink-0 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-xs font-bold"
             >
-              <span>Launch Demo Session</span>
+              <span>Access ERP Workspace</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
