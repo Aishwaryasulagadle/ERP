@@ -76,6 +76,7 @@ export async function createEmployee(data: {
   designationId?: string;
   designationName?: string;
   salary: number;
+  monthlyLeaveQuota?: number;
   role: string;
   address?: string;
   emergencyContact?: string;
@@ -128,8 +129,19 @@ export async function createEmployee(data: {
     resolvedDesignationId = desigRecord.id;
   }
 
-  const empCount = await prisma.employee.count();
-  const employeeCode = `EMP-${String(empCount + 1).padStart(3, "0")}`;
+  // Generate guaranteed unique employeeCode
+  const lastEmp = await prisma.employee.findFirst({
+    orderBy: { employeeCode: "desc" },
+    select: { employeeCode: true },
+  });
+  let nextNum = 1;
+  if (lastEmp?.employeeCode && lastEmp.employeeCode.startsWith("EMP-")) {
+    const parsed = parseInt(lastEmp.employeeCode.replace("EMP-", ""), 10);
+    if (!isNaN(parsed)) {
+      nextNum = parsed + 1;
+    }
+  }
+  const employeeCode = `EMP-${String(nextNum).padStart(3, "0")}`;
 
   const employee = await prisma.employee.create({
     data: {
@@ -139,6 +151,7 @@ export async function createEmployee(data: {
       departmentId: data.departmentId || null,
       designationId: resolvedDesignationId,
       salary: Number(data.salary) || 50000,
+      monthlyLeaveQuota: data.monthlyLeaveQuota !== undefined ? Number(data.monthlyLeaveQuota) : 2,
       employmentStatus: "ACTIVE",
       address: data.address,
       emergencyContact: data.emergencyContact,
@@ -217,5 +230,35 @@ export async function clearEmployeeActivityData() {
       deliverableLogs: logs.count,
     },
   };
+}
+
+export async function deleteEmployee(employeeId: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = (session.user as any)?.role;
+  if (role !== "ADMIN") {
+    throw new Error("Only Admin can delete employees");
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: { user: true },
+  });
+
+  if (!employee) throw new Error("Employee not found");
+  if (employee.user.role === "ADMIN") {
+    throw new Error("Cannot delete an Administrator account");
+  }
+
+  // Deleting the user will cascade delete employee, attendance, salary slips, tasks, etc.
+  await prisma.user.delete({
+    where: { id: employee.userId },
+  });
+
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  revalidatePath("/attendance");
+  return { success: true };
 }
 

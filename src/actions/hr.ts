@@ -683,7 +683,10 @@ export async function getSalarySlips(filters?: { employeeId?: string; month?: nu
       });
     } else {
       const monthStr = String(currentMonth).padStart(2, "0");
-      const slipCode = `PAY-${currentYear}${monthStr}-${emp.employeeCode || Math.floor(1000 + Math.random() * 9000)}`;
+      const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const baseCode = `PAY-${currentYear}${monthStr}-${emp.employeeCode || "EMP"}`;
+      const existingCode = await prisma.salarySlip.findUnique({ where: { slipCode: baseCode } });
+      const slipCode = existingCode ? `${baseCode}-${randomSuffix}` : baseCode;
 
       await prisma.salarySlip.create({
         data: {
@@ -795,7 +798,8 @@ export async function generateSalarySlip(data: {
   const netSalary = Math.max(0, grossSalary - totalDeduction);
 
   const monthStr = String(data.month).padStart(2, "0");
-  const slipCode = `PAY-${data.year}${monthStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const slipCode = `PAY-${data.year}${monthStr}-${Math.floor(1000 + Math.random() * 9000)}-${randomSuffix}`;
 
   const existingSlip = await prisma.salarySlip.findFirst({
     where: {

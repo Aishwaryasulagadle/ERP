@@ -48,9 +48,10 @@ import {
   TrendingUp,
   Timer,
   FileEdit,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatTime, cn } from "@/lib/utils";
-import { createEmployee } from "@/actions/employees";
+import { createEmployee, deleteEmployee } from "@/actions/employees";
 import { clockIn, clockOut, toggleBreak } from "@/actions/attendance";
 import { createTask, updateTaskStatus, logTaskHourlyProgress } from "@/actions/tasks";
 import {
@@ -434,6 +435,27 @@ export function EmployeesClient({
       alert(`Employee ${newEmp.employeeCode} created successfully!`);
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (empId: string, empName: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`Are you sure you want to permanently delete employee "${empName}"? This will remove all their records.`)) {
+      return;
+    }
+    setLoading(true);
+    try {
+      await deleteEmployee(empId);
+      setEmployees((prev) => prev.filter((item) => item.id !== empId));
+      if (selectedEmployee?.id === empId) {
+        setSelectedEmployee(null);
+      }
+      router.refresh();
+      alert(`Employee ${empName} has been deleted successfully.`);
+    } catch (err: any) {
+      alert(err.message || "Failed to delete employee");
     } finally {
       setLoading(false);
     }
@@ -1616,15 +1638,26 @@ export function EmployeesClient({
                           {emp.phone || emp.user?.email}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEmployee(emp);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer"
-                          >
-                            View Profile
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedEmployee(emp);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer"
+                            >
+                              View Profile
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => handleDeleteEmployee(emp.id, emp.user?.name || emp.employeeCode, e)}
+                                title="Delete Employee"
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -4135,19 +4168,29 @@ export function EmployeesClient({
                     <span>Monthly Leave Entitlement</span>
                   </div>
                   <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded font-mono text-[10px] font-bold">
-                    2 Leaves / 30 Days
+                    {selectedEmployee.monthlyLeaveQuota ?? 2} {Number(selectedEmployee.monthlyLeaveQuota) === 1 ? "Leave" : "Leaves"} / 30 Days
                   </span>
                 </div>
                 <p className="text-[11px] text-amber-900 leading-relaxed">
-                  Permitted <strong>2 paid leaves</strong> every 30 days cycle without deductions. 4 weekly Sundays are regular paid company holidays.
+                  Permitted <strong>{selectedEmployee.monthlyLeaveQuota ?? 2} paid {Number(selectedEmployee.monthlyLeaveQuota) === 1 ? "leave" : "leaves"}</strong> every 30 days cycle without deductions. 4 weekly Sundays are regular paid company holidays.
                 </p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200">
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteEmployee(selectedEmployee.id, selectedEmployee.user?.name || selectedEmployee.employeeCode)}
+                  className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Employee</span>
+                </button>
+              )}
               <button
                 onClick={() => setSelectedEmployee(null)}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 cursor-pointer"
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 cursor-pointer"
               >
                 Close Profile
               </button>
