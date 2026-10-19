@@ -70,6 +70,7 @@ export async function getEmployees(filters?: { departmentId?: string; search?: s
 export async function createEmployee(data: {
   name: string;
   email: string;
+  password?: string;
   phone?: string;
   departmentId: string;
   designationId?: string;
@@ -101,7 +102,8 @@ export async function createEmployee(data: {
   const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
   if (existingUser) throw new Error("Email is already registered");
 
-  const passwordHash = await bcrypt.hash("password123", 10);
+  const rawPassword = data.password && data.password.trim() ? data.password.trim() : "password123";
+  const passwordHash = await bcrypt.hash(rawPassword, 10);
   const user = await prisma.user.create({
     data: {
       name: data.name,

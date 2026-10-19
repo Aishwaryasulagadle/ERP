@@ -219,6 +219,7 @@ export function EmployeesClient({
   const [employeeFormData, setEmployeeFormData] = useState({
     name: "",
     email: "",
+    password: "password123",
     phone: "",
     departmentId: departments[0]?.id || "",
     designationName: "",
@@ -4195,15 +4196,30 @@ export function EmployeesClient({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Contact Phone</label>
+                  <label className="block text-slate-700 font-medium mb-1">Login Password *</label>
                   <input
                     type="text"
-                    placeholder="+91 98765 43210"
-                    value={employeeFormData.phone}
-                    onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
+                    required
+                    placeholder="password123"
+                    value={employeeFormData.password}
+                    onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
                   />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    Default is <code className="bg-slate-100 px-1 py-0.5 rounded font-mono font-semibold">password123</code> (can be customized)
+                  </span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Contact Phone</label>
+                <input
+                  type="text"
+                  placeholder="+91 98765 43210"
+                  value={employeeFormData.phone}
+                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
