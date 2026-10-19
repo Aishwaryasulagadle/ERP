@@ -121,12 +121,12 @@ export function Sidebar({ isCollapsed, onToggleCollapse, userRole = "ADMIN", use
       {/* Brand Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-white">
         <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shrink-0 shadow-md shadow-blue-600/20">
-            <Building2 className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0 shadow-xs">
+            <img src="/icon.jpeg" alt="Jisnu Logo" className="w-full h-full object-cover" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
-              <span className="font-bold text-sm tracking-tight text-slate-900 block truncate">MY ERP</span>
+              <span className="font-bold text-sm tracking-tight text-slate-900 block truncate">JISNU ERP</span>
               <span className="text-[10px] text-blue-600 font-mono tracking-wider font-semibold uppercase block">
                 Enterprise SaaS
               </span>

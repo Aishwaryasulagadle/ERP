@@ -143,23 +143,24 @@ body {
    BUTTONS
    ========================================== */
 .btn-primary {
-  background: var(--jds-gradient-blue) !important;
+  background: #0284C7 !important;
   color: #FFFFFF !important;
   font-weight: 600 !important;
-  border: none !important;
-  box-shadow: 0 4px 10px rgba(22, 127, 183, 0.20) !important;
+  border: 1px solid #0369A1 !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25) !important;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #126D9F, #0B4266) !important;
-  box-shadow: 0 6px 14px rgba(22, 127, 183, 0.30) !important;
+  background: #0369A1 !important;
+  border-color: #075985 !important;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35) !important;
   transform: translateY(-1px) !important;
 }
 
 .btn-primary:active {
   transform: translateY(0.5px) !important;
-  box-shadow: 0 2px 6px rgba(22, 127, 183, 0.20) !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.20) !important;
 }
 
 .btn-secondary {

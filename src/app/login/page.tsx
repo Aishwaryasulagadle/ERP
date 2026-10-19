@@ -8,8 +8,8 @@ import { Building2, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Eye, EyeOff 
 import { JdsLogo } from "@/components/ui/JdsLogo";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("info@jisnudigital.com");
-  const [password, setPassword] = useState("Jisnu123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -38,11 +38,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setDemoCredentials = (roleEmail: string, rolePass: string) => {
-    setEmail(roleEmail);
-    setPassword(rolePass);
   };
 
   return (
@@ -117,32 +112,12 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 border border-blue-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               <span>{loading ? "Authenticating Session..." : "Sign In to JDS ERP"}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Admin Credentials Quick Hint */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setDemoCredentials("info@jisnudigital.com", "Jisnu123")}
-              className="w-full p-3 rounded-xl bg-slate-50 hover:bg-blue-50/60 border border-slate-200 text-left transition-all cursor-pointer flex items-center justify-between"
-            >
-              <div>
-                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Administrator Account</span>
-                </div>
-                <div className="text-[11px] text-slate-500 font-mono mt-0.5">info@jisnudigital.com</div>
-              </div>
-              <div className="text-[10px] text-blue-600 font-semibold font-mono bg-white px-2 py-1 rounded border border-blue-200">
-                Click to Fill
-              </div>
-            </button>
-          </div>
         </div>
       </div>
     </div>

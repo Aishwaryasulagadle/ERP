@@ -732,9 +732,9 @@ export default async function HomePage() {
               <div className="flex items-center justify-center md:justify-start gap-2 text-blue-700 font-extrabold text-xs uppercase tracking-wider font-mono">
                 <KeyRound className="w-4 h-4" /> Ready for Live Deployment
               </div>
-              <h4 className="text-lg font-bold text-slate-900">Administrator Credentials</h4>
+              <h4 className="text-lg font-bold text-slate-900">Enterprise Workspace Portal</h4>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Log in to the management workspace with your corporate administrator account: (<code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">info@jisnudigital.com</code> / password: <code className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">Jisnu123</code>).
+                Secure enterprise sign-in with your assigned corporate email and password credentials.
               </p>
             </div>
             <Link
@@ -754,10 +754,10 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-3.5 md:col-span-2">
               <div className="flex items-center gap-3 text-white font-bold text-lg">
-                <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-600/30">
-                  <Building2 className="w-4 h-4" />
+                <div className="h-8 w-8 rounded-lg overflow-hidden border border-slate-700 bg-white p-0.5 shrink-0 shadow-sm">
+                  <img src="/icon.jpeg" alt="Jisnu Logo" className="w-full h-full object-cover rounded-md" />
                 </div>
-                <span>ERP CORE Enterprise Operating Suite</span>
+                <span>JISNU ERP Core Enterprise Operating Suite</span>
               </div>
               <p className="text-xs text-slate-400 max-w-sm leading-relaxed font-medium">
                 A modern full-stack enterprise resource planning platform engineered with Next.js, Prisma ORM, and PostgreSQL for unified operational velocity.
