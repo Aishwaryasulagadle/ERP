@@ -262,3 +262,112 @@ export async function deleteEmployee(employeeId: string) {
   return { success: true };
 }
 
+export async function updateEmployee(
+  employeeId: string,
+  data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    departmentId?: string;
+    designationName?: string;
+    salary?: number;
+    monthlyLeaveQuota?: number;
+    employmentStatus?: string;
+    role?: string;
+    address?: string;
+    emergencyContact?: string;
+  }
+) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const callerRole = (session.user as any)?.role;
+  if (callerRole !== "ADMIN" && callerRole !== "MANAGER") {
+    throw new Error("Only Admin or Manager can update employees");
+  }
+
+  const existingEmp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: { user: true },
+  });
+
+  if (!existingEmp) throw new Error("Employee not found");
+
+  // Manager restrictions: cannot change role to ADMIN or edit ADMINs
+  let targetRole = data.role !== undefined ? data.role : existingEmp.user.role;
+  if (callerRole === "MANAGER") {
+    if (existingEmp.user.role === "ADMIN" || targetRole === "ADMIN") {
+      throw new Error("Managers cannot modify administrator accounts or grant admin permissions");
+    }
+  }
+
+  // Handle email conflict check if email is changed
+  if (data.email && data.email !== existingEmp.user.email) {
+    const emailConflict = await prisma.user.findUnique({ where: { email: data.email } });
+    if (emailConflict) throw new Error("Email address is already in use by another account");
+  }
+
+  // Update user fields
+  const userUpdateData: any = {};
+  if (data.name) userUpdateData.name = data.name;
+  if (data.email) userUpdateData.email = data.email;
+  if (data.role && callerRole === "ADMIN") userUpdateData.role = data.role;
+  if (data.password && data.password.trim()) {
+    userUpdateData.password = await bcrypt.hash(data.password.trim(), 10);
+  }
+
+  if (Object.keys(userUpdateData).length > 0) {
+    await prisma.user.update({
+      where: { id: existingEmp.userId },
+      data: userUpdateData,
+    });
+  }
+
+  // Handle designation
+  let resolvedDesignationId = existingEmp.designationId;
+  if (data.designationName && data.designationName.trim()) {
+    const trimmedDesig = data.designationName.trim();
+    const desigRecord = await prisma.designation.upsert({
+      where: { name: trimmedDesig },
+      update: {},
+      create: {
+        name: trimmedDesig,
+        description: `${trimmedDesig} Role`,
+      },
+    });
+    resolvedDesignationId = desigRecord.id;
+  }
+
+  // Update employee record
+  const empUpdateData: any = {};
+  if (data.phone !== undefined) empUpdateData.phone = data.phone;
+  if (data.departmentId !== undefined) empUpdateData.departmentId = data.departmentId || null;
+  if (resolvedDesignationId !== undefined) empUpdateData.designationId = resolvedDesignationId;
+  if (data.salary !== undefined) empUpdateData.salary = Number(data.salary);
+  if (data.monthlyLeaveQuota !== undefined) empUpdateData.monthlyLeaveQuota = Number(data.monthlyLeaveQuota);
+  if (data.employmentStatus) empUpdateData.employmentStatus = data.employmentStatus;
+  if (data.address !== undefined) empUpdateData.address = data.address;
+  if (data.emergencyContact !== undefined) empUpdateData.emergencyContact = data.emergencyContact;
+
+  const updatedEmployee = await prisma.employee.update({
+    where: { id: employeeId },
+    data: empUpdateData,
+    include: {
+      user: true,
+      department: true,
+      designation: true,
+      manager: { include: { user: true } },
+      assignedTasks: true,
+      leads: true,
+      sales: true,
+      attendances: true,
+    },
+  });
+
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  revalidatePath("/attendance");
+  return updatedEmployee;
+}
+

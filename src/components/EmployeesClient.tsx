@@ -51,7 +51,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatTime, cn } from "@/lib/utils";
-import { createEmployee, deleteEmployee } from "@/actions/employees";
+import { createEmployee, deleteEmployee, updateEmployee } from "@/actions/employees";
 import { clockIn, clockOut, toggleBreak } from "@/actions/attendance";
 import { createTask, updateTaskStatus, logTaskHourlyProgress } from "@/actions/tasks";
 import {
@@ -172,8 +172,25 @@ export function EmployeesClient({
   const [selectedDept, setSelectedDept] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState<any | null>(null);
+
+  const [editFormData, setEditFormData] = useState({
+    id: "",
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    departmentId: "",
+    designationName: "",
+    salary: 50000,
+    monthlyLeaveQuota: 2,
+    employmentStatus: "ACTIVE",
+    role: "EMPLOYEE",
+    address: "",
+    emergencyContact: "",
+  });
 
   const router = useRouter();
 
@@ -456,6 +473,61 @@ export function EmployeesClient({
       alert(`Employee ${empName} has been deleted successfully.`);
     } catch (err: any) {
       alert(err.message || "Failed to delete employee");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditEmployeeModal = (emp: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditFormData({
+      id: emp.id,
+      name: emp.user?.name || "",
+      email: emp.user?.email || "",
+      password: "",
+      phone: emp.phone || "",
+      departmentId: emp.departmentId || departments[0]?.id || "",
+      designationName: emp.designation?.name || "",
+      salary: emp.salary || 50000,
+      monthlyLeaveQuota: emp.monthlyLeaveQuota !== undefined ? emp.monthlyLeaveQuota : 2,
+      employmentStatus: emp.employmentStatus || emp.status || "ACTIVE",
+      role: emp.user?.role || "EMPLOYEE",
+      address: emp.address || "",
+      emergencyContact: emp.emergencyContact || "",
+    });
+    setShowEditEmployeeModal(true);
+  };
+
+  const handleUpdateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const updated = await updateEmployee(editFormData.id, {
+        name: editFormData.name,
+        email: editFormData.email,
+        password: editFormData.password || undefined,
+        phone: editFormData.phone,
+        departmentId: editFormData.departmentId,
+        designationName: editFormData.designationName,
+        salary: Number(editFormData.salary),
+        monthlyLeaveQuota: Number(editFormData.monthlyLeaveQuota),
+        employmentStatus: editFormData.employmentStatus,
+        role: editFormData.role,
+        address: editFormData.address,
+        emergencyContact: editFormData.emergencyContact,
+      });
+
+      setEmployees((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item))
+      );
+      if (selectedEmployee?.id === updated.id) {
+        setSelectedEmployee(updated);
+      }
+      setShowEditEmployeeModal(false);
+      router.refresh();
+      alert(`Employee profile updated successfully!`);
+    } catch (err: any) {
+      alert(err.message || "Failed to update employee");
     } finally {
       setLoading(false);
     }
@@ -1648,6 +1720,15 @@ export function EmployeesClient({
                             >
                               View Profile
                             </button>
+                            {(isAdmin || isManager) && (
+                              <button
+                                onClick={(e) => openEditEmployeeModal(emp, e)}
+                                title="Edit Employee"
+                                className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors cursor-pointer"
+                              >
+                                <FileEdit className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             {isAdmin && (
                               <button
                                 onClick={(e) => handleDeleteEmployee(emp.id, emp.user?.name || emp.employeeCode, e)}
@@ -4177,7 +4258,17 @@ export function EmployeesClient({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-2">
+              {(isAdmin || isManager) && (
+                <button
+                  type="button"
+                  onClick={() => openEditEmployeeModal(selectedEmployee)}
+                  className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl border border-blue-200 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileEdit className="w-3.5 h-3.5" />
+                  <span>Edit Profile</span>
+                </button>
+              )}
               {isAdmin && (
                 <button
                   type="button"
@@ -4185,21 +4276,197 @@ export function EmployeesClient({
                   className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 flex items-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Employee</span>
+                  <span>Delete</span>
                 </button>
               )}
               <button
                 onClick={() => setSelectedEmployee(null)}
                 className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 cursor-pointer"
               >
-                Close Profile
+                Close
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 8. ADD EMPLOYEE MODAL */}
+      {/* 8. EDIT EMPLOYEE MODAL */}
+      {showEditEmployeeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Edit Employee Profile</h3>
+                <p className="text-xs text-slate-500">Update staff personal details, designation, salary, leave allowance, and credentials</p>
+              </div>
+              <button
+                onClick={() => setShowEditEmployeeModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEmployee} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Email (Login ID) *</label>
+                  <input
+                    type="email"
+                    required
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Reset Password</label>
+                  <input
+                    type="text"
+                    placeholder="Leave blank to keep unchanged"
+                    value={editFormData.password}
+                    onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Optional: enter new password to update</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Department</label>
+                  <select
+                    value={editFormData.departmentId}
+                    onChange={(e) => setEditFormData({ ...editFormData, departmentId: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  >
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Designation</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.designationName}
+                    onChange={(e) => setEditFormData({ ...editFormData, designationName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Monthly Gross Salary (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editFormData.salary}
+                    onChange={(e) => setEditFormData({ ...editFormData, salary: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Monthly Allowed Leaves (Days)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={15}
+                    value={editFormData.monthlyLeaveQuota}
+                    onChange={(e) => setEditFormData({ ...editFormData, monthlyLeaveQuota: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:outline-none focus:border-blue-500 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">Paid leaves allowed in 30-day cycle</span>
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">Employment Status</label>
+                  <select
+                    value={editFormData.employmentStatus}
+                    onChange={(e) => setEditFormData({ ...editFormData, employmentStatus: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="ON_LEAVE">ON_LEAVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </div>
+              </div>
+
+              {isAdmin && (
+                <div>
+                  <label className="block text-slate-700 font-medium mb-1">System Role</label>
+                  <select
+                    value={editFormData.role}
+                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="EMPLOYEE">EMPLOYEE</option>
+                    <option value="MANAGER">MANAGER</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Residential Address</label>
+                <input
+                  type="text"
+                  placeholder="Street, City, State"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowEditEmployeeModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  {loading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 9. ADD EMPLOYEE MODAL */}
       {showAddEmployeeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white border border-slate-200/90 rounded-xl p-6 max-w-md w-full shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
