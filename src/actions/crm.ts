@@ -4,7 +4,17 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 
-export async function getLeads(filters?: { status?: string; search?: string; assignedToId?: string }) {
+export async function getLeads(filters?: {
+  status?: string;
+  search?: string;
+  assignedToId?: string;
+  startDate?: string;
+  endDate?: string;
+  externalSource?: string;
+  isImportedToPipeline?: boolean;
+  page?: number;
+  limit?: number;
+}) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
@@ -19,21 +29,52 @@ export async function getLeads(filters?: { status?: string; search?: string; ass
   if (filters?.assignedToId && filters.assignedToId !== "ALL") {
     where.assignedToId = filters.assignedToId;
   }
+
+  // Date Range Filtering (createdAt between startDate and endDate)
+  if (filters?.startDate || filters?.endDate) {
+    where.createdAt = {};
+    if (filters.startDate) {
+      const start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      where.createdAt.gte = start;
+    }
+    if (filters.endDate) {
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      where.createdAt.lte = end;
+    }
+  }
+
+  if (filters?.externalSource && filters.externalSource !== "ALL") {
+    if (filters.externalSource === "MANUAL") {
+      where.externalSource = null;
+    } else {
+      where.externalSource = filters.externalSource;
+    }
+  }
+
+  if (typeof filters?.isImportedToPipeline === "boolean") {
+    where.isImportedToPipeline = filters.isImportedToPipeline;
+  }
+
   if (filters?.search) {
     where.OR = [
-      { customerName: { contains: filters.search } },
-      { leadCode: { contains: filters.search } },
-      { company: { contains: filters.search } },
+      { customerName: { contains: filters.search, mode: "insensitive" } },
+      { leadCode: { contains: filters.search, mode: "insensitive" } },
+      { company: { contains: filters.search, mode: "insensitive" } },
       { phone: { contains: filters.search } },
-      { email: { contains: filters.search } },
-      { notes: { contains: filters.search } },
+      { email: { contains: filters.search, mode: "insensitive" } },
+      { location: { contains: filters.search, mode: "insensitive" } },
+      { productInterest: { contains: filters.search, mode: "insensitive" } },
+      { aiSummary: { contains: filters.search, mode: "insensitive" } },
+      { notes: { contains: filters.search, mode: "insensitive" } },
     ];
   }
 
-  // 1. Employee role sees only their own assigned leads
-  if (currentUserRole === "EMPLOYEE" && currentEmpId) {
+  // 1. Employee role sees only their own assigned leads (except when browsing external discovery leads)
+  if (currentUserRole === "EMPLOYEE" && currentEmpId && filters?.isImportedToPipeline !== false) {
     where.assignedToId = currentEmpId;
-  } else if (currentUserRole === "MANAGER") {
+  } else if (currentUserRole === "MANAGER" && filters?.isImportedToPipeline !== false) {
     // 2. Manager sees leads belonging to employees in their department + their own leads
     if (!currentDeptId && session.user.id) {
       const dbEmp = await prisma.employee.findUnique({
@@ -51,6 +92,10 @@ export async function getLeads(filters?: { status?: string; search?: string; ass
     }
   }
 
+  const limit = filters?.limit ? Number(filters.limit) : undefined;
+  const page = filters?.page ? Number(filters.page) : 1;
+  const skip = limit ? (page - 1) * limit : undefined;
+
   return await prisma.lead.findMany({
     where,
     include: {
@@ -59,6 +104,8 @@ export async function getLeads(filters?: { status?: string; search?: string; ass
       customer: true,
     },
     orderBy: { createdAt: "desc" },
+    ...(skip !== undefined ? { skip } : {}),
+    ...(limit !== undefined ? { take: limit } : {}),
   });
 }
 
@@ -106,6 +153,7 @@ export async function createLead(data: {
       priority: data.priority || "MEDIUM",
       notes: data.notes || null,
       followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
+      isImportedToPipeline: true,
       status: "NEW",
     },
     include: {
@@ -433,6 +481,64 @@ export async function requestLeadConversionApproval(
 
   revalidatePath("/crm");
   revalidatePath("/dashboard");
+  return updated;
+}
+
+/**
+ * Transfer / Import an external scraped lead (Google Maps or CRM AI) into the active ERP Sales Pipeline
+ */
+export async function importExternalLeadToPipeline(leadId: string, assignedToId?: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const currentEmpId = (session.user as any).employeeId;
+
+  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  if (!lead) throw new Error("Lead not found");
+
+  const updated = await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      isImportedToPipeline: true,
+      status: "NEW", // enters as fresh active pipeline lead
+      assignedToId: assignedToId || lead.assignedToId || currentEmpId || null,
+    },
+    include: {
+      assignedTo: { include: { user: true } },
+      customer: true,
+      followUps: true,
+    },
+  });
+
+  await prisma.leadActivity.create({
+    data: {
+      leadId,
+      type: "TRANSFERRED_TO_PIPELINE",
+      note: `Transferred by ${session.user.name || "Sales Rep"} from External Discovery Inbox to Active ERP Pipeline.`,
+    },
+  });
+
+  revalidatePath("/crm");
+  revalidatePath("/dashboard");
+  return updated;
+}
+
+/**
+ * Update discovery status or notes for an external lead while still in the Discovery Inbox
+ */
+export async function updateExternalLeadNotes(leadId: string, notes: string, status?: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const updated = await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      notes,
+      ...(status ? { status } : {}),
+    },
+  });
+
+  revalidatePath("/crm");
   return updated;
 }
 

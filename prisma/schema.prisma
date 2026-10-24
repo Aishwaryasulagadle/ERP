@@ -117,6 +117,15 @@ model Lead {
   serviceDetails   String?      // Notes or specs
   followUpDate     DateTime?
   notes            String?
+  // Outreach & CRM AI Integrations fields
+  externalId       String?      @unique
+  externalSource   String?      // "OUTREACH_GMAPS" | "CRM_AI_AGENT"
+  isImportedToPipeline Boolean   @default(false) // true if explicitly transferred to ERP active pipeline, false if still in Discovery Inbox
+  aiSummary        String?      // AI discussion summary from crm.jisnudigital.com
+  websiteUrl       String?
+  googleMapsUrl    String?
+  googleRating     Float?
+  reviewCount      Int?         @default(0)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

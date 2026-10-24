@@ -29,6 +29,14 @@ import {
   Save,
   MessageSquare,
   ShieldAlert,
+  RefreshCw,
+  MapPin,
+  Bot,
+  ExternalLink,
+  Star,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -36,7 +44,10 @@ import {
   updateLeadStatus,
   updateLeadDetails,
   requestLeadConversionApproval,
+  importExternalLeadToPipeline,
+  updateExternalLeadNotes,
 } from "@/actions/crm";
+import { syncAllExternalLeads } from "@/actions/externalLeadsSync";
 import { createClient } from "@/actions/clients";
 import { StatusBadge, KpiCard } from "@/components/ui/Cards";
 import { OnboardClientModal, OnboardClientFormData } from "@/components/OnboardClientModal";
@@ -70,8 +81,17 @@ const PRIORITIES = [
 
 export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE" }: CRMClientProps) {
   const [leads, setLeads] = useState<any[]>(initialLeads);
+  const [mainTab, setMainTab] = useState<"PIPELINE" | "DISCOVERY">("PIPELINE");
   const [activeStageFilter, setActiveStageFilter] = useState<string>("ALL");
   const [leadScopeFilter, setLeadScopeFilter] = useState<"ALL" | "MINE">("ALL");
+  const [sourceFilter, setSourceFilter] = useState<"ALL" | "OUTREACH" | "CRM_AI" | "MANUAL">("ALL");
+  const [discoveryPlatformFilter, setDiscoveryPlatformFilter] = useState<"ALL" | "OUTREACH" | "CRM_AI">("ALL");
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isImportingId, setIsImportingId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [discoveryPage, setDiscoveryPage] = useState<number>(1);
+  const [discoveryPageSize, setDiscoveryPageSize] = useState<number>(25);
   const [search, setSearch] = useState("");
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [isEditingInDrawer, setIsEditingInDrawer] = useState(false);
@@ -83,6 +103,41 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
   useEffect(() => {
     setLeads(initialLeads);
   }, [initialLeads]);
+
+  const handleImportToPipeline = async (leadId: string) => {
+    setIsImportingId(leadId);
+    try {
+      const updated = await importExternalLeadToPipeline(leadId);
+      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updated, isImportedToPipeline: true } : l)));
+      if (selectedLead?.id === leadId) {
+        setSelectedLead((prev: any) => ({ ...prev, ...updated, isImportedToPipeline: true }));
+      }
+      alert(`✓ Successfully added "${updated.customerName}" to the Active ERP Leads Pipeline!`);
+    } catch (err: any) {
+      alert(`Failed to add lead to pipeline: ${err.message}`);
+    } finally {
+      setIsImportingId(null);
+    }
+  };
+
+  const handleSyncExternal = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await syncAllExternalLeads();
+      if (res.success) {
+        alert(
+          `✓ Lead Sync Completed!\n\n• Google Maps Outreach: ${res.outreachSynced} synced (${res.outreachSkipped} already up-to-date)\n• CRM AI Leads: ${res.crmSynced} synced (${res.crmSkipped} already up-to-date)`
+        );
+        window.location.reload();
+      } else {
+        alert(`Sync warning: ${res.error || "Unable to sync some leads"}`);
+      }
+    } catch (err: any) {
+      alert(`Sync failed: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const currentEmpId = (user as any)?.employeeId;
   const isManager = userRole === "MANAGER";
@@ -311,27 +366,93 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
     e.preventDefault();
   };
 
+  // 1. Leads inside active ERP pipeline (either manually created, or external leads that have been imported)
+  const pipelineLeadsAll = leads.filter((l) => !l.externalSource || l.isImportedToPipeline);
+
+  // 2. Leads waiting in external discovery inbox (scraped from Google Maps or captured by AI CRM agent)
+  const discoveryLeadsAll = leads.filter((l) => l.externalSource && !l.isImportedToPipeline);
+
+  // Date filter helper
+  const matchesDateRange = (leadDateStr: any) => {
+    if (!startDate && !endDate) return true;
+    if (!leadDateStr) return false;
+    const itemDate = new Date(leadDateStr);
+    if (startDate) {
+      const s = new Date(startDate);
+      s.setHours(0, 0, 0, 0);
+      if (itemDate < s) return false;
+    }
+    if (endDate) {
+      const e = new Date(endDate);
+      e.setHours(23, 59, 59, 999);
+      if (itemDate > e) return false;
+    }
+    return true;
+  };
+
   // Filter pipeline leads
-  const filteredLeads = leads.filter((lead) => {
+  const filteredPipelineLeads = pipelineLeadsAll.filter((lead) => {
     const matchesStage = activeStageFilter === "ALL" || lead.status === activeStageFilter;
     const matchesScope =
       leadScopeFilter === "ALL" ||
       (leadScopeFilter === "MINE" && (lead.assignedToId === currentEmpId || lead.assignedTo?.userId === user?.id));
+    const matchesSource =
+      sourceFilter === "ALL" ||
+      (sourceFilter === "OUTREACH" && lead.externalSource === "OUTREACH_GMAPS") ||
+      (sourceFilter === "CRM_AI" && lead.externalSource === "CRM_AI_AGENT") ||
+      (sourceFilter === "MANUAL" && !lead.externalSource);
+    const matchesDates = matchesDateRange(lead.createdAt);
     const matchesSearch =
       lead.customerName?.toLowerCase().includes(search.toLowerCase()) ||
       lead.company?.toLowerCase().includes(search.toLowerCase()) ||
       lead.leadCode?.toLowerCase().includes(search.toLowerCase()) ||
       lead.phone?.includes(search) ||
+      lead.location?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.productInterest?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.aiSummary?.toLowerCase().includes(search.toLowerCase()) ||
       lead.notes?.toLowerCase().includes(search.toLowerCase());
-    return matchesStage && matchesScope && matchesSearch;
+    return matchesStage && matchesScope && matchesSource && matchesDates && matchesSearch;
   });
 
-  // Calculate dynamic KPIs strictly based on current scope/filters
-  const scopeFilteredLeads = leads.filter((lead) => {
-    return (
+  // Filter external discovery leads
+  const filteredDiscoveryLeadsAll = discoveryLeadsAll.filter((lead) => {
+    const matchesPlatform =
+      discoveryPlatformFilter === "ALL" ||
+      (discoveryPlatformFilter === "OUTREACH" && lead.externalSource === "OUTREACH_GMAPS") ||
+      (discoveryPlatformFilter === "CRM_AI" && lead.externalSource === "CRM_AI_AGENT");
+    const matchesDates = matchesDateRange(lead.createdAt);
+    const matchesSearch =
+      lead.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.company?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.leadCode?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.phone?.includes(search) ||
+      lead.location?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.productInterest?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.aiSummary?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.notes?.toLowerCase().includes(search.toLowerCase());
+    return matchesPlatform && matchesDates && matchesSearch;
+  });
+
+  // Paginated Discovery Leads
+  const totalDiscoveryPages = Math.max(1, Math.ceil(filteredDiscoveryLeadsAll.length / discoveryPageSize));
+  const currentDiscoveryPage = Math.min(discoveryPage, totalDiscoveryPages);
+  const discoveryStartIndex = (currentDiscoveryPage - 1) * discoveryPageSize;
+  const paginatedDiscoveryLeads = filteredDiscoveryLeadsAll.slice(
+    discoveryStartIndex,
+    discoveryStartIndex + discoveryPageSize
+  );
+
+  // Calculate dynamic KPIs strictly based on current scope/filters for active pipeline
+  const scopeFilteredLeads = pipelineLeadsAll.filter((lead) => {
+    const matchesScope =
       leadScopeFilter === "ALL" ||
-      (leadScopeFilter === "MINE" && (lead.assignedToId === currentEmpId || lead.assignedTo?.userId === user?.id))
-    );
+      (leadScopeFilter === "MINE" && (lead.assignedToId === currentEmpId || lead.assignedTo?.userId === user?.id));
+    const matchesSource =
+      sourceFilter === "ALL" ||
+      (sourceFilter === "OUTREACH" && lead.externalSource === "OUTREACH_GMAPS") ||
+      (sourceFilter === "CRM_AI" && lead.externalSource === "CRM_AI_AGENT") ||
+      (sourceFilter === "MANUAL" && !lead.externalSource);
+    return matchesScope && matchesSource;
   });
 
   const totalLeads = scopeFilteredLeads.length;
@@ -354,7 +475,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
     { key: "LOST", label: "Lost Leads Archive", icon: XCircle, count: lostCount, color: "text-rose-500" },
   ];
 
-  const lostLeadsList = filteredLeads.filter((l) => l.status === "LOST");
+  const lostLeadsList = filteredPipelineLeads.filter((l) => l.status === "LOST");
 
   return (
     <div className="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-4rem)] bg-slate-50">
@@ -386,12 +507,72 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
             </div>
           </div>
 
-          {/* Sidebar Category Filters */}
+          {/* Main Workspace Navigation */}
           <div className="space-y-1">
             <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-              Pipeline Stages
+              Lead Workspaces
             </div>
-            <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
+            <button
+              type="button"
+              onClick={() => {
+                setMainTab("PIPELINE");
+                setActiveStageFilter("ALL");
+              }}
+              className={cn(
+                "flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer",
+                mainTab === "PIPELINE"
+                  ? "bg-slate-900 text-white font-bold shadow-sm"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Target className={cn("w-4 h-4 shrink-0", mainTab === "PIPELINE" ? "text-blue-400" : "text-blue-600")} />
+                <span className="truncate">Active ERP Pipeline</span>
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md",
+                  mainTab === "PIPELINE" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                )}
+              >
+                {pipelineLeadsAll.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMainTab("DISCOVERY");
+              }}
+              className={cn(
+                "flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer",
+                mainTab === "DISCOVERY"
+                  ? "bg-purple-700 text-white font-bold shadow-sm"
+                  : "text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Bot className={cn("w-4 h-4 shrink-0", mainTab === "DISCOVERY" ? "text-white" : "text-purple-600")} />
+                <span className="truncate">External Discovery Inbox</span>
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md",
+                  mainTab === "DISCOVERY" ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"
+                )}
+              >
+                {discoveryLeadsAll.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Sidebar Pipeline Stage Filters (Only shown when viewing Pipeline) */}
+          {mainTab === "PIPELINE" && (
+            <div className="space-y-1 pt-2 border-t border-slate-100">
+              <div className="px-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                Pipeline Stages
+              </div>
+              <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible pb-1 md:pb-0">
               {crmCategories.map((cat) => {
                 const isActive = activeStageFilter === cat.key;
                 const Icon = cat.icon;
@@ -424,6 +605,7 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
               })}
             </nav>
           </div>
+          )}
         </aside>
       ) : (
         <div className="hidden md:flex flex-col items-center py-4 px-2 bg-white border-r border-slate-200 shrink-0">
@@ -501,6 +683,23 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                 </div>
               )}
 
+              {/* Universal Sync External Leads Button */}
+              <button
+                type="button"
+                onClick={handleSyncExternal}
+                disabled={isSyncing}
+                title="Sync leads from Outreach (Google Maps) and Automation CRM (AI agent)"
+                className={cn(
+                  "px-3.5 py-2 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs",
+                  isSyncing
+                    ? "bg-purple-100 text-purple-700 border-purple-300 cursor-not-allowed"
+                    : "bg-white hover:bg-purple-50 text-purple-700 border-purple-200 hover:border-purple-300"
+                )}
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5 text-purple-600", isSyncing && "animate-spin")} />
+                <span>{isSyncing ? "Syncing External Leads..." : "Sync Outreach & AI"}</span>
+              </button>
+
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
@@ -511,295 +710,786 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
             </div>
           </div>
 
-          {/* Dynamic KPI Cards Ribbon */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div
-              onClick={() => setActiveStageFilter("ALL")}
+          {/* Workspace Tabs Switcher Header */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+            <button
+              type="button"
+              onClick={() => setMainTab("PIPELINE")}
               className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "ALL"
-                  ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2",
+                mainTab === "PIPELINE"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50"
               )}
             >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "ALL" ? "text-slate-300" : "text-slate-500")}>
-                Active Pipeline
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "ALL" ? "text-white" : "text-slate-900")}>
-                {totalLeads - lostCount}
-              </p>
-            </div>
-
-            <div
-              onClick={() => setActiveStageFilter("NEW")}
-              className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "NEW"
-                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
-              )}
-            >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "NEW" ? "text-blue-100" : "text-slate-500")}>
-                New Leads
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "NEW" ? "text-white" : "text-slate-900")}>
-                {newCount}
-              </p>
-            </div>
-
-            <div
-              onClick={() => setActiveStageFilter("FOLLOW_UP")}
-              className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "FOLLOW_UP"
-                  ? "bg-amber-600 text-white border-amber-600 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
-              )}
-            >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "FOLLOW_UP" ? "text-amber-100" : "text-slate-500")}>
-                Follow-ups
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "FOLLOW_UP" ? "text-white" : "text-slate-900")}>
-                {followUpCount}
-              </p>
-            </div>
-
-            <div
-              onClick={() => setActiveStageFilter("QUALIFIED")}
-              className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "QUALIFIED"
-                  ? "bg-teal-700 text-white border-teal-700 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
-              )}
-            >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "QUALIFIED" ? "text-teal-100" : "text-slate-500")}>
-                Qualified
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "QUALIFIED" ? "text-white" : "text-slate-900")}>
-                {qualifiedCount}
-              </p>
-            </div>
-
-            <div
-              onClick={() => setActiveStageFilter("PENDING_APPROVAL")}
-              className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "PENDING_APPROVAL"
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
-              )}
-            >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "PENDING_APPROVAL" ? "text-indigo-100" : "text-slate-500")}>
-                Pending Approval
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "PENDING_APPROVAL" ? "text-white" : "text-slate-900")}>
-                {pendingApprovalCount}
-              </p>
-            </div>
-
-            <div
-              onClick={() => setActiveStageFilter("LOST")}
-              className={cn(
-                "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-                activeStageFilter === "LOST"
-                  ? "bg-rose-700 text-white border-rose-700 shadow-sm"
-                  : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
-              )}
-            >
-              <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "LOST" ? "text-rose-100" : "text-slate-500")}>
-                Lost / Closed
-              </span>
-              <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "LOST" ? "text-white" : "text-slate-900")}>
-                {lostCount}
-              </p>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex items-center justify-between gap-4 p-2 rounded-xl bg-white border border-slate-200 shadow-xs">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search leads by name, phone, company, notes..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white"
-              />
-            </div>
-            {activeStageFilter !== "ALL" && (
-              <button
-                onClick={() => setActiveStageFilter("ALL")}
-                className="text-xs text-blue-600 hover:underline px-2 font-medium"
+              <Target className={cn("w-4 h-4", mainTab === "PIPELINE" ? "text-blue-400" : "text-blue-600")} />
+              <span>Active ERP Leads Pipeline</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-md text-[10px] font-mono",
+                  mainTab === "PIPELINE" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+                )}
               >
-                Clear Filter ({activeStageFilter})
-              </button>
-            )}
+                {pipelineLeadsAll.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMainTab("DISCOVERY")}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2",
+                mainTab === "DISCOVERY"
+                  ? "bg-purple-700 text-white shadow-sm"
+                  : "bg-white text-purple-700 hover:text-purple-900 border border-purple-200 hover:bg-purple-50"
+              )}
+            >
+              <Bot className={cn("w-4 h-4", mainTab === "DISCOVERY" ? "text-white" : "text-purple-600")} />
+              <span>External Platform Discovery Inbox</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-md text-[10px] font-mono",
+                  mainTab === "DISCOVERY" ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"
+                )}
+              >
+                {discoveryLeadsAll.length}
+              </span>
+            </button>
           </div>
 
-          {/* View Selection: If LOST is selected from sidebar, show clean table/list. Otherwise, show Kanban Pipeline */}
-          {activeStageFilter === "LOST" ? (
-            <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-rose-500" />
-                    <span>Lost & Closed Leads Archive ({lostLeadsList.length})</span>
-                  </h3>
-                  <p className="text-xs text-slate-500">Leads marked as lost or unclosed for review and audit</p>
+          {/* MAIN TAB 1: ACTIVE ERP SALES PIPELINE */}
+          {mainTab === "PIPELINE" ? (
+            <div className="space-y-6">
+              {/* Lead Source Filter Tabs for Pipeline */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono px-2">
+                    Source:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter("ALL")}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      sourceFilter === "ALL"
+                        ? "bg-slate-900 text-white shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    )}
+                  >
+                    <Layers className="w-3 h-3" />
+                    <span>All Pipeline Leads ({pipelineLeadsAll.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter("MANUAL")}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      sourceFilter === "MANUAL"
+                        ? "bg-blue-600 text-white shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    )}
+                  >
+                    <User className="w-3 h-3" />
+                    <span>Direct ERP Leads ({pipelineLeadsAll.filter((l) => !l.externalSource).length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter("OUTREACH")}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      sourceFilter === "OUTREACH"
+                        ? "bg-emerald-600 text-white shadow-xs font-bold"
+                        : "text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50"
+                    )}
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>Imported Maps Leads ({pipelineLeadsAll.filter((l) => l.externalSource === "OUTREACH_GMAPS").length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter("CRM_AI")}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      sourceFilter === "CRM_AI"
+                        ? "bg-purple-600 text-white shadow-xs font-bold"
+                        : "text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                    )}
+                  >
+                    <Bot className="w-3 h-3" />
+                    <span>Imported AI Leads ({pipelineLeadsAll.filter((l) => l.externalSource === "CRM_AI_AGENT").length})</span>
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-slate-500 font-mono pr-2">
+                  Showing <span className="font-bold text-slate-900">{filteredPipelineLeads.length}</span> leads
                 </div>
               </div>
 
-              {lostLeadsList.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">No lost leads found.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
-                      <tr>
-                        <th className="py-3 px-4">Lead</th>
-                        <th className="py-3 px-4">Contact</th>
-                        <th className="py-3 px-4">Source</th>
-                        <th className="py-3 px-4">Priority</th>
-                        <th className="py-3 px-4">Notes / Reason</th>
-                        <th className="py-3 px-4">Sales Rep</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {lostLeadsList.map((lead) => (
-                        <tr
-                          key={lead.id}
-                          onClick={() => handleOpenLead(lead)}
-                          className="hover:bg-slate-50 transition-colors cursor-pointer"
-                        >
-                          <td className="py-3 px-4">
-                            <div className="font-semibold text-slate-900">{lead.customerName}</div>
-                            <div className="text-[10px] font-mono text-slate-400">{lead.leadCode}</div>
-                          </td>
-                          <td className="py-3 px-4 text-slate-700 font-mono">{lead.phone}</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 border border-slate-200 text-slate-700">
-                              {lead.source}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <StatusBadge status={lead.priority} size="sm" />
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{lead.notes || "—"}</td>
-                          <td className="py-3 px-4 text-slate-700">{lead.assignedTo?.user?.name || "Unassigned"}</td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStatusChange(lead.id, "NEW");
-                              }}
-                              className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+              {/* Dynamic KPI Cards Ribbon */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div
+                  onClick={() => setActiveStageFilter("ALL")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "ALL"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "ALL" ? "text-slate-300" : "text-slate-500")}>
+                    Active Pipeline
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "ALL" ? "text-white" : "text-slate-900")}>
+                    {totalLeads - lostCount}
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setActiveStageFilter("NEW")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "NEW"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "NEW" ? "text-blue-100" : "text-slate-500")}>
+                    New Leads
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "NEW" ? "text-white" : "text-slate-900")}>
+                    {newCount}
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setActiveStageFilter("FOLLOW_UP")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "FOLLOW_UP"
+                      ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "FOLLOW_UP" ? "text-amber-100" : "text-slate-500")}>
+                    Follow-ups
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "FOLLOW_UP" ? "text-white" : "text-slate-900")}>
+                    {followUpCount}
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setActiveStageFilter("QUALIFIED")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "QUALIFIED"
+                      ? "bg-teal-700 text-white border-teal-700 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "QUALIFIED" ? "text-teal-100" : "text-slate-500")}>
+                    Qualified
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "QUALIFIED" ? "text-white" : "text-slate-900")}>
+                    {qualifiedCount}
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setActiveStageFilter("PENDING_APPROVAL")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "PENDING_APPROVAL"
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "PENDING_APPROVAL" ? "text-indigo-100" : "text-slate-500")}>
+                    Pending Approval
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "PENDING_APPROVAL" ? "text-white" : "text-slate-900")}>
+                    {pendingApprovalCount}
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setActiveStageFilter("LOST")}
+                  className={cn(
+                    "p-3 rounded-xl border cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
+                    activeStageFilter === "LOST"
+                      ? "bg-rose-700 text-white border-rose-700 shadow-sm"
+                      : "bg-white border-slate-200/90 text-slate-500 hover:border-slate-300 hover:bg-slate-50/50"
+                  )}
+                >
+                  <span className={cn("text-[10px] font-bold uppercase font-mono tracking-wider", activeStageFilter === "LOST" ? "text-rose-100" : "text-slate-500")}>
+                    Lost / Closed
+                  </span>
+                  <p className={cn("text-xl font-bold font-mono mt-1", activeStageFilter === "LOST" ? "text-white" : "text-slate-900")}>
+                    {lostCount}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search & Date Filter Bar */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search active pipeline by name, phone, company, notes..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white"
+                  />
+                </div>
+
+                {/* Date Range Inputs */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-xs">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">From:</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="bg-transparent text-xs text-slate-800 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-xs">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">To:</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="bg-transparent text-xs text-slate-800 focus:outline-none"
+                    />
+                  </div>
+                  {(startDate || endDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                      }}
+                      className="px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 cursor-pointer"
+                    >
+                      Clear Dates
+                    </button>
+                  )}
+                  {activeStageFilter !== "ALL" && (
+                    <button
+                      onClick={() => setActiveStageFilter("ALL")}
+                      className="text-xs text-blue-600 hover:underline px-2 font-medium"
+                    >
+                      Clear Stage ({activeStageFilter})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* View Selection: If LOST is selected from sidebar, show clean table/list. Otherwise, show Kanban Pipeline */}
+              {activeStageFilter === "LOST" ? (
+                <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-rose-500" />
+                        <span>Lost & Closed Leads Archive ({lostLeadsList.length})</span>
+                      </h3>
+                      <p className="text-xs text-slate-500">Leads marked as lost or unclosed for review and audit</p>
+                    </div>
+                  </div>
+
+                  {lostLeadsList.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs">No lost leads found.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50/80 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
+                          <tr>
+                            <th className="py-3 px-4">Lead</th>
+                            <th className="py-3 px-4">Contact</th>
+                            <th className="py-3 px-4">Source</th>
+                            <th className="py-3 px-4">Priority</th>
+                            <th className="py-3 px-4">Notes / Reason</th>
+                            <th className="py-3 px-4">Sales Rep</th>
+                            <th className="py-3 px-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {lostLeadsList.map((lead) => (
+                            <tr
+                              key={lead.id}
+                              onClick={() => handleOpenLead(lead)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
                             >
-                              Reopen Lead
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              <td className="py-3 px-4">
+                                <div className="font-semibold text-slate-900">{lead.customerName}</div>
+                                <div className="text-[10px] font-mono text-slate-400">{lead.leadCode}</div>
+                              </td>
+                              <td className="py-3 px-4 text-slate-700 font-mono">{lead.phone}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 border border-slate-200 text-slate-700">
+                                  {lead.source}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <StatusBadge status={lead.priority} size="sm" />
+                              </td>
+                              <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{lead.notes || "—"}</td>
+                              <td className="py-3 px-4 text-slate-700">{lead.assignedTo?.user?.name || "Unassigned"}</td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusChange(lead.id, "NEW");
+                                  }}
+                                  className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+                                >
+                                  Reopen Lead
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* CRM Kanban Pipeline Board (LOST excluded from Kanban) */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-h-[500px]">
+                  {kanbanStages.map((stage) => {
+                    const stageLeads = filteredPipelineLeads.filter((l) => l.status === stage);
+                    const stageTotal = stageLeads.reduce((sum, l) => sum + (l.expectedValue || 0), 0);
+
+                    return (
+                      <div
+                        key={stage}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, stage)}
+                        className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between"
+                      >
+                        {/* Column Header */}
+                        <div className="pb-2 border-b border-slate-200/80 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 font-mono">
+                              {stage === "PENDING_APPROVAL" ? "APPROVAL" : stage}
+                            </span>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{formatCurrency(stageTotal)}</p>
+                          </div>
+                          <span className="w-5 h-5 rounded-md bg-white border border-slate-200 text-[10px] font-mono font-bold flex items-center justify-center text-slate-700 shadow-xs">
+                            {stageLeads.length}
+                          </span>
+                        </div>
+
+                        {/* Lead Cards in Stage */}
+                        <div className="flex-1 space-y-2.5 py-3 overflow-y-auto max-h-[600px] scrollbar-thin">
+                          {stageLeads.map((lead) => (
+                            <div
+                              key={lead.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, lead.id)}
+                              onClick={() => handleOpenLead(lead)}
+                              className={cn(
+                                "p-3 rounded-lg border transition-all cursor-pointer shadow-xs space-y-2",
+                                stage === "PENDING_APPROVAL"
+                                  ? "bg-amber-50/60 border-amber-200/90 hover:border-amber-400"
+                                  : "bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-xs"
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-xs text-slate-900 truncate">{lead.customerName}</div>
+                                  {lead.company && lead.company !== lead.customerName && (
+                                    <div className="text-[10px] text-slate-500 truncate">{lead.company}</div>
+                                  )}
+                                </div>
+                                <span
+                                  className={cn(
+                                    "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono shrink-0",
+                                    lead.priority === "URGENT"
+                                      ? "bg-rose-100 text-rose-700 border-rose-300"
+                                      : lead.priority === "HIGH"
+                                      ? "bg-amber-100 text-amber-800 border-amber-300"
+                                      : lead.priority === "LOW"
+                                      ? "bg-slate-100 text-slate-600 border-slate-300"
+                                      : "bg-blue-100 text-blue-700 border-blue-300"
+                                  )}
+                                >
+                                  {lead.priority || "MED"}
+                                </span>
+                              </div>
+
+                              {/* Source & Integration Badges */}
+                              <div className="flex items-center justify-between text-[11px] text-slate-500 gap-1">
+                                <span className="font-mono text-[10px] truncate">{lead.phone}</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {lead.externalSource === "OUTREACH_GMAPS" ? (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      <MapPin className="w-2.5 h-2.5" />
+                                      <span>Maps</span>
+                                    </span>
+                                  ) : lead.externalSource === "CRM_AI_AGENT" ? (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold font-mono px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                      <Bot className="w-2.5 h-2.5" />
+                                      <span>AI Bot</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-mono px-1 rounded bg-slate-100 text-slate-700">
+                                      {lead.source}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Google Maps rating or AI discussion preview */}
+                              {lead.googleRating ? (
+                                <div className="flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50/70 px-1.5 py-0.5 rounded border border-amber-200/60 font-mono">
+                                  <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                                  <span className="font-bold">{lead.googleRating}</span>
+                                  <span className="text-slate-400">({lead.reviewCount || 0} reviews)</span>
+                                  {lead.location && <span className="text-slate-500 truncate ml-auto">• {lead.location}</span>}
+                                </div>
+                              ) : lead.aiSummary ? (
+                                <div className="flex items-start gap-1 text-[10px] text-purple-800 bg-purple-50/70 p-1.5 rounded border border-purple-200/60 leading-tight">
+                                  <Bot className="w-3 h-3 text-purple-600 shrink-0 mt-0.5" />
+                                  <p className="line-clamp-2 italic">{lead.aiSummary}</p>
+                                </div>
+                              ) : lead.notes ? (
+                                <p className="text-[10px] text-slate-600 line-clamp-1 italic bg-white/60 px-1.5 py-0.5 rounded border border-slate-200/60">
+                                  "{lead.notes}"
+                                </p>
+                              ) : null}
+
+                              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200">
+                                <span className="font-mono font-bold text-emerald-600">
+                                  {lead.expectedValue > 0 ? formatCurrency(lead.expectedValue) : "Open Deal"}
+                                </span>
+                                <span className="text-slate-500 font-mono text-[10px] truncate max-w-[90px]">
+                                  {lead.assignedTo?.user?.name || "Unassigned"}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+
+                          {stageLeads.length === 0 && (
+                            <div className="py-8 text-center text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                              Drop leads here
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           ) : (
-            /* CRM Kanban Pipeline Board (LOST excluded from Kanban) */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 min-h-[500px]">
-              {kanbanStages.map((stage) => {
-                const stageLeads = filteredLeads.filter((l) => l.status === stage);
-                const stageTotal = stageLeads.reduce((sum, l) => sum + (l.expectedValue || 0), 0);
+            /* MAIN TAB 2: EXTERNAL PLATFORM DISCOVERY INBOX (For Cold Calling & Qualification before adding to ERP) */
+            <div className="space-y-4">
+              {/* Discovery Inbox Banner & Quick Filters */}
+              <div className="p-4 rounded-xl bg-purple-50/80 border border-purple-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+                <div>
+                  <h3 className="font-bold text-sm text-purple-950 flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-purple-600" />
+                    <span>External Scraped & Inbound AI Leads Inbox</span>
+                  </h3>
+                  <p className="text-xs text-purple-800 mt-0.5">
+                    Your sales team can call and qualify these external leads here. When interested, click{" "}
+                    <span className="font-bold text-purple-950">"+ Add to ERP Leads"</span> to transfer them directly into the active sales pipeline board!
+                  </p>
+                </div>
 
-                return (
-                  <div
-                    key={stage}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, stage)}
-                    className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between"
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscoveryPlatformFilter("ALL")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      discoveryPlatformFilter === "ALL"
+                        ? "bg-purple-700 text-white shadow-xs font-bold"
+                        : "bg-white text-purple-800 hover:bg-purple-100 border border-purple-200"
+                    )}
                   >
-                    {/* Column Header */}
-                    <div className="pb-2 border-b border-slate-200/80 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 font-mono">
-                          {stage === "PENDING_APPROVAL" ? "APPROVAL" : stage}
-                        </span>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">{formatCurrency(stageTotal)}</p>
-                      </div>
-                      <span className="w-5 h-5 rounded-md bg-white border border-slate-200 text-[10px] font-mono font-bold flex items-center justify-center text-slate-700 shadow-xs">
-                        {stageLeads.length}
+                    All External ({discoveryLeadsAll.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDiscoveryPlatformFilter("OUTREACH")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      discoveryPlatformFilter === "OUTREACH"
+                        ? "bg-emerald-700 text-white shadow-xs font-bold"
+                        : "bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200"
+                    )}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Outreach Maps ({discoveryLeadsAll.filter((l) => l.externalSource === "OUTREACH_GMAPS").length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDiscoveryPlatformFilter("CRM_AI")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                      discoveryPlatformFilter === "CRM_AI"
+                        ? "bg-purple-700 text-white shadow-xs font-bold"
+                        : "bg-white text-purple-800 hover:bg-purple-100 border border-purple-200"
+                    )}
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    <span>AI Captured ({discoveryLeadsAll.filter((l) => l.externalSource === "CRM_AI_AGENT").length})</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Date Filter Bar for Discovery Inbox */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search discovery inbox by business name, phone, city, category, AI summary..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setDiscoveryPage(1);
+                    }}
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+
+                {/* Date Range Inputs */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-xs">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">From:</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setDiscoveryPage(1);
+                      }}
+                      className="bg-transparent text-xs text-slate-800 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg text-xs">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">To:</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setDiscoveryPage(1);
+                      }}
+                      className="bg-transparent text-xs text-slate-800 focus:outline-none"
+                    />
+                  </div>
+                  {(startDate || endDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                        setDiscoveryPage(1);
+                      }}
+                      className="px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 cursor-pointer"
+                    >
+                      Clear Dates
+                    </button>
+                  )}
+                  <div className="text-xs text-slate-500 font-mono pr-1">
+                    Total: <span className="font-bold text-slate-900">{filteredDiscoveryLeadsAll.length}</span> leads
+                  </div>
+                </div>
+              </div>
+
+              {/* Discovery Inbox Table */}
+              <div className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs">
+                {paginatedDiscoveryLeads.length === 0 ? (
+                  <div className="py-16 text-center space-y-2">
+                    <p className="text-slate-500 text-xs font-medium">No external discovery leads found matching your search or date filter.</p>
+                    <button
+                      type="button"
+                      onClick={handleSyncExternal}
+                      className="px-3.5 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-semibold hover:bg-purple-100 cursor-pointer"
+                    >
+                      Click here to Sync Leads Now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200 font-mono font-semibold">
+                        <tr>
+                          <th className="py-3 px-4">Business / Contact</th>
+                          <th className="py-3 px-4">Platform Source</th>
+                          <th className="py-3 px-4">Phone / WhatsApp</th>
+                          <th className="py-3 px-4">Category & Location</th>
+                          <th className="py-3 px-4">AI Topic / Rating</th>
+                          <th className="py-3 px-4 text-right">Pipeline Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {paginatedDiscoveryLeads.map((lead) => (
+                          <tr
+                            key={lead.id}
+                            onClick={() => handleOpenLead(lead)}
+                            className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                          >
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-slate-900">{lead.customerName}</div>
+                              {lead.company && lead.company !== lead.customerName && (
+                                <div className="text-[10px] text-slate-500 truncate">{lead.company}</div>
+                              )}
+                              <div className="text-[10px] font-mono text-slate-400">{lead.leadCode}</div>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              {lead.externalSource === "OUTREACH_GMAPS" ? (
+                                <span className="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>Google Maps Scraper</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[10px]">
+                                  <Bot className="w-3 h-3 text-purple-600" />
+                                  <span>AI Bot ({lead.source})</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <a
+                                href={`tel:${lead.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-mono text-blue-600 hover:underline font-semibold flex items-center gap-1"
+                              >
+                                <Phone className="w-3 h-3" />
+                                <span>{lead.phone}</span>
+                              </a>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="text-slate-800 font-medium truncate max-w-[180px]">
+                                {lead.productInterest || "General"}
+                              </div>
+                              <div className="text-[10px] text-slate-500 truncate max-w-[180px]">
+                                {lead.location || "India"}
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4 max-w-xs">
+                              {lead.googleRating ? (
+                                <div className="flex items-center gap-1 text-[11px] text-amber-700 font-mono font-bold">
+                                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                  <span>{lead.googleRating}</span>
+                                  <span className="text-slate-400 font-normal">({lead.reviewCount || 0} reviews)</span>
+                                </div>
+                              ) : lead.aiSummary ? (
+                                <div className="text-purple-900 line-clamp-2 text-[11px] italic bg-purple-50 p-1 rounded border border-purple-100">
+                                  {lead.aiSummary}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">—</span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImportToPipeline(lead.id);
+                                }}
+                                disabled={isImportingId === lead.id}
+                                className={cn(
+                                  "px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ml-auto cursor-pointer shadow-xs",
+                                  isImportingId === lead.id
+                                    ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                                )}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>{isImportingId === lead.id ? "Adding..." : "+ Add to ERP Leads"}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Pagination Controls Footer for Discovery Leads */}
+                {filteredDiscoveryLeadsAll.length > 0 && (
+                  <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span>Show</span>
+                      <select
+                        value={discoveryPageSize}
+                        onChange={(e) => {
+                          setDiscoveryPageSize(Number(e.target.value));
+                          setDiscoveryPage(1);
+                        }}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-medium focus:outline-none"
+                      >
+                        <option value={15}>15 per page</option>
+                        <option value={25}>25 per page</option>
+                        <option value={50}>50 per page</option>
+                        <option value={100}>100 per page</option>
+                      </select>
+                      <span>
+                        Showing {discoveryStartIndex + 1} to{" "}
+                        {Math.min(discoveryStartIndex + discoveryPageSize, filteredDiscoveryLeadsAll.length)} of{" "}
+                        {filteredDiscoveryLeadsAll.length} leads
                       </span>
                     </div>
 
-                    {/* Lead Cards in Stage */}
-                    <div className="flex-1 space-y-2.5 py-3 overflow-y-auto max-h-[600px] scrollbar-thin">
-                      {stageLeads.map((lead) => (
-                        <div
-                          key={lead.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, lead.id)}
-                          onClick={() => handleOpenLead(lead)}
-                          className={cn(
-                            "p-3 rounded-lg border transition-all cursor-pointer shadow-xs space-y-2",
-                            stage === "PENDING_APPROVAL"
-                              ? "bg-amber-50/60 border-amber-200/90 hover:border-amber-400"
-                              : "bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-xs"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-1">
-                            <div className="font-semibold text-xs text-slate-900 truncate">{lead.customerName}</div>
-                            <span
-                              className={cn(
-                                "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono",
-                                lead.priority === "URGENT"
-                                  ? "bg-rose-100 text-rose-700 border-rose-300"
-                                  : lead.priority === "HIGH"
-                                  ? "bg-amber-100 text-amber-800 border-amber-300"
-                                  : lead.priority === "LOW"
-                                  ? "bg-slate-100 text-slate-600 border-slate-300"
-                                  : "bg-blue-100 text-blue-700 border-blue-300"
-                              )}
-                            >
-                              {lead.priority || "MED"}
-                            </span>
-                          </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setDiscoveryPage((p) => Math.max(1, p - 1))}
+                        disabled={currentDiscoveryPage <= 1}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer",
+                          currentDiscoveryPage <= 1
+                            ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                            : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                        )}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Previous</span>
+                      </button>
 
-                          <div className="flex items-center justify-between text-[11px] text-slate-500 truncate">
-                            <span>{lead.phone}</span>
-                            <span className="text-[10px] font-mono px-1 rounded bg-slate-200/70 text-slate-700">
-                              {lead.source}
-                            </span>
-                          </div>
+                      <div className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-700">
+                        Page {currentDiscoveryPage} of {totalDiscoveryPages}
+                      </div>
 
-                          {lead.notes && (
-                            <p className="text-[10px] text-slate-600 line-clamp-1 italic bg-white/60 px-1.5 py-0.5 rounded border border-slate-200/60">
-                              "{lead.notes}"
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200">
-                            <span className="font-mono font-bold text-emerald-600">
-                              {lead.expectedValue > 0 ? formatCurrency(lead.expectedValue) : "Open Deal"}
-                            </span>
-                            <span className="text-slate-500 font-mono text-[10px] truncate max-w-[90px]">
-                              {lead.assignedTo?.user?.name || "Unassigned"}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-
-                      {stageLeads.length === 0 && (
-                        <div className="py-8 text-center text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-xl">
-                          Drop leads here
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setDiscoveryPage((p) => Math.min(totalDiscoveryPages, p + 1))}
+                        disabled={currentDiscoveryPage >= totalDiscoveryPages}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer",
+                          currentDiscoveryPage >= totalDiscoveryPages
+                            ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                            : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                        )}
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
           )}
 
@@ -989,18 +1679,56 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                         </div>
                         <div className="flex justify-between pb-2 border-b border-slate-200">
                           <span className="text-slate-500">Phone Number:</span>
-                          <span className="text-slate-900 font-mono font-bold text-blue-600">{selectedLead.phone}</span>
+                          <a
+                            href={`tel:${selectedLead.phone}`}
+                            className="text-blue-600 hover:underline font-mono font-bold"
+                          >
+                            {selectedLead.phone}
+                          </a>
                         </div>
-                        <div className="flex justify-between pb-2 border-b border-slate-200">
-                          <span className="text-slate-500">Email:</span>
-                          <span className="text-slate-900">{selectedLead.email || "Not specified"}</span>
-                        </div>
+                        {selectedLead.email && (
+                          <div className="flex justify-between pb-2 border-b border-slate-200">
+                            <span className="text-slate-500">Email:</span>
+                            <a href={`mailto:${selectedLead.email}`} className="text-slate-900 hover:text-blue-600">
+                              {selectedLead.email}
+                            </a>
+                          </div>
+                        )}
                         <div className="flex justify-between pb-2 border-b border-slate-200">
                           <span className="text-slate-500">Lead Source:</span>
-                          <span className="font-mono font-bold text-purple-600">
-                            {SOURCES.find((s) => s.value === selectedLead.source)?.label || selectedLead.source}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {selectedLead.externalSource === "OUTREACH_GMAPS" ? (
+                              <span className="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                                <MapPin className="w-3 h-3 text-emerald-600" />
+                                <span>Google Maps Outreach</span>
+                              </span>
+                            ) : selectedLead.externalSource === "CRM_AI_AGENT" ? (
+                              <span className="inline-flex items-center gap-1 font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[11px]">
+                                <Bot className="w-3 h-3 text-purple-600" />
+                                <span>AI Social / WhatsApp</span>
+                              </span>
+                            ) : (
+                              <span className="font-mono font-bold text-purple-600">
+                                {SOURCES.find((s) => s.value === selectedLead.source)?.label || selectedLead.source}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {selectedLead.location && (
+                          <div className="flex justify-between pb-2 border-b border-slate-200">
+                            <span className="text-slate-500">Location / City:</span>
+                            <span className="text-slate-900 font-medium">{selectedLead.location}</span>
+                          </div>
+                        )}
+
+                        {selectedLead.productInterest && (
+                          <div className="flex justify-between pb-2 border-b border-slate-200">
+                            <span className="text-slate-500">Interest / Category:</span>
+                            <span className="text-slate-900 font-medium">{selectedLead.productInterest}</span>
+                          </div>
+                        )}
+
                         <div className="flex justify-between pb-2 border-b border-slate-200">
                           <span className="text-slate-500">Priority:</span>
                           <span className="font-bold text-slate-800">{selectedLead.priority || "MEDIUM"}</span>
@@ -1012,6 +1740,63 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
                           </span>
                         </div>
                       </div>
+
+                      {/* AI Agent Captured Conversation Summary Box */}
+                      {selectedLead.aiSummary && (
+                        <div className="p-4 rounded-xl bg-purple-50/80 border border-purple-200 space-y-2 text-xs">
+                          <div className="flex items-center gap-2 text-purple-900 font-bold">
+                            <Bot className="w-4 h-4 text-purple-600 shrink-0" />
+                            <span>AI Agent Discussion & Qualification</span>
+                          </div>
+                          <p className="text-purple-950 whitespace-pre-wrap leading-relaxed bg-white/70 p-2.5 rounded-lg border border-purple-200/60 font-sans">
+                            {selectedLead.aiSummary}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Google Maps Scraper Card details */}
+                      {(selectedLead.googleRating || selectedLead.googleMapsUrl || selectedLead.websiteUrl) && (
+                        <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-3 text-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-emerald-900 font-bold">
+                              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span>Google Maps Listing Details</span>
+                            </div>
+                            {selectedLead.googleRating && (
+                              <div className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-emerald-200 font-mono font-bold text-emerald-800">
+                                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                <span>{selectedLead.googleRating}</span>
+                                <span className="text-slate-400 font-normal">({selectedLead.reviewCount || 0})</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            {selectedLead.googleMapsUrl && (
+                              <a
+                                href={selectedLead.googleMapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-1.5 px-3 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 text-[11px] transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>View on Maps</span>
+                              </a>
+                            )}
+                            {selectedLead.websiteUrl && (
+                              <a
+                                href={selectedLead.websiteUrl.startsWith("http") ? selectedLead.websiteUrl : `https://${selectedLead.websiteUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-1.5 px-3 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-semibold flex items-center justify-center gap-1.5 text-[11px] transition-colors"
+                              >
+                                <Globe className="w-3 h-3" />
+                                <span>Visit Website</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Follow-up / Client Notes Section */}
                       <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/80 space-y-2 text-xs">
@@ -1037,6 +1822,33 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
 
                 {/* Drawer Action Footer */}
                 <div className="pt-6 border-t border-slate-100 flex flex-col gap-2">
+                  {/* For External Discovery Leads that are not yet imported to pipeline */}
+                  {selectedLead.externalSource && !selectedLead.isImportedToPipeline && (
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-purple-900 font-bold text-xs">
+                        <Bot className="w-4 h-4 text-purple-600" />
+                        <span>External Discovery Lead</span>
+                      </div>
+                      <p className="text-[11px] text-purple-700">
+                        This lead was scraped from {selectedLead.externalSource === "OUTREACH_GMAPS" ? "Google Maps" : "AI Inbound CRM"} and is currently stored in your Discovery Inbox.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleImportToPipeline(selectedLead.id)}
+                        disabled={isImportingId === selectedLead.id}
+                        className={cn(
+                          "w-full py-2.5 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer",
+                          isImportingId === selectedLead.id
+                            ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
+                        )}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>{isImportingId === selectedLead.id ? "Adding to Pipeline..." : "+ Add to Active ERP Leads Pipeline"}</span>
+                      </button>
+                    </div>
+                  )}
+
                   {selectedLead.status === "PENDING_APPROVAL" ? (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
                       <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
