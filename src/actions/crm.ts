@@ -57,25 +57,42 @@ export async function getLeads(filters?: {
     where.isImportedToPipeline = filters.isImportedToPipeline;
   }
 
+  const andConditions: any[] = [];
+
   if (filters?.search) {
-    where.OR = [
-      { customerName: { contains: filters.search, mode: "insensitive" } },
-      { leadCode: { contains: filters.search, mode: "insensitive" } },
-      { company: { contains: filters.search, mode: "insensitive" } },
-      { phone: { contains: filters.search } },
-      { email: { contains: filters.search, mode: "insensitive" } },
-      { location: { contains: filters.search, mode: "insensitive" } },
-      { productInterest: { contains: filters.search, mode: "insensitive" } },
-      { aiSummary: { contains: filters.search, mode: "insensitive" } },
-      { notes: { contains: filters.search, mode: "insensitive" } },
-    ];
+    andConditions.push({
+      OR: [
+        { customerName: { contains: filters.search, mode: "insensitive" } },
+        { leadCode: { contains: filters.search, mode: "insensitive" } },
+        { company: { contains: filters.search, mode: "insensitive" } },
+        { phone: { contains: filters.search } },
+        { email: { contains: filters.search, mode: "insensitive" } },
+        { location: { contains: filters.search, mode: "insensitive" } },
+        { productInterest: { contains: filters.search, mode: "insensitive" } },
+        { aiSummary: { contains: filters.search, mode: "insensitive" } },
+        { notes: { contains: filters.search, mode: "insensitive" } },
+      ],
+    });
   }
 
-  // 1. Employee role sees only their own assigned leads (except when browsing external discovery leads)
-  if (currentUserRole === "EMPLOYEE" && currentEmpId && filters?.isImportedToPipeline !== false) {
-    where.assignedToId = currentEmpId;
-  } else if (currentUserRole === "MANAGER" && filters?.isImportedToPipeline !== false) {
-    // 2. Manager sees leads belonging to employees in their department + their own leads
+  // 1. Employee role sees only their own assigned leads in the active pipeline,
+  // BUT can see ALL unimported external discovery leads (Google Maps & AI) to call and qualify.
+  if (currentUserRole === "EMPLOYEE" && currentEmpId) {
+    if (filters?.isImportedToPipeline === false) {
+      // Browsing discovery inbox explicitly: no assignedToId restriction
+    } else if (filters?.isImportedToPipeline === true) {
+      where.assignedToId = currentEmpId;
+    } else {
+      // General fetch (both pipeline & discovery): see own assigned leads OR unassigned discovery leads
+      andConditions.push({
+        OR: [
+          { assignedToId: currentEmpId },
+          { isImportedToPipeline: false },
+        ],
+      });
+    }
+  } else if (currentUserRole === "MANAGER") {
+    // 2. Manager sees leads in their department + own leads + all unimported discovery leads
     if (!currentDeptId && session.user.id) {
       const dbEmp = await prisma.employee.findUnique({
         where: { userId: session.user.id },
@@ -84,12 +101,31 @@ export async function getLeads(filters?: {
       currentDeptId = dbEmp?.departmentId;
     }
 
-    if (currentDeptId) {
-      where.OR = [
-        { assignedTo: { departmentId: currentDeptId } },
-        { assignedToId: currentEmpId },
-      ];
+    if (filters?.isImportedToPipeline === false) {
+      // Browsing discovery inbox explicitly
+    } else if (filters?.isImportedToPipeline === true) {
+      if (currentDeptId) {
+        andConditions.push({
+          OR: [
+            { assignedTo: { departmentId: currentDeptId } },
+            { assignedToId: currentEmpId },
+          ],
+        });
+      }
+    } else {
+      // General fetch: see department leads OR own leads OR unimported discovery leads
+      andConditions.push({
+        OR: [
+          ...(currentDeptId ? [{ assignedTo: { departmentId: currentDeptId } }] : []),
+          ...(currentEmpId ? [{ assignedToId: currentEmpId }] : []),
+          { isImportedToPipeline: false },
+        ],
+      });
     }
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   const limit = filters?.limit ? Number(filters.limit) : undefined;
