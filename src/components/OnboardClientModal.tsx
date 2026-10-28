@@ -19,6 +19,8 @@ import {
   FileCheck,
   Paperclip,
   Check,
+  Receipt,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +48,9 @@ export interface OnboardClientFormData {
   estimatedEndDate?: string;
   documentUrl?: string;
   documentName?: string;
+  advanceMonths?: number;
+  isGstApplicable?: boolean;
+  gstNumber?: string;
   services: OnboardServiceItem[];
   leadId?: string;
   assignedEmployeeIds?: string[];
@@ -104,6 +109,9 @@ export function OnboardClientModal({
       estimatedEndDate: initialData?.estimatedEndDate || "",
       documentUrl: initialData?.documentUrl || "",
       documentName: initialData?.documentName || "",
+      advanceMonths: initialData?.advanceMonths || 1,
+      isGstApplicable: initialData?.isGstApplicable || false,
+      gstNumber: initialData?.gstNumber || "",
       leadId: initialData?.leadId || undefined,
       assignedEmployeeIds: initialData?.assignedEmployeeIds || [],
       services:
@@ -149,6 +157,9 @@ export function OnboardClientModal({
         estimatedEndDate: initialData?.estimatedEndDate || "",
         documentUrl: initialData?.documentUrl || "",
         documentName: initialData?.documentName || "",
+        advanceMonths: initialData?.advanceMonths || 1,
+        isGstApplicable: initialData?.isGstApplicable || false,
+        gstNumber: initialData?.gstNumber || "",
         leadId: initialData.leadId || undefined,
         assignedEmployeeIds: initialData.assignedEmployeeIds || [],
         services:
@@ -275,6 +286,13 @@ export function OnboardClientModal({
     }));
   };
 
+  // Calculations for upfront advance and GST
+  const monthlyAmount = Number(formData.amount) || 0;
+  const advanceMonths = formData.billingType === "MONTHLY" ? (Number(formData.advanceMonths) || 1) : 1;
+  const baseUpfrontAmount = formData.billingType === "MONTHLY" ? monthlyAmount * advanceMonths : monthlyAmount;
+  const gstAmount = formData.isGstApplicable ? baseUpfrontAmount * 0.18 : 0;
+  const totalPayableWithGst = baseUpfrontAmount + gstAmount;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) {
@@ -282,14 +300,16 @@ export function OnboardClientModal({
       return;
     }
 
-    // If using Document mode, make sure a document is uploaded, or fall back to a default service placeholder
+    if (formData.isGstApplicable && !formData.gstNumber?.trim()) {
+      // Optional warning or allow without strict GSTIN, but validate format if present
+    }
+
     let finalServices = [...formData.services];
     if (deliverableMode === "DOCUMENT") {
       if (!formData.documentUrl) {
         setError("Please upload a quotation, proposal, or work scope document, or switch to 'Itemized Services' mode.");
         return;
       }
-      // If user has no services entered or wants quotation-based scope, create a clean default deliverable pointing to the document
       if (finalServices.length === 0) {
         finalServices = [
           {
@@ -314,6 +334,7 @@ export function OnboardClientModal({
     try {
       await onSubmit({
         ...formData,
+        advanceMonths: formData.billingType === "MONTHLY" ? advanceMonths : 1,
         services: finalServices,
       });
       onClose();
@@ -418,11 +439,11 @@ export function OnboardClientModal({
             </div>
           </div>
 
-          {/* Section 2: Department, Billing & Timeline */}
+          {/* Section 2: Department, Commercials & Advance Payment */}
           <div className="space-y-3 pt-3 border-t border-slate-100">
             <div className="flex items-center gap-2 text-slate-900 font-bold text-xs uppercase tracking-wider font-mono">
               <Layers className="w-3.5 h-3.5 text-blue-600" />
-              <span>Department, Billing & Timeline</span>
+              <span>Department, Commercials & Advance Payment</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
@@ -488,7 +509,7 @@ export function OnboardClientModal({
 
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  {formData.billingType === "MONTHLY" ? "Monthly Retainer (₹) *" : "Total Value (₹) *"}
+                  {formData.billingType === "MONTHLY" ? "Monthly Retainer (₹) *" : "Total Contract Value (₹) *"}
                 </label>
                 <input
                   type="number"
@@ -515,6 +536,131 @@ export function OnboardClientModal({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Advance Months Selector for Monthly Clients */}
+            {formData.billingType === "MONTHLY" && (
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span className="font-bold text-xs text-blue-950">
+                      Advance Retainer Collection:
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[1, 2, 3, 6, 12].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, advanceMonths: m })}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer",
+                          (formData.advanceMonths || 1) === m
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "bg-white text-slate-700 border border-blue-200 hover:bg-blue-100"
+                        )}
+                      >
+                        {m === 1 ? "1 Month" : `${m} Months`}
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-1 pl-1">
+                      <span className="text-[10px] text-slate-500 font-semibold">Custom:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="36"
+                        value={formData.advanceMonths || 1}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            advanceMonths: Math.max(1, parseInt(e.target.value, 10) || 1),
+                          })
+                        }
+                        className="w-14 px-1.5 py-0.5 bg-white border border-blue-300 rounded text-center text-xs font-bold font-mono focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-2 border-t border-blue-200/60 text-xs text-blue-900">
+                  <span>
+                    Initial invoice will cover <strong>{advanceMonths} month{advanceMonths > 1 ? "s" : ""}</strong> of service.
+                  </span>
+                  <span className="font-mono font-bold text-blue-950">
+                    Base Retainer: ₹{baseUpfrontAmount.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* GST Applicable Toggle & GSTIN Input */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-3.5 h-3.5 text-indigo-600" />
+                  <div>
+                    <span className="font-bold text-xs text-slate-800">GST Invoice Applicable</span>
+                    <p className="text-[10px] text-slate-500">Apply standard 18% GST on this client&apos;s invoice and payment.</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      isGstApplicable: !prev.isGstApplicable,
+                    }))
+                  }
+                  className={cn(
+                    "w-11 h-6 rounded-full transition-colors relative cursor-pointer",
+                    formData.isGstApplicable ? "bg-emerald-600" : "bg-slate-300"
+                  )}
+                  title="Toggle GST applicability"
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow-xs flex items-center justify-center",
+                      formData.isGstApplicable ? "translate-x-5" : "translate-x-0"
+                    )}
+                  >
+                    {formData.isGstApplicable && <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />}
+                  </span>
+                </button>
+              </div>
+
+              {formData.isGstApplicable && (
+                <div className="pt-2 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">
+                      Client GSTIN Number (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 27ABCDE1234F1Z5"
+                      value={formData.gstNumber || ""}
+                      onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-mono text-xs focus:outline-none focus:border-indigo-500 uppercase"
+                    />
+                  </div>
+
+                  <div className="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-right font-mono text-[11px] text-emerald-900 space-y-0.5">
+                    <div className="flex justify-between text-slate-600 text-[10px]">
+                      <span>Base Total:</span>
+                      <span>₹{baseUpfrontAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-emerald-700">
+                      <span>GST (18%):</span>
+                      <span>+ ₹{gstAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-slate-900 pt-0.5 border-t border-emerald-200/60 text-xs">
+                      <span>Total Payable:</span>
+                      <span>₹{totalPayableWithGst.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -736,7 +882,11 @@ export function OnboardClientModal({
               className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm shadow-blue-600/20 flex items-center gap-2 transition-all cursor-pointer text-xs"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{loading ? "Onboarding..." : submitButtonText}</span>
+              <span>
+                {loading
+                  ? "Onboarding..."
+                  : `${submitButtonText} (₹${totalPayableWithGst.toLocaleString("en-IN")})`}
+              </span>
             </button>
           </div>
         </form>

@@ -128,6 +128,9 @@ export async function createClient(data: {
   estimatedEndDate?: string;
   documentUrl?: string;
   documentName?: string;
+  advanceMonths?: number;
+  isGstApplicable?: boolean;
+  gstNumber?: string;
   leadId?: string;
   assignedEmployeeIds?: string[];
   initialServices?: {
@@ -197,6 +200,14 @@ export async function createClient(data: {
       estimatedEndDate: data.estimatedEndDate ? new Date(data.estimatedEndDate) : null,
       documentUrl: data.documentUrl || null,
       documentName: data.documentName || null,
+      advanceMonths: data.advanceMonths ? Number(data.advanceMonths) : 1,
+      paidUntilDate: data.billingType === "MONTHLY" ? (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + (data.advanceMonths ? Number(data.advanceMonths) : 1));
+        return d;
+      })() : null,
+      isGstApplicable: Boolean(data.isGstApplicable),
+      gstNumber: data.gstNumber || null,
       leadId: data.leadId || null,
       customerId,
       createdById: currentEmpId || null,
@@ -246,7 +257,20 @@ export async function createClient(data: {
   if (data.billingType === "MONTHLY") {
     const orderCount = await prisma.order.count();
     const orderCode = `ORD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`;
-    const totalAmt = Number(data.amount) || 0;
+    const monthlyRate = Number(data.amount) || 0;
+    const advanceMonths = data.advanceMonths && Number(data.advanceMonths) > 0 ? Number(data.advanceMonths) : 1;
+    const baseCollected = monthlyRate * advanceMonths;
+    const isGst = Boolean(data.isGstApplicable);
+    const taxAmt = isGst ? baseCollected * 0.18 : 0;
+    const finalTotalWithTax = baseCollected + taxAmt;
+
+    const coverageLabel = advanceMonths > 1
+      ? `${advanceMonths} Months Advance Retainer (₹${monthlyRate.toLocaleString("en-IN")}/mo × ${advanceMonths}m)`
+      : `1 Month Retainer (₹${monthlyRate.toLocaleString("en-IN")}/mo)`;
+
+    const serviceTitle = data.initialServices?.[0]?.serviceName
+      ? `${data.initialServices[0].serviceName} (${coverageLabel})`
+      : `${data.departmentType} Retainer (${coverageLabel})`;
 
     await prisma.order.create({
       data: {
@@ -255,33 +279,34 @@ export async function createClient(data: {
         clientId: client.id,
         employeeId: currentEmpId || null,
         leadId: data.leadId || null,
-        totalAmount: totalAmt,
+        totalAmount: baseCollected,
         discount: 0,
-        tax: totalAmt * 0.18,
+        tax: taxAmt,
         paymentStatus: "PAID",
-        notes: `Onboarded as Monthly Client ${client.clientCode} (${data.departmentType})`,
+        notes: `Onboarded as Monthly Client ${client.clientCode} with ${coverageLabel}${isGst ? " [18% GST Applied]" : " [Non-GST]"}`,
         orderItems: {
           create: {
-            itemTitle: data.initialServices?.[0]?.serviceName || `${data.departmentType} Retainer`,
-            quantity: 1,
-            unitPrice: totalAmt,
-            total: totalAmt,
+            itemTitle: serviceTitle,
+            quantity: advanceMonths,
+            unitPrice: monthlyRate,
+            total: baseCollected,
           },
         },
         invoices: {
           create: {
             invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
             dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
-            totalAmount: totalAmt * 1.18,
+            totalAmount: finalTotalWithTax,
             paymentStatus: "PAID",
           },
         },
         payments: {
           create: {
             paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
-            amount: totalAmt * 1.18,
+            amount: finalTotalWithTax,
             paymentMethod: "Bank Transfer",
             paymentStatus: "PAID",
+            notes: isGst ? `Includes ₹${taxAmt.toLocaleString("en-IN")} GST (18%)` : "Exclusive / Zero GST transaction",
           },
         },
       },

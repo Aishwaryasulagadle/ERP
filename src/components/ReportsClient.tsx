@@ -446,6 +446,9 @@ export function ReportsClient({
         estimatedEndDate: formData.estimatedEndDate,
         documentUrl: formData.documentUrl,
         documentName: formData.documentName,
+        advanceMonths: formData.advanceMonths,
+        isGstApplicable: formData.isGstApplicable,
+        gstNumber: formData.gstNumber,
         assignedEmployeeIds: formData.assignedEmployeeIds,
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,
@@ -1318,6 +1321,16 @@ export function ReportsClient({
                         >
                           {selectedClient.status}
                         </span>
+                        {selectedClient.isGstApplicable && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            18% GST {selectedClient.gstNumber ? `(${selectedClient.gstNumber})` : ""}
+                          </span>
+                        )}
+                        {selectedClient.billingType === "MONTHLY" && selectedClient.advanceMonths > 1 && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                            ${selectedClient.advanceMonths}m Advance Paid
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
                         {selectedClient.company || selectedClient.email || "Client Organization"} • Phone: {selectedClient.phone || "N/A"} • Onboarded: {formatDate(selectedClient.onboardingDate)}{selectedClient.estimatedEndDate ? ` • Target End: ${formatDate(selectedClient.estimatedEndDate)}` : ""}
@@ -1407,7 +1420,11 @@ export function ReportsClient({
                       {formatCurrency(selectedClient.amount)}
                     </span>
                     <span className="text-[11px] text-slate-400 block">
-                      {selectedClient.billingType === "MONTHLY" ? "Recurring every monthly cycle" : "Fixed scope milestone contract"}
+                      {selectedClient.billingType === "MONTHLY"
+                        ? selectedClient.advanceMonths > 1
+                          ? `Paid ${selectedClient.advanceMonths} Months Advance (${selectedClient.paidUntilDate ? 'Paid Until ' + formatDate(selectedClient.paidUntilDate) : 'Initial ' + selectedClient.advanceMonths + ' Months'})`
+                          : "Recurring every monthly cycle"
+                        : "Fixed scope milestone contract"}
                     </span>
                   </div>
 

@@ -117,6 +117,10 @@ model Lead {
   serviceDetails   String?      // Notes or specs
   followUpDate     DateTime?
   notes            String?
+  advanceMonths    Int                @default(1)
+  paidUntilDate    DateTime?
+  isGstApplicable  Boolean            @default(false)
+  gstNumber        String?
   // Outreach & CRM AI Integrations fields
   externalId       String?      @unique
   externalSource   String?      // "OUTREACH_GMAPS" | "CRM_AI_AGENT"

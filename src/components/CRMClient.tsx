@@ -314,6 +314,9 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
         estimatedEndDate: formData.estimatedEndDate,
         documentUrl: formData.documentUrl,
         documentName: formData.documentName,
+        advanceMonths: formData.advanceMonths,
+        isGstApplicable: formData.isGstApplicable,
+        gstNumber: formData.gstNumber,
         leadId: selectedLead.id,
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,
