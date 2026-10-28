@@ -332,6 +332,39 @@ export function ClientPortalDashboard({ client, user }: ClientPortalDashboardPro
       {activeTab === "PROGRESS_SHEET" && (
         <div className="space-y-6">
           <div className="bg-white border border-slate-200/90 rounded-xl p-6 space-y-6 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+            {/* Client Quotation / Scope Document */}
+            {clientData?.documentUrl && (
+              <div className="bg-indigo-50/70 border border-indigo-200/90 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0 font-bold text-xs">
+                    PDF
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-indigo-950 truncate">
+                        {clientData.documentName || 'Official Quotation & Agreement Document'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-200/60 text-indigo-800 shrink-0">
+                        QUOTATION FILE
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-indigo-700/80 mt-0.5">
+                      Your approved scope of work & agreement document.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={clientData.documentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  >
+                    <span>View / Download Agreement ↗</span>
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">

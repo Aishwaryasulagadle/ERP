@@ -311,6 +311,9 @@ export function CRMClient({ initialLeads, employees, user, userRole = "EMPLOYEE"
         billingType: formData.billingType,
         amount: formData.amount,
         notes: formData.notes,
+        estimatedEndDate: formData.estimatedEndDate,
+        documentUrl: formData.documentUrl,
+        documentName: formData.documentName,
         leadId: selectedLead.id,
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,

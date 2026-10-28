@@ -443,6 +443,9 @@ export function ReportsClient({
         billingType: formData.billingType,
         amount: Number(formData.amount) || 0,
         notes: formData.notes,
+        estimatedEndDate: formData.estimatedEndDate,
+        documentUrl: formData.documentUrl,
+        documentName: formData.documentName,
         assignedEmployeeIds: formData.assignedEmployeeIds,
         initialServices: formData.services.map((s) => ({
           serviceName: s.serviceName,
@@ -1317,7 +1320,7 @@ export function ReportsClient({
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {selectedClient.company || selectedClient.email || "Client Organization"} • Phone: {selectedClient.phone || "N/A"} • Onboarded: {formatDate(selectedClient.onboardingDate)}
+                        {selectedClient.company || selectedClient.email || "Client Organization"} • Phone: {selectedClient.phone || "N/A"} • Onboarded: {formatDate(selectedClient.onboardingDate)}{selectedClient.estimatedEndDate ? ` • Target End: ${formatDate(selectedClient.estimatedEndDate)}` : ""}
                       </p>
                     </div>
                   </div>
@@ -1458,6 +1461,41 @@ export function ReportsClient({
                 </div>
 
                 {/* Client Operational Instructions / Onboarding Notes */}
+                {/* Attached Quotation / Scope Document */}
+                {selectedClient.documentUrl && (
+                  <div className="bg-indigo-50/70 border border-indigo-200/90 rounded-xl p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-indigo-950 truncate">
+                            {selectedClient.documentName || 'Client Quotation & Scope Document'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-200/60 text-indigo-800 shrink-0">
+                            QUOTATION FILE
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-indigo-700/80 mt-0.5">
+                          Uploaded during onboarding. Team can view/download anytime for project reference.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={selectedClient.documentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>View / Download Document ↗</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {selectedClient.notes && (
                   <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4.5 space-y-1.5 shadow-2xs">
                     <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider font-mono">

@@ -430,6 +430,9 @@ model Client {
   amount           Float              @default(0) // Retainer or Contract Amount
   status           String             @default("ACTIVE") // ACTIVE, ON_HOLD, COMPLETED, CANCELLED
   onboardingDate   DateTime           @default(now())
+  estimatedEndDate DateTime?
+  documentUrl      String?
+  documentName     String?
   notes            String?
 
   leadId           String?            @unique

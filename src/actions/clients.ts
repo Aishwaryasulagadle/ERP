@@ -125,6 +125,9 @@ export async function createClient(data: {
   billingType: "MONTHLY" | "ONE_TIME";
   amount: number;
   notes?: string;
+  estimatedEndDate?: string;
+  documentUrl?: string;
+  documentName?: string;
   leadId?: string;
   assignedEmployeeIds?: string[];
   initialServices?: {
@@ -191,6 +194,9 @@ export async function createClient(data: {
       billingType: data.billingType,
       amount: Number(data.amount) || 0,
       notes: data.notes || null,
+      estimatedEndDate: data.estimatedEndDate ? new Date(data.estimatedEndDate) : null,
+      documentUrl: data.documentUrl || null,
+      documentName: data.documentName || null,
       leadId: data.leadId || null,
       customerId,
       createdById: currentEmpId || null,
