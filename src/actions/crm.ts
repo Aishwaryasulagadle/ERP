@@ -416,7 +416,7 @@ export async function convertLeadToCustomerAndOrder(
       leadId: lead.id,
       totalAmount: orderData.totalAmount,
       discount: 0,
-      tax: orderData.totalAmount * 0.18,
+      tax: 0,
       paymentStatus: "PAID",
       notes: `Converted from lead ${lead.leadCode} -> Onboarded as Client ${client.clientCode}`,
       orderItems: {
@@ -431,14 +431,14 @@ export async function convertLeadToCustomerAndOrder(
         create: {
           invoiceCode: `INV-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
           dueDate: new Date(Date.now() + 15 * 24 * 3600 * 1000),
-          totalAmount: orderData.totalAmount * 1.18,
+          totalAmount: orderData.totalAmount,
           paymentStatus: "PAID",
         },
       },
       payments: {
         create: {
           paymentCode: `PAY-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, "0")}`,
-          amount: orderData.totalAmount * 1.18,
+          amount: orderData.totalAmount,
           paymentMethod: "Bank Transfer",
           paymentStatus: "PAID",
         },

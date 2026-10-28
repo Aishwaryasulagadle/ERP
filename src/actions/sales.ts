@@ -707,7 +707,7 @@ export async function createOrder(data: {
       employeeId: (session.user as any).employeeId || null,
       totalAmount,
       discount: Number(data.discount) || 0,
-      tax: totalAmount * 0.18,
+      tax: 0,
       paymentStatus: data.paymentStatus || "PENDING",
       notes: data.notes,
       orderItems: {
@@ -722,7 +722,7 @@ export async function createOrder(data: {
         create: {
           invoiceCode: `INV-2026-${String(orderCount + 1).padStart(3, "0")}`,
           dueDate: new Date(Date.now() + 14 * 24 * 3600 * 1000),
-          totalAmount: totalAmount * 1.18,
+          totalAmount: totalAmount,
           paymentStatus: data.paymentStatus || "PENDING",
         },
       },
